@@ -6,11 +6,25 @@ using Avalonia.VisualTree;
 
 namespace ArxisStudio.Controls;
 
+/// <summary>
+/// Панель для абсолютного позиционирования дочерних элементов.
+/// <para>
+/// Поддерживает гибридный режим:
+/// 1. Если заданы <see cref="Layout.XProperty"/> или <see cref="Layout.YProperty"/>, элемент размещается по координатам.
+/// 2. Если координаты не заданы (NaN), используется <see cref="Layoutable.HorizontalAlignment"/> и <see cref="Layoutable.VerticalAlignment"/>.
+/// </para>
+/// </summary>
 public class AbsolutePanel : Panel
 {
+    /// <summary>
+    /// Определяет свойство <see cref="Extent"/>.
+    /// </summary>
     public static readonly StyledProperty<Rect> ExtentProperty =
         AvaloniaProperty.Register<AbsolutePanel, Rect>(nameof(Extent));
 
+    /// <summary>
+    /// Получает прямоугольник, охватывающий все дочерние элементы.
+    /// </summary>
     public Rect Extent
     {
         get => GetValue(ExtentProperty);
@@ -19,6 +33,8 @@ public class AbsolutePanel : Panel
 
     static AbsolutePanel()
     {
+        // Подписываемся на изменения координат Layout.X/Y у дочерних элементов,
+        // чтобы вызвать пересчет макета.
         Layout.XProperty.Changed.AddClassHandler<Control>((s, e) => InvalidateParentLayout(s));
         Layout.YProperty.Changed.AddClassHandler<Control>((s, e) => InvalidateParentLayout(s));
     }
@@ -32,6 +48,7 @@ public class AbsolutePanel : Panel
         }
     }
 
+    /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
         var infinite = new Size(double.PositiveInfinity, double.PositiveInfinity);
@@ -41,11 +58,13 @@ public class AbsolutePanel : Panel
 
         foreach (var child in Children)
         {
+            // Измеряем ребенка с бесконечностью, чтобы узнать его желаемый размер
             child.Measure(infinite);
 
             double x = Layout.GetX(child);
             double y = Layout.GetY(child);
 
+            // Если координаты не заданы (NaN), считаем их 0 для расчета границ Extent
             double effectiveX = double.IsNaN(x) ? 0 : x;
             double effectiveY = double.IsNaN(y) ? 0 : y;
 
@@ -61,33 +80,44 @@ public class AbsolutePanel : Panel
             }
         }
 
+        // Обновляем свойство Extent (область, занятая элементами)
         var extent = hasItems ? new Rect(minX, minY, maxX - minX, maxY - minY) : new Rect();
         SetCurrentValue(ExtentProperty, extent);
 
-        return new Size(maxX, maxY);
+        // ФИКС:
+        // Если панели дали конкретное место (availableSize не бесконечен), занимаем его полностью.
+        // Это позволяет работать выравниванию (Right/Bottom) внутри фиксированных контейнеров.
+        // Иначе (если бесконечность, например в ScrollViewer) - занимаем место по контенту.
+        double resultW = double.IsPositiveInfinity(availableSize.Width) ? maxX : availableSize.Width;
+        double resultH = double.IsPositiveInfinity(availableSize.Height) ? maxY : availableSize.Height;
+
+        return new Size(resultW, resultH);
     }
 
+    /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
         foreach (var child in Children)
         {
             // ВАЖНО: Принудительно включаем слежение за глобальными координатами для каждого ребенка.
-            // Это чинит проблему, когда DesignX/Y не обновлялись для элементов без явных Layout.X/Y.
+            // Это гарантирует обновление DesignX/DesignY даже для элементов без явных Layout.X/Y.
             Layout.Track(child);
 
             double x = Layout.GetX(child);
             double y = Layout.GetY(child);
 
-            // Расчет X
+            // --- Расчет позиции X ---
             double finalX = 0;
             double finalW = child.DesiredSize.Width;
 
             if (!double.IsNaN(x))
             {
+                // Приоритет 1: Абсолютная координата
                 finalX = x;
             }
             else
             {
+                // Приоритет 2: Выравнивание (Alignment)
                 switch (child.HorizontalAlignment)
                 {
                     case HorizontalAlignment.Center:
@@ -98,7 +128,7 @@ public class AbsolutePanel : Panel
                         break;
                     case HorizontalAlignment.Stretch:
                         finalX = 0;
-                        finalW = finalSize.Width;
+                        finalW = finalSize.Width; // Растягиваем ширину
                         break;
                     default: // Left
                         finalX = 0;
@@ -106,16 +136,18 @@ public class AbsolutePanel : Panel
                 }
             }
 
-            // Расчет Y
+            // --- Расчет позиции Y ---
             double finalY = 0;
             double finalH = child.DesiredSize.Height;
 
             if (!double.IsNaN(y))
             {
+                // Приоритет 1: Абсолютная координата
                 finalY = y;
             }
             else
             {
+                // Приоритет 2: Выравнивание (Alignment)
                 switch (child.VerticalAlignment)
                 {
                     case VerticalAlignment.Center:
@@ -126,7 +158,7 @@ public class AbsolutePanel : Panel
                         break;
                     case VerticalAlignment.Stretch:
                         finalY = 0;
-                        finalH = finalSize.Height;
+                        finalH = finalSize.Height; // Растягиваем высоту
                         break;
                     default: // Top
                         finalY = 0;
@@ -134,6 +166,7 @@ public class AbsolutePanel : Panel
                 }
             }
 
+            // Размещаем элемент
             child.Arrange(new Rect(finalX, finalY, finalW, finalH));
         }
         return finalSize;

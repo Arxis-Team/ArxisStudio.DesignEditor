@@ -7,15 +7,18 @@
 
     <ControlTheme x:Key="{x:Type arxisStudio:DesignEditorItem}" TargetType="arxisStudio:DesignEditorItem">
         <Setter Property="Background" Value="Transparent" />
+
         <Setter Property="BorderBrush" Value="DodgerBlue" />
+
         <Setter Property="BorderThickness" Value="0" />
 
-        <Setter Property="SelectedBorderThickness" Value="2" />
+        <Setter Property="SelectedBorderThickness" Value="1" />
         <Setter Property="SelectedBrush" Value="#0099FF" />
 
         <Setter Property="CornerRadius" Value="0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="ClipToBounds" Value="False" />
+
         <Setter Property="UseLayoutRounding" Value="True" />
 
         <Setter Property="Template">
@@ -40,14 +43,6 @@
                             IsHitTestVisible="False"
                             Opacity="0" />
 
-                    <Border Name="PART_SelectionBorder"
-                            BorderBrush="{TemplateBinding SelectedBrush}"
-                            BorderThickness="{TemplateBinding SelectedBorderThickness}"
-                            Margin="{Binding SelectedMargin, RelativeSource={RelativeSource TemplatedParent}}"
-                            CornerRadius="{TemplateBinding CornerRadius}"
-                            IsHitTestVisible="False"
-                            IsVisible="False" />
-
                     <controls1:ResizeAdorner Name="PART_Resizer"
                                             AdornerBrush="{TemplateBinding SelectedBrush}"
                                             HandleSize="8"
@@ -69,16 +64,15 @@
         </Setter>
 
         <Style Selector="^:selected">
-            <Setter Property="ZIndex" Value="99" />
+            <Setter Property="BorderBrush" Value="{Binding SelectedBrush, RelativeSource={RelativeSource Self}}" />
+            <Setter Property="BorderThickness" Value="{Binding SelectedBorderThickness, RelativeSource={RelativeSource Self}}" />
+            <Setter Property="Margin" Value="{Binding SelectedMargin, RelativeSource={RelativeSource Self}}" />
 
-            <Style Selector="^ /template/ Border#PART_SelectionBorder">
-                <Setter Property="IsVisible" Value="True"/>
-            </Style>
+            <Setter Property="ZIndex" Value="99" />
 
             <Style Selector="^ /template/ controls1|ResizeAdorner#PART_Resizer">
                 <Setter Property="IsVisible" Value="True"/>
             </Style>
-
             <Style Selector="^ /template/ StackPanel#PART_Toolbar">
                 <Setter Property="Opacity" Value="1"/>
                 <Setter Property="IsHitTestVisible" Value="True"/>

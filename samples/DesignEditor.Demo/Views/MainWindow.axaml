@@ -121,12 +121,12 @@
 
                                 <TextBlock
                                     Name="TextBlock1"
-                                    attached:Layout.IsTracked="True"
+
+                                    attached:Layout.DesignX="200"
+                                    attached:Layout.DesignY="100"
                                     Text="Dashboard"
                                     FontWeight="Bold"
                                     FontSize="16"
-                                    HorizontalAlignment="Right"
-
                                     Foreground="White" />
 
                                 <StackPanel
