@@ -1,12 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DesignEditor.Demo.ViewModels"
+        xmlns:templates="using:DesignEditor.Demo.Views.Templates"
         xmlns:arxisStudio="clr-namespace:ArxisStudio;assembly=ArxisStudio.DesignEditor"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:attached="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
-        xmlns:controls="clr-namespace:ArxisStudio.Controls;assembly=ArxisStudio.DesignEditor"
         x:Class="DesignEditor.Demo.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -87,69 +86,14 @@
                                  SelectionMode="Multiple"
                                  ViewportZoom="{Binding Zoom, Mode=TwoWay}">
 
-            <arxisStudio:DesignEditor.Styles>
-                <Style Selector="arxisStudio|DesignEditorItem" x:DataType="vm:DesignItemViewModel">
-                    <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}"/>
-
-                    <Setter Property="Width" Value="{Binding Width, Mode=TwoWay}"/>
-                    <Setter Property="Height" Value="{Binding Height, Mode=TwoWay}"/>
-
-                    <Setter Property="HorizontalAlignment" Value="Left"/>
-                    <Setter Property="VerticalAlignment" Value="Top"/>
-                </Style>
-            </arxisStudio:DesignEditor.Styles>
-
             <arxisStudio:DesignEditor.DataTemplates>
-
                 <DataTemplate DataType="{x:Type vm:LoginNodeViewModel}">
-                    <Border Background="#202020" BorderBrush="#383838" BorderThickness="1"
-                            CornerRadius="12" Padding="30" >
-                        <StackPanel Spacing="20">
-                            <TextBlock Text="Login Form" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            <StackPanel Spacing="12">
-                                <TextBox Watermark="Email" CornerRadius="6" Background="#2D2D2D" Foreground="White"/>
-                                <Button Content="Sign In" HorizontalAlignment="Stretch" Background="#4C97FF" Foreground="White"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                    <templates:LoginNodeView />
                 </DataTemplate>
 
                 <DataTemplate DataType="{x:Type vm:DashboardNodeViewModel}">
-                    <Border Background="#202020" BorderBrush="#383838" BorderThickness="1">
-
-                            <controls:AbsolutePanel  >
-
-                                <TextBlock
-                                    Name="TextBlock1"
-
-                                    attached:Layout.DesignX="200"
-                                    attached:Layout.DesignY="100"
-                                    Text="Dashboard"
-                                    FontWeight="Bold"
-                                    FontSize="16"
-                                    Foreground="White" />
-
-                                <StackPanel
-                                    Orientation="Horizontal"
-                                    Spacing="5"
-                                    Margin="0,10,0,0"
-                                    Opacity="0.5">
-                                    <TextBlock Text="X:"  Foreground="#CCC"/>
-                                    <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignX), StringFormat='{}{0:0}'}" Foreground="White"/>
-                                    <TextBlock Text="Y:" Foreground="#CCC"/>
-                                    <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignY), StringFormat='{}{0:0}'}" Foreground="White"/>
-                                    <TextBlock Text="DesX:" Foreground="#CCC"/>
-                                    <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.X), StringFormat='{}{0:0}'}" Foreground="White"/>
-                                    <TextBlock Text="DesY:" Foreground="#CCC"/>
-                                    <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.Y), StringFormat='{}{0:0}'}" Foreground="White"/>
-
-                                </StackPanel>
-
-                            </controls:AbsolutePanel>
-
-                    </Border>
+                    <templates:DashboardNodeView />
                 </DataTemplate>
-
             </arxisStudio:DesignEditor.DataTemplates>
 
         </arxisStudio:DesignEditor>

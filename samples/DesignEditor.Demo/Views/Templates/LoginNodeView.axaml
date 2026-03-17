@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DesignEditor.Demo.Views.Templates.LoginNodeView">
+
+    <Border Background="#202020"
+            BorderBrush="#383838"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="30">
+        <StackPanel Spacing="20">
+            <TextBlock Text="Login Form"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+            <StackPanel Spacing="12">
+                <TextBox Watermark="Email"
+                         CornerRadius="6"
+                         Background="#2D2D2D"
+                         Foreground="White" />
+                <Button Content="Sign In"
+                        HorizontalAlignment="Stretch"
+                        Background="#4C97FF"
+                        Foreground="White" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

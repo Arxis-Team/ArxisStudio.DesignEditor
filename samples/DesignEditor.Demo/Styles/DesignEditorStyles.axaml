@@ -1,0 +1,13 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DesignEditor.Demo.ViewModels"
+        xmlns:design="clr-namespace:ArxisStudio;assembly=ArxisStudio.DesignEditor">
+
+    <Style Selector="design|DesignEditorItem" x:DataType="vm:DesignItemViewModel">
+        <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+        <Setter Property="Width" Value="{Binding Width, Mode=TwoWay}" />
+        <Setter Property="Height" Value="{Binding Height, Mode=TwoWay}" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+</Styles>

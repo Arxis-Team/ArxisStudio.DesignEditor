@@ -11,6 +11,7 @@
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://DesignEditor.Demo/Styles/DesignEditorStyles.axaml" />
     </Application.Styles>
 
     <Application.Resources>
