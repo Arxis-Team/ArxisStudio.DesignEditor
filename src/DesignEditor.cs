@@ -39,6 +39,7 @@ public class DesignEditor : SelectingItemsControl
     #region Constants
     private const double ZoomFactor = 1.1;
     private const double ZoomTolerance = 0.0001;
+    private const double FitToViewPadding = 32.0;
     #endregion
 
     #region State Machine
@@ -440,9 +441,19 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     /// <param name="item">Элемент, который необходимо центрировать в области просмотра.</param>
     /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="item"/> равен <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Выбрасывается, если <paramref name="item"/> не принадлежит текущему экземпляру <see cref="DesignEditor"/>.
+    /// </exception>
     /// <remarks>
-    /// Метод использует текущие <see cref="Location"/> и <see cref="Visual.Bounds"/> элемента.
-    /// Элемент должен принадлежать этому редактору и иметь актуальный layout.
+    /// Метод изменяет только <see cref="ViewportLocation"/> и не изменяет <see cref="ViewportZoom"/>.
+    /// <para>
+    /// Если размер элемента превышает размер видимой области, элемент не масштабируется и не вписывается целиком:
+    /// в центр видимой области помещается только геометрический центр элемента.
+    /// </para>
+    /// <para>
+    /// Метод использует текущие <see cref="DesignEditorItem.Location"/> и <see cref="Visual.Bounds"/> элемента.
+    /// Для корректного результата элемент должен принадлежать текущему редактору и иметь актуальный layout.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code language="csharp"><![CDATA[
@@ -462,6 +473,68 @@ public class DesignEditor : SelectingItemsControl
             item.Location.Y + (item.Bounds.Height / 2));
 
         CenterOn(itemCenter);
+    }
+
+    /// <summary>
+    /// Изменяет положение и масштаб viewport так, чтобы указанная область целиком поместилась в видимой области редактора.
+    /// </summary>
+    /// <param name="bounds">Прямоугольная область в мировых координатах, которую необходимо вписать в окно.</param>
+    /// <remarks>
+    /// Метод изменяет <see cref="ViewportLocation"/> и <see cref="ViewportZoom"/>.
+    /// <para>
+    /// Для более аккуратного отображения вокруг области добавляется внутренний отступ.
+    /// Итоговый масштаб ограничивается значениями <see cref="MinZoom"/> и <see cref="MaxZoom"/>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp"><![CDATA[
+    /// editor.FitToView(new Rect(100, 100, 640, 360));
+    /// ]]></code>
+    /// </example>
+    public void FitToView(Rect bounds)
+    {
+        if (Bounds.Width <= 0 || Bounds.Height <= 0)
+            return;
+
+        var paddedBounds = bounds.Inflate(FitToViewPadding);
+        var targetWidth = Math.Max(1.0, paddedBounds.Width);
+        var targetHeight = Math.Max(1.0, paddedBounds.Height);
+
+        var zoomX = Bounds.Width / targetWidth;
+        var zoomY = Bounds.Height / targetHeight;
+        var newZoom = Math.Min(zoomX, zoomY);
+        newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
+
+        ViewportZoom = newZoom;
+        CenterOn(paddedBounds.Center);
+    }
+
+    /// <summary>
+    /// Изменяет положение и масштаб viewport так, чтобы указанный элемент целиком поместился в видимой области редактора.
+    /// </summary>
+    /// <param name="item">Элемент, который необходимо вписать в окно редактора.</param>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="item"/> равен <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Выбрасывается, если <paramref name="item"/> не принадлежит текущему экземпляру <see cref="DesignEditor"/>.
+    /// </exception>
+    /// <remarks>
+    /// Метод использует текущие <see cref="DesignEditorItem.Location"/> и <see cref="Visual.Bounds"/> элемента
+    /// и делегирует расчет геометрии перегрузке <see cref="FitToView(Rect)"/>.
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp"><![CDATA[
+    /// editor.FitToView(container);
+    /// ]]></code>
+    /// </example>
+    public void FitToView(DesignEditorItem item)
+    {
+        if (item == null)
+            throw new ArgumentNullException(nameof(item));
+
+        if (!ReferenceEquals(item.FindAncestorOfType<DesignEditor>(), this))
+            throw new InvalidOperationException("The specified item does not belong to this DesignEditor.");
+
+        FitToView(new Rect(item.Location, item.Bounds.Size));
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)

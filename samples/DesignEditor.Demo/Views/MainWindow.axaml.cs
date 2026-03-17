@@ -22,4 +22,16 @@ public partial class MainWindow : Window
         if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container)
             editor.CenterOnItem(container);
     }
+
+    private void FitActiveItem_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel || viewModel.ActiveItem == null)
+            return;
+
+        if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is not { } editor)
+            return;
+
+        if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container)
+            editor.FitToView(container);
+    }
 }

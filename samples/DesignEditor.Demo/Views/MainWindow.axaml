@@ -255,6 +255,22 @@
                     </StackPanel>
                 </Button>
 
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Fit active item to view"
+                        Click="FitActiveItem_OnClick"
+                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M3,3H9V5H5V9H3V3M21,3V9H19V5H15V3H21M3,21V15H5V19H9V21H3M21,21H15V19H19V15H21V21Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Fit"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
             </StackPanel>
         </Border>
 

@@ -29,6 +29,7 @@
 - состояния взаимодействия: idle, selecting, panning
 - групповое перемещение выбранных элементов
 - навигацию viewport через `CenterOn(...)` и `CenterOnItem(...)`
+- вписывание области или элемента через `FitToView(...)`
 
 ### `DesignEditorItem`
 
@@ -126,6 +127,8 @@ public class DesignNodeViewModel
 
 - `CenterOn(Point worldPoint)` — центрирует видимую область на указанной мировой точке
 - `CenterOnItem(DesignEditorItem item)` — центрирует видимую область на конкретном элементе
+- `FitToView(Rect bounds)` — подбирает масштаб и позицию viewport так, чтобы область целиком поместилась в окне
+- `FitToView(DesignEditorItem item)` — вписывает конкретный элемент в видимую область
 
 Пример:
 
@@ -133,6 +136,7 @@ public class DesignNodeViewModel
 if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container)
 {
     editor.CenterOnItem(container);
+    editor.FitToView(container);
 }
 ```
 
@@ -141,6 +145,12 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - не меняют `ViewportZoom`
 - изменяют только `ViewportLocation`
 - подходят для навигации к активному элементу, выделению или заданной координате
+
+Методы `FitToView(...)`:
+
+- изменяют и `ViewportLocation`, и `ViewportZoom`
+- ограничивают масштаб значениями `MinZoom` и `MaxZoom`
+- добавляют внутренний padding вокруг целевой области
 
 ## Пример использования `Layout`
 
@@ -165,6 +175,7 @@ dotnet run --project samples/DesignEditor.Demo
 ```
 
 В демо-приложении добавлена кнопка `Center`, которая использует `CenterOnItem(...)` для активного элемента.
+Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
 
 ## Сборка
 
