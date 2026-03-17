@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using System.Collections.Generic;
 
 namespace ArxisStudio.Controls;
 
@@ -61,6 +62,8 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 [TemplatePart("PART_Left", typeof(Thumb))]
 public class ResizeAdorner : TemplatedControl
 {
+    private readonly Dictionary<Thumb, ResizeDirection> _thumbDirections = new();
+
     #region Styled Properties
 
     public static readonly StyledProperty<IBrush> AdornerBrushProperty =
@@ -124,6 +127,8 @@ public class ResizeAdorner : TemplatedControl
     {
         base.OnApplyTemplate(e);
 
+        UnbindThumbs();
+
         BindThumb(e, "PART_TopLeft", ResizeDirection.TopLeft);
         BindThumb(e, "PART_Top", ResizeDirection.Top);
         BindThumb(e, "PART_TopRight", ResizeDirection.TopRight);
@@ -138,24 +143,47 @@ public class ResizeAdorner : TemplatedControl
     {
         if (e.NameScope.Find(name) is Thumb thumb)
         {
-            thumb.DragDelta += (s, args) =>
-            {
-                RaiseEvent(new ResizeDeltaEventArgs(args.Vector, direction, ResizeDeltaEvent));
-            };
+            thumb.DragDelta -= OnThumbDragDelta;
+            thumb.DragStarted -= OnThumbDragStarted;
+            thumb.DragCompleted -= OnThumbDragCompleted;
 
-            thumb.DragStarted += (s, args) =>
-            {
-                RaiseEvent(new ResizeStartedEventArgs(args.Vector, direction, ResizeStartedEvent));
-            };
-
-            thumb.DragCompleted += (s, args) =>
-            {
-                RaiseEvent(new VectorEventArgs
-                {
-                    RoutedEvent = ResizeCompletedEvent,
-                    Vector = args.Vector
-                });
-            };
+            thumb.DragDelta += OnThumbDragDelta;
+            thumb.DragStarted += OnThumbDragStarted;
+            thumb.DragCompleted += OnThumbDragCompleted;
+            _thumbDirections[thumb] = direction;
         }
+    }
+
+    private void UnbindThumbs()
+    {
+        foreach (var thumb in _thumbDirections.Keys)
+        {
+            thumb.DragDelta -= OnThumbDragDelta;
+            thumb.DragStarted -= OnThumbDragStarted;
+            thumb.DragCompleted -= OnThumbDragCompleted;
+        }
+
+        _thumbDirections.Clear();
+    }
+
+    private void OnThumbDragDelta(object? sender, VectorEventArgs args)
+    {
+        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+            RaiseEvent(new ResizeDeltaEventArgs(args.Vector, direction, ResizeDeltaEvent));
+    }
+
+    private void OnThumbDragStarted(object? sender, VectorEventArgs args)
+    {
+        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+            RaiseEvent(new ResizeStartedEventArgs(args.Vector, direction, ResizeStartedEvent));
+    }
+
+    private void OnThumbDragCompleted(object? sender, VectorEventArgs args)
+    {
+        RaiseEvent(new VectorEventArgs
+        {
+            RoutedEvent = ResizeCompletedEvent,
+            Vector = args.Vector
+        });
     }
 }

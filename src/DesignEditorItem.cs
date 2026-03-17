@@ -20,6 +20,7 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
     #region Fields
     private ResizeAdorner? _resizeAdorner;
     private readonly Stack<DesignEditorItemState> _states = new();
+    private bool _isUpdatingLocation;
     #endregion
 
     #region Standard Properties
@@ -122,6 +123,8 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
     {
         SelectableMixin.Attach<DesignEditorItem>(IsSelectedProperty);
         FocusableProperty.OverrideDefaultValue<DesignEditorItem>(true);
+        Layout.XProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) => item.SyncLocationFromLayout());
+        Layout.YProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) => item.SyncLocationFromLayout());
     }
 
     public DesignEditorItem()
@@ -166,12 +169,53 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         }
         else if (change.Property == LocationProperty)
         {
-            Layout.SetX(this, Location.X);
-            Layout.SetY(this, Location.Y);
+            if (_isUpdatingLocation)
+                return;
+
+            try
+            {
+                _isUpdatingLocation = true;
+                Layout.SetX(this, Location.X);
+                Layout.SetY(this, Location.Y);
+            }
+            finally
+            {
+                _isUpdatingLocation = false;
+            }
         }
     }
 
     private void UpdatePseudoClasses() => PseudoClasses.Set(":selected", IsSelected);
+
+    private void SyncLocationFromLayout()
+    {
+        if (_isUpdatingLocation)
+            return;
+
+        var x = Layout.GetX(this);
+        var y = Layout.GetY(this);
+
+        if (double.IsNaN(x) && double.IsNaN(y))
+            return;
+
+        var nextLocation = new Point(
+            double.IsNaN(x) ? Location.X : x,
+            double.IsNaN(y) ? Location.Y : y);
+
+        if (Math.Abs(nextLocation.X - Location.X) < 0.01 &&
+            Math.Abs(nextLocation.Y - Location.Y) < 0.01)
+            return;
+
+        try
+        {
+            _isUpdatingLocation = true;
+            SetCurrentValue(LocationProperty, nextLocation);
+        }
+        finally
+        {
+            _isUpdatingLocation = false;
+        }
+    }
 
     #region State Machine Management
 

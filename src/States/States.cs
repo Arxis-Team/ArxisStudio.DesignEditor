@@ -44,7 +44,7 @@ public class ItemIdleState : DesignEditorItemState
     public override void OnPointerPressed(PointerPressedEventArgs e)
     {
         var props = e.GetCurrentPoint(Container).Properties;
-        if (props.IsLeftButtonPressed && Container.IsDraggable)
+        if (props.IsLeftButtonPressed)
         {
             e.Pointer.Capture(Container);
             e.Handled = true;
@@ -58,7 +58,7 @@ public class ItemIdleState : DesignEditorItemState
 
     public override void OnPointerMoved(PointerEventArgs e)
     {
-        if (!_isPressed) return;
+        if (!_isPressed || !Container.IsDraggable) return;
 
         var parent = Container.GetVisualParent();
         if (parent == null) return;
@@ -204,6 +204,9 @@ public class ItemResizingState : DesignEditorItemState
         double newH = _initialSize.Height;
         double newX = _initialLocation.X;
         double newY = _initialLocation.Y;
+        double minSize = 10;
+        double initialRight = _initialLocation.X + _initialSize.Width;
+        double initialBottom = _initialLocation.Y + _initialSize.Height;
 
         double dx = _accumulatedDelta.X;
         double dy = _accumulatedDelta.Y;
@@ -220,8 +223,14 @@ public class ItemResizingState : DesignEditorItemState
             case ResizeDirection.TopLeft: newW -= dx; newX += dx; newH -= dy; newY += dy; break;
         }
 
-        if (newW < 10) newW = 10;
-        if (newH < 10) newH = 10;
+        newW = Math.Max(minSize, newW);
+        newH = Math.Max(minSize, newH);
+
+        if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            newX = initialRight - newW;
+
+        if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            newY = initialBottom - newH;
 
         Container.Width = Math.Round(newW);
         Container.Height = Math.Round(newH);

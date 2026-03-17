@@ -18,7 +18,9 @@ namespace ArxisStudio.Attached;
 /// </summary>
 public static class Layout
 {
-    private static int _isInsidePositionChange;
+    private static readonly AttachedProperty<bool> IsUpdatingPositionProperty =
+        AvaloniaProperty.RegisterAttached<Control, bool>(
+            "IsUpdatingPosition", typeof(Layout), false, inherits: false);
 
     #region Attached Properties
 
@@ -122,7 +124,8 @@ public static class Layout
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (Interlocked.Exchange(ref _isInsidePositionChange, 1) == 1) return;
+            if (GetIsUpdatingPosition(control)) return;
+            SetIsUpdatingPosition(control, true);
             try
             {
                 Visual? reference = control.FindAncestorOfType<DesignSurface>()
@@ -142,7 +145,7 @@ public static class Layout
                     }
                 }
             }
-            finally { Interlocked.Exchange(ref _isInsidePositionChange, 0); }
+            finally { SetIsUpdatingPosition(control, false); }
         }, DispatcherPriority.Render);
     }
 
@@ -151,7 +154,8 @@ public static class Layout
     /// </summary>
     private static void OnDesignPositionChanged(Control? control)
     {
-        if (control == null || Interlocked.Exchange(ref _isInsidePositionChange, 1) == 1) return;
+        if (control == null || GetIsUpdatingPosition(control)) return;
+        SetIsUpdatingPosition(control, true);
         try
         {
              // ИСПРАВЛЕНИЕ: Проверка инициализации XAML.
@@ -190,7 +194,7 @@ public static class Layout
                  }
              }
         }
-        finally { Interlocked.Exchange(ref _isInsidePositionChange, 0); }
+        finally { SetIsUpdatingPosition(control, false); }
     }
 
     #region Accessors
@@ -209,6 +213,9 @@ public static class Layout
 
     public static bool GetIsTracked(AvaloniaObject o) => o.GetValue(IsTrackedProperty);
     public static void SetIsTracked(AvaloniaObject o, bool v) => o.SetValue(IsTrackedProperty, v);
+
+    private static bool GetIsUpdatingPosition(AvaloniaObject o) => o.GetValue(IsUpdatingPositionProperty);
+    private static void SetIsUpdatingPosition(AvaloniaObject o, bool v) => o.SetValue(IsUpdatingPositionProperty, v);
 
     #endregion
 }

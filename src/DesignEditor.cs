@@ -354,6 +354,7 @@ public class DesignEditor : SelectingItemsControl
         if (items == null || items.Count == 0) return;
 
         var delta = new Vector(e.HorizontalChange, e.VerticalChange);
+        var sourceContainer = e.Source as DesignEditorItem;
 
         foreach (var item in items)
         {
@@ -361,7 +362,7 @@ public class DesignEditor : SelectingItemsControl
             if (container == null && item is DesignEditorItem directItem)
                 container = directItem;
 
-            if (container != null && container.IsDraggable)
+            if (container != null && container.IsDraggable && !ReferenceEquals(container, sourceContainer))
             {
                 container.Location += delta;
             }
