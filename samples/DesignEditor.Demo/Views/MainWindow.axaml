@@ -239,6 +239,22 @@
                     </Button>
                 </StackPanel>
 
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Center active item in view"
+                        Click="CenterActiveItem_OnClick"
+                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12,2A10,10 0 0 1 22,12A10,10 0 0 1 12,22A10,10 0 0 1 2,12A10,10 0 0 1 12,2M11,7V11H7V13H11V17H13V13H17V11H13V7H11Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Center"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
             </StackPanel>
         </Border>
 

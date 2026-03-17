@@ -28,6 +28,7 @@
 - выделение через `Selection` и `SelectedItems`
 - состояния взаимодействия: idle, selecting, panning
 - групповое перемещение выбранных элементов
+- навигацию viewport через `CenterOn(...)` и `CenterOnItem(...)`
 
 ### `DesignEditorItem`
 
@@ -119,6 +120,28 @@ public class DesignNodeViewModel
 - drag выбранных элементов
 - resize через `ResizeAdorner`
 
+## Навигация по viewport
+
+`DesignEditor` теперь предоставляет базовый API для центрирования viewport:
+
+- `CenterOn(Point worldPoint)` — центрирует видимую область на указанной мировой точке
+- `CenterOnItem(DesignEditorItem item)` — центрирует видимую область на конкретном элементе
+
+Пример:
+
+```csharp
+if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container)
+{
+    editor.CenterOnItem(container);
+}
+```
+
+Оба метода:
+
+- не меняют `ViewportZoom`
+- изменяют только `ViewportLocation`
+- подходят для навигации к активному элементу, выделению или заданной координате
+
 ## Пример использования `Layout`
 
 Для вложенного контента внутри шаблона элемента можно использовать `Layout` напрямую:
@@ -140,6 +163,8 @@ public class DesignNodeViewModel
 ```bash
 dotnet run --project samples/DesignEditor.Demo
 ```
+
+В демо-приложении добавлена кнопка `Center`, которая использует `CenterOnItem(...)` для активного элемента.
 
 ## Сборка
 

@@ -420,6 +420,50 @@ public class DesignEditor : SelectingItemsControl
         }
     }
 
+    /// <summary>
+    /// Смещает viewport так, чтобы указанная мировая точка оказалась в центре видимой области редактора.
+    /// </summary>
+    /// <param name="worldPoint">Точка в координатах содержимого редактора.</param>
+    /// <remarks>
+    /// Метод не изменяет <see cref="ViewportZoom"/> и пересчитывает только <see cref="ViewportLocation"/>.
+    /// </remarks>
+    public void CenterOn(Point worldPoint)
+    {
+        var visibleWorldSize = new Size(Bounds.Width / ViewportZoom, Bounds.Height / ViewportZoom);
+        ViewportLocation = new Point(
+            worldPoint.X - (visibleWorldSize.Width / 2),
+            worldPoint.Y - (visibleWorldSize.Height / 2));
+    }
+
+    /// <summary>
+    /// Смещает viewport так, чтобы указанный элемент оказался в центре видимой области редактора.
+    /// </summary>
+    /// <param name="item">Элемент, который необходимо центрировать в области просмотра.</param>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="item"/> равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Метод использует текущие <see cref="Location"/> и <see cref="Visual.Bounds"/> элемента.
+    /// Элемент должен принадлежать этому редактору и иметь актуальный layout.
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp"><![CDATA[
+    /// editor.CenterOnItem(container);
+    /// ]]></code>
+    /// </example>
+    public void CenterOnItem(DesignEditorItem item)
+    {
+        if (item == null)
+            throw new ArgumentNullException(nameof(item));
+
+        if (!ReferenceEquals(item.FindAncestorOfType<DesignEditor>(), this))
+            throw new InvalidOperationException("The specified item does not belong to this DesignEditor.");
+
+        var itemCenter = new Point(
+            item.Location.X + (item.Bounds.Width / 2),
+            item.Location.Y + (item.Bounds.Height / 2));
+
+        CenterOn(itemCenter);
+    }
+
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
     {
         if (Presenter?.Panel == null) return;
