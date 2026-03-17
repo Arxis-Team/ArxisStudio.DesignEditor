@@ -2,11 +2,13 @@
 
 namespace ArxisStudio;
 
+/// <summary>
+/// Описывает минимальный контракт элемента, который может размещаться на поверхности редактора.
+/// </summary>
 public interface IDesignEditorItem
 {
     /// <summary>
-    /// Позиция элемента на холсте.
-    /// Используется панелью DesignPanel для ускорения Layout (вместо медленных Canvas.Left/Top).
+    /// Получает позицию элемента на холсте.
     /// </summary>
     Point Location { get; }
 }

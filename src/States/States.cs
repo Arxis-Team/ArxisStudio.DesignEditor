@@ -12,15 +12,56 @@ namespace ArxisStudio.States;
 /// </summary>
 public abstract class DesignEditorItemState
 {
+    /// <summary>
+    /// Получает контейнер, которому принадлежит состояние.
+    /// </summary>
     protected DesignEditorItem Container { get; }
+
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignEditorItemState"/>.
+    /// </summary>
+    /// <param name="container">Контейнер, которому принадлежит состояние.</param>
     protected DesignEditorItemState(DesignEditorItem container) => Container = container;
 
+    /// <summary>
+    /// Вызывается при входе в состояние.
+    /// </summary>
+    /// <param name="from">Предыдущее состояние.</param>
     public virtual void Enter(DesignEditorItemState from) { }
+
+    /// <summary>
+    /// Вызывается при выходе из состояния.
+    /// </summary>
     public virtual void Exit() { }
+
+    /// <summary>
+    /// Вызывается при повторном входе в состояние после возврата из вложенного состояния.
+    /// </summary>
+    /// <param name="from">Состояние, из которого произошел возврат.</param>
     public virtual void ReEnter(DesignEditorItemState from) { }
+
+    /// <summary>
+    /// Обрабатывает нажатие указателя.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     public virtual void OnPointerPressed(PointerPressedEventArgs e) { }
+
+    /// <summary>
+    /// Обрабатывает перемещение указателя.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     public virtual void OnPointerMoved(PointerEventArgs e) { }
+
+    /// <summary>
+    /// Обрабатывает отпускание указателя.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     public virtual void OnPointerReleased(PointerReleasedEventArgs e) { }
+
+    /// <summary>
+    /// Обрабатывает изменение размера.
+    /// </summary>
+    /// <param name="e">Аргументы изменения размера.</param>
     public virtual void OnResizeDelta(ResizeDeltaEventArgs e) { }
 }
 
@@ -33,6 +74,10 @@ public class ItemIdleState : DesignEditorItemState
     private bool _isPressed;
     private bool _shouldSkipSelectionToggle;
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ItemIdleState"/>.
+    /// </summary>
+    /// <param name="container">Контейнер, которому принадлежит состояние.</param>
     public ItemIdleState(DesignEditorItem container) : base(container) { }
 
     public override void ReEnter(DesignEditorItemState from)
@@ -123,6 +168,11 @@ public class ItemDraggingState : DesignEditorItemState
     private readonly Point _initialPosition;
     private Point _elementStartLocation;
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ItemDraggingState"/>.
+    /// </summary>
+    /// <param name="container">Контейнер, который перетаскивается.</param>
+    /// <param name="initialPosition">Начальная точка перетаскивания.</param>
     public ItemDraggingState(DesignEditorItem container, Point initialPosition) : base(container)
     {
         _initialPosition = initialPosition;
@@ -181,6 +231,11 @@ public class ItemResizingState : DesignEditorItemState
     private Size _initialSize;
     private Vector _accumulatedDelta;
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ItemResizingState"/>.
+    /// </summary>
+    /// <param name="container">Контейнер, размер которого изменяется.</param>
+    /// <param name="direction">Направление активной ручки изменения размера.</param>
     public ItemResizingState(DesignEditorItem container, ResizeDirection direction) : base(container) => _direction = direction;
 
     public override void Enter(DesignEditorItemState from)

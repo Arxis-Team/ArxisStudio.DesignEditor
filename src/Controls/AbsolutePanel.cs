@@ -7,23 +7,23 @@ using Avalonia.VisualTree;
 namespace ArxisStudio.Controls;
 
 /// <summary>
-/// Панель для абсолютного позиционирования дочерних элементов.
-/// <para>
-/// Поддерживает гибридный режим:
-/// 1. Если заданы <see cref="Layout.XProperty"/> или <see cref="Layout.YProperty"/>, элемент размещается по координатам.
-/// 2. Если координаты не заданы (NaN), используется <see cref="Layoutable.HorizontalAlignment"/> и <see cref="Layoutable.VerticalAlignment"/>.
-/// </para>
+/// Представляет панель с абсолютным позиционированием дочерних элементов.
 /// </summary>
+/// <remarks>
+/// Панель поддерживает гибридный режим размещения: элементы могут быть расположены
+/// либо по координатам <see cref="Layout.XProperty"/>/<see cref="Layout.YProperty"/>,
+/// либо через стандартные свойства выравнивания Avalonia.
+/// </remarks>
 public class AbsolutePanel : Panel
 {
     /// <summary>
-    /// Определяет свойство <see cref="Extent"/>.
+    /// Идентификатор свойства прямоугольника, охватывающего все дочерние элементы панели.
     /// </summary>
     public static readonly StyledProperty<Rect> ExtentProperty =
         AvaloniaProperty.Register<AbsolutePanel, Rect>(nameof(Extent));
 
     /// <summary>
-    /// Получает прямоугольник, охватывающий все дочерние элементы.
+    /// Получает или задает прямоугольник, охватывающий все дочерние элементы.
     /// </summary>
     public Rect Extent
     {
@@ -48,7 +48,11 @@ public class AbsolutePanel : Panel
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Измеряет дочерние элементы и вычисляет итоговый размер панели.
+    /// </summary>
+    /// <param name="availableSize">Доступный размер от родителя.</param>
+    /// <returns>Размер, который панель хочет занять.</returns>
     protected override Size MeasureOverride(Size availableSize)
     {
         var infinite = new Size(double.PositiveInfinity, double.PositiveInfinity);
@@ -94,7 +98,11 @@ public class AbsolutePanel : Panel
         return new Size(resultW, resultH);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Размещает дочерние элементы согласно их координатам или выравниванию.
+    /// </summary>
+    /// <param name="finalSize">Финальный размер панели.</param>
+    /// <returns>Фактически занятый размер.</returns>
     protected override Size ArrangeOverride(Size finalSize)
     {
         foreach (var child in Children)

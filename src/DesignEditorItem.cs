@@ -12,6 +12,23 @@ using ArxisStudio.Attached;
 
 namespace ArxisStudio;
 
+/// <summary>
+/// Представляет контейнер элемента редактора с поддержкой выделения,
+/// перетаскивания и изменения размеров.
+/// </summary>
+/// <remarks>
+/// Обычно экземпляры создаются автоматически <see cref="DesignEditor"/>
+/// как контейнеры для элементов <see cref="ItemsControl.ItemsSource"/>.
+/// </remarks>
+/// <example>
+/// <code language="xml"><![CDATA[
+/// <Style Selector="design|DesignEditorItem">
+///     <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+///     <Setter Property="Width" Value="{Binding Width, Mode=TwoWay}" />
+///     <Setter Property="Height" Value="{Binding Height, Mode=TwoWay}" />
+/// </Style>
+/// ]]></code>
+/// </example>
 [TemplatePart("PART_Border", typeof(Border))]
 [TemplatePart("PART_Resizer", typeof(ResizeAdorner))]
 [PseudoClasses(":selected", ":dragging", ":resizing")]
@@ -25,27 +42,49 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 
     #region Standard Properties
 
+    /// <summary>
+    /// Идентификатор свойства выделения элемента.
+    /// </summary>
     public static readonly StyledProperty<bool> IsSelectedProperty =
         SelectingItemsControl.IsSelectedProperty.AddOwner<DesignEditorItem>();
 
+    /// <summary>
+    /// Получает или задает признак выделения элемента.
+    /// </summary>
     public bool IsSelected
     {
         get => GetValue(IsSelectedProperty);
         set => SetValue(IsSelectedProperty, value);
     }
 
+    /// <summary>
+    /// Идентификатор свойства позиции элемента на холсте.
+    /// </summary>
     public static readonly StyledProperty<Point> LocationProperty =
         AvaloniaProperty.Register<DesignEditorItem, Point>(nameof(Location));
 
+    /// <summary>
+    /// Получает или задает позицию элемента на холсте в локальных координатах родительской панели.
+    /// </summary>
+    /// <remarks>
+    /// Свойство синхронизируется с attached-свойствами <c>Layout.X</c> и <c>Layout.Y</c>.
+    /// Обычно именно его удобнее привязывать к ViewModel.
+    /// </remarks>
     public Point Location
     {
         get => GetValue(LocationProperty);
         set => SetValue(LocationProperty, value);
     }
 
+    /// <summary>
+    /// Идентификатор свойства, определяющего возможность перетаскивания элемента.
+    /// </summary>
     public static readonly StyledProperty<bool> IsDraggableProperty =
         AvaloniaProperty.Register<DesignEditorItem, bool>(nameof(IsDraggable), true);
 
+    /// <summary>
+    /// Получает или задает признак, разрешающий перетаскивание элемента мышью.
+    /// </summary>
     public bool IsDraggable
     {
         get => GetValue(IsDraggableProperty);
@@ -56,33 +95,46 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 
     #region Visual Properties
 
+    /// <summary>
+    /// Идентификатор кисти рамки выделенного элемента.
+    /// </summary>
     public static readonly StyledProperty<IBrush> SelectedBrushProperty =
         AvaloniaProperty.Register<DesignEditorItem, IBrush>(nameof(SelectedBrush), Brushes.Orange);
 
+    /// <summary>
+    /// Получает или задает кисть рамки выделения.
+    /// </summary>
     public IBrush SelectedBrush
     {
         get => GetValue(SelectedBrushProperty);
         set => SetValue(SelectedBrushProperty, value);
     }
 
+    /// <summary>
+    /// Идентификатор толщины рамки выделенного элемента.
+    /// </summary>
     public static readonly StyledProperty<Thickness> SelectedBorderThicknessProperty =
         AvaloniaProperty.Register<DesignEditorItem, Thickness>(nameof(SelectedBorderThickness), new Thickness(2));
 
+    /// <summary>
+    /// Получает или задает толщину рамки выделения.
+    /// </summary>
     public Thickness SelectedBorderThickness
     {
         get => GetValue(SelectedBorderThicknessProperty);
         set => SetValue(SelectedBorderThicknessProperty, value);
     }
 
+    /// <summary>
+    /// Идентификатор вычисляемого отступа, компенсирующего увеличение рамки выделения.
+    /// </summary>
     public static readonly DirectProperty<DesignEditorItem, Thickness> SelectedMarginProperty =
         AvaloniaProperty.RegisterDirect<DesignEditorItem, Thickness>(
             nameof(SelectedMargin),
             o => o.SelectedMargin);
 
     /// <summary>
-    /// Возвращает отрицательный отступ.
-    /// Это критически важно: когда BorderThickness увеличивается, контент сжимается внутрь.
-    /// Отрицательный Margin смещает весь контейнер влево/вверх, компенсируя это сжатие визуально.
+    /// Получает отрицательный отступ, компенсирующий увеличение рамки выделения.
     /// </summary>
     public Thickness SelectedMargin => new Thickness(
         -SelectedBorderThickness.Left,
@@ -94,29 +146,77 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 
     #region Routed Events
 
+    /// <summary>
+    /// Идентификатор routed event начала перетаскивания.
+    /// </summary>
     public static readonly RoutedEvent<DragStartedEventArgs> DragStartedEvent =
         RoutedEvent.Register<DragStartedEventArgs>(nameof(DragStarted), RoutingStrategies.Bubble, typeof(DesignEditorItem));
+
+    /// <summary>
+    /// Идентификатор routed event изменения позиции во время перетаскивания.
+    /// </summary>
     public static readonly RoutedEvent<DragDeltaEventArgs> DragDeltaEvent =
         RoutedEvent.Register<DragDeltaEventArgs>(nameof(DragDelta), RoutingStrategies.Bubble, typeof(DesignEditorItem));
+
+    /// <summary>
+    /// Идентификатор routed event завершения перетаскивания.
+    /// </summary>
     public static readonly RoutedEvent<DragCompletedEventArgs> DragCompletedEvent =
         RoutedEvent.Register<DragCompletedEventArgs>(nameof(DragCompleted), RoutingStrategies.Bubble, typeof(DesignEditorItem));
 
+    /// <summary>
+    /// Идентификатор routed event изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<ResizeDeltaEventArgs> ResizeDeltaEvent =
         RoutedEvent.Register<ResizeDeltaEventArgs>(nameof(ResizeDelta), RoutingStrategies.Bubble, typeof(DesignEditorItem));
+
+    /// <summary>
+    /// Идентификатор routed event начала изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<VectorEventArgs> ResizeStartedEvent =
         RoutedEvent.Register<VectorEventArgs>(nameof(ResizeStarted), RoutingStrategies.Bubble, typeof(DesignEditorItem));
+
+    /// <summary>
+    /// Идентификатор routed event завершения изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<VectorEventArgs> ResizeCompletedEvent =
         RoutedEvent.Register<VectorEventArgs>(nameof(ResizeCompleted), RoutingStrategies.Bubble, typeof(DesignEditorItem));
 
+    /// <summary>
+    /// Возникает при начале перетаскивания элемента.
+    /// </summary>
     public event EventHandler<DragStartedEventArgs> DragStarted { add => AddHandler(DragStartedEvent, value); remove => RemoveHandler(DragStartedEvent, value); }
+
+    /// <summary>
+    /// Возникает при изменении позиции элемента во время перетаскивания.
+    /// </summary>
     public event EventHandler<DragDeltaEventArgs> DragDelta { add => AddHandler(DragDeltaEvent, value); remove => RemoveHandler(DragDeltaEvent, value); }
+
+    /// <summary>
+    /// Возникает после завершения перетаскивания элемента.
+    /// </summary>
     public event EventHandler<DragCompletedEventArgs> DragCompleted { add => AddHandler(DragCompletedEvent, value); remove => RemoveHandler(DragCompletedEvent, value); }
+
+    /// <summary>
+    /// Возникает при изменении размеров элемента.
+    /// </summary>
     public event EventHandler<ResizeDeltaEventArgs> ResizeDelta { add => AddHandler(ResizeDeltaEvent, value); remove => RemoveHandler(ResizeDeltaEvent, value); }
+
+    /// <summary>
+    /// Возникает при начале изменения размеров элемента.
+    /// </summary>
     public event EventHandler<VectorEventArgs> ResizeStarted { add => AddHandler(ResizeStartedEvent, value); remove => RemoveHandler(ResizeStartedEvent, value); }
+
+    /// <summary>
+    /// Возникает после завершения изменения размеров элемента.
+    /// </summary>
     public event EventHandler<VectorEventArgs> ResizeCompleted { add => AddHandler(ResizeCompletedEvent, value); remove => RemoveHandler(ResizeCompletedEvent, value); }
 
     #endregion
 
+    /// <summary>
+    /// Получает текущее состояние контейнера.
+    /// </summary>
     public DesignEditorItemState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
 
     static DesignEditorItem()
@@ -127,6 +227,9 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         Layout.YProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) => item.SyncLocationFromLayout());
     }
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignEditorItem"/>.
+    /// </summary>
     public DesignEditorItem()
     {
         _states.Push(new ItemIdleState(this));
@@ -219,6 +322,10 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 
     #region State Machine Management
 
+    /// <summary>
+    /// Помещает новое состояние контейнера в стек и делает его активным.
+    /// </summary>
+    /// <param name="state">Новое состояние.</param>
     public void PushState(DesignEditorItemState state)
     {
         var previous = CurrentState;
@@ -227,6 +334,9 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         UpdatePseudoClassesState(state);
     }
 
+    /// <summary>
+    /// Завершает текущее состояние контейнера и возвращается к предыдущему.
+    /// </summary>
     public void PopState()
     {
         if (_states.Count > 1)

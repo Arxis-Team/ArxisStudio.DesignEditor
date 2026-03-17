@@ -9,7 +9,7 @@ using System.Collections.Generic;
 namespace ArxisStudio.Controls;
 
 /// <summary>
-/// Перечисление направлений изменения размера.
+/// Определяет направление изменения размера элемента.
 /// </summary>
 public enum ResizeDirection
 {
@@ -18,13 +18,26 @@ public enum ResizeDirection
 }
 
 /// <summary>
-/// Аргументы события процесса изменения размера.
+/// Содержит данные о текущем шаге изменения размера.
 /// </summary>
 public class ResizeDeltaEventArgs : RoutedEventArgs
 {
+    /// <summary>
+    /// Получает вектор изменения размера.
+    /// </summary>
     public Vector Delta { get; }
+
+    /// <summary>
+    /// Получает направление активной ручки изменения размера.
+    /// </summary>
     public ResizeDirection Direction { get; }
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ResizeDeltaEventArgs"/>.
+    /// </summary>
+    /// <param name="delta">Вектор изменения размера.</param>
+    /// <param name="direction">Направление активной ручки.</param>
+    /// <param name="routedEvent">Маршрутизируемое событие, с которым связан экземпляр.</param>
     public ResizeDeltaEventArgs(Vector delta, ResizeDirection direction, RoutedEvent routedEvent)
         : base(routedEvent)
     {
@@ -34,13 +47,26 @@ public class ResizeDeltaEventArgs : RoutedEventArgs
 }
 
 /// <summary>
-/// Аргументы события начала изменения размера.
+/// Содержит данные о начале изменения размера.
 /// </summary>
 public class ResizeStartedEventArgs : RoutedEventArgs
 {
+    /// <summary>
+    /// Получает направление активной ручки.
+    /// </summary>
     public ResizeDirection Direction { get; }
+
+    /// <summary>
+    /// Получает начальный вектор изменения.
+    /// </summary>
     public Vector Vector { get; }
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ResizeStartedEventArgs"/>.
+    /// </summary>
+    /// <param name="vector">Начальный вектор изменения.</param>
+    /// <param name="direction">Направление активной ручки.</param>
+    /// <param name="routedEvent">Маршрутизируемое событие, с которым связан экземпляр.</param>
     public ResizeStartedEventArgs(Vector vector, ResizeDirection direction, RoutedEvent routedEvent)
         : base(routedEvent)
     {
@@ -50,7 +76,7 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 }
 
 /// <summary>
-/// Визуальный контрол (рамка с ручками) для изменения размеров элементов.
+/// Представляет визуальный адорнер с ручками для изменения размеров элемента.
 /// </summary>
 [TemplatePart("PART_TopLeft", typeof(Thumb))]
 [TemplatePart("PART_Top", typeof(Thumb))]
@@ -66,6 +92,9 @@ public class ResizeAdorner : TemplatedControl
 
     #region Styled Properties
 
+    /// <summary>
+    /// Идентификатор свойства кисти рамки и ручек.
+    /// </summary>
     public static readonly StyledProperty<IBrush> AdornerBrushProperty =
         AvaloniaProperty.Register<ResizeAdorner, IBrush>(nameof(AdornerBrush), Brushes.DodgerBlue);
 
@@ -78,6 +107,9 @@ public class ResizeAdorner : TemplatedControl
         set => SetValue(AdornerBrushProperty, value);
     }
 
+    /// <summary>
+    /// Идентификатор свойства размера ручек.
+    /// </summary>
     public static readonly StyledProperty<double> HandleSizeProperty =
         AvaloniaProperty.Register<ResizeAdorner, double>(nameof(HandleSize), 8.0);
 
@@ -94,27 +126,45 @@ public class ResizeAdorner : TemplatedControl
 
     #region Events
 
+    /// <summary>
+    /// Идентификатор routed event изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<ResizeDeltaEventArgs> ResizeDeltaEvent =
         RoutedEvent.Register<ResizeDeltaEventArgs>(nameof(ResizeDelta), RoutingStrategies.Bubble, typeof(ResizeAdorner));
 
+    /// <summary>
+    /// Идентификатор routed event начала изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<ResizeStartedEventArgs> ResizeStartedEvent =
         RoutedEvent.Register<ResizeStartedEventArgs>(nameof(ResizeStarted), RoutingStrategies.Bubble, typeof(ResizeAdorner));
 
+    /// <summary>
+    /// Идентификатор routed event завершения изменения размера.
+    /// </summary>
     public static readonly RoutedEvent<VectorEventArgs> ResizeCompletedEvent =
         RoutedEvent.Register<VectorEventArgs>(nameof(ResizeCompleted), RoutingStrategies.Bubble, typeof(ResizeAdorner));
 
+    /// <summary>
+    /// Возникает при изменении размера через одну из ручек.
+    /// </summary>
     public event EventHandler<ResizeDeltaEventArgs> ResizeDelta
     {
         add => AddHandler(ResizeDeltaEvent, value);
         remove => RemoveHandler(ResizeDeltaEvent, value);
     }
 
+    /// <summary>
+    /// Возникает в момент начала изменения размера.
+    /// </summary>
     public event EventHandler<ResizeStartedEventArgs> ResizeStarted
     {
         add => AddHandler(ResizeStartedEvent, value);
         remove => RemoveHandler(ResizeStartedEvent, value);
     }
 
+    /// <summary>
+    /// Возникает после завершения изменения размера.
+    /// </summary>
     public event EventHandler<VectorEventArgs> ResizeCompleted
     {
         add => AddHandler(ResizeCompletedEvent, value);

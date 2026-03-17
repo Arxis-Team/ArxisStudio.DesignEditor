@@ -4,8 +4,15 @@ using Avalonia.VisualTree;
 
 namespace ArxisStudio.States;
 
+/// <summary>
+/// Состояние ожидания, в котором редактор обрабатывает старт выделения, панорамирования и зума.
+/// </summary>
 public class EditorIdleState : EditorState
 {
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="EditorIdleState"/>.
+    /// </summary>
+    /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorIdleState(DesignEditor editor) : base(editor) { }
 
     public override void OnPointerPressed(PointerPressedEventArgs e)

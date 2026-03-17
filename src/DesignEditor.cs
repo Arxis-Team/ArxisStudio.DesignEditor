@@ -14,6 +14,26 @@ using ArxisStudio.States;
 
 namespace ArxisStudio;
 
+/// <summary>
+/// Представляет поверхность визуального редактора с поддержкой панорамирования,
+/// масштабирования, множественного выделения, перетаскивания и изменения размеров элементов.
+/// </summary>
+/// <remarks>
+/// Контрол наследуется от <see cref="SelectingItemsControl"/> и использует
+/// <see cref="DesignEditorItem"/> в качестве контейнера для элементов коллекции.
+/// <para>
+/// Для корректной работы визуальных стилей необходимо подключить словари ресурсов
+/// из каталога <c>Themes/Styles</c> библиотеки.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code language="xml"><![CDATA[
+/// <design:DesignEditor ItemsSource="{Binding Nodes}"
+///                      SelectedItems="{Binding SelectedNodes}"
+///                      SelectionMode="Multiple"
+///                      ViewportZoom="{Binding Zoom, Mode=TwoWay}" />
+/// ]]></code>
+/// </example>
 public class DesignEditor : SelectingItemsControl
 {
     #region Constants
@@ -25,8 +45,15 @@ public class DesignEditor : SelectingItemsControl
 
     private readonly Stack<EditorState> _states = new();
 
+    /// <summary>
+    /// Получает текущее активное состояние редактора.
+    /// </summary>
     public EditorState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
 
+    /// <summary>
+    /// Помещает новое состояние в стек и вызывает его инициализацию.
+    /// </summary>
+    /// <param name="state">Состояние, которое должно стать активным.</param>
     public void PushState(EditorState state)
     {
         var previous = _states.Count > 0 ? _states.Peek() : null;
@@ -34,6 +61,9 @@ public class DesignEditor : SelectingItemsControl
         state.Enter(previous);
     }
 
+    /// <summary>
+    /// Завершает текущее состояние и возвращается к предыдущему, если стек содержит более одного состояния.
+    /// </summary>
     public void PopState()
     {
         if (_states.Count > 1)
@@ -45,33 +75,47 @@ public class DesignEditor : SelectingItemsControl
 
     #endregion
 
-    #region Re-exposed Properties (Исправлено)
+    #region Re-exposed Properties
 
-    // 1. Для DirectProperty просто ссылаемся на базовое свойство.
-    // ВАЖНО: Тип владельца оставляем SelectingItemsControl, так как свойство зарегистрировано там.
+    /// <summary>
+    /// Идентификатор свойства модели выделения, повторно экспортированный из базового класса.
+    /// </summary>
     public new static readonly DirectProperty<SelectingItemsControl, ISelectionModel> SelectionProperty =
         SelectingItemsControl.SelectionProperty;
 
+    /// <summary>
+    /// Идентификатор свойства коллекции выбранных элементов, повторно экспортированный из базового класса.
+    /// </summary>
     public new static readonly DirectProperty<SelectingItemsControl, IList?> SelectedItemsProperty =
         SelectingItemsControl.SelectedItemsProperty;
 
-    // 2. Для StyledProperty используем AddOwner, чтобы "присвоить" его нашему классу.
+    /// <summary>
+    /// Идентификатор свойства режима выделения.
+    /// </summary>
     public new static readonly StyledProperty<SelectionMode> SelectionModeProperty =
         SelectingItemsControl.SelectionModeProperty.AddOwner<DesignEditor>();
 
-    // 3. CLR-обертки
+    /// <summary>
+    /// Получает или задает модель выделения редактора.
+    /// </summary>
     public new ISelectionModel Selection
     {
         get => base.Selection;
         set => base.Selection = value;
     }
 
+    /// <summary>
+    /// Получает или задает внешнюю коллекцию выбранных элементов.
+    /// </summary>
     public new IList? SelectedItems
     {
         get => base.SelectedItems;
         set => base.SelectedItems = value;
     }
 
+    /// <summary>
+    /// Получает или задает режим выделения элементов.
+    /// </summary>
     public new SelectionMode SelectionMode
     {
         get => base.SelectionMode;
@@ -80,35 +124,65 @@ public class DesignEditor : SelectingItemsControl
 
     #endregion
 
-    #region Dependency Properties (Новые свойства)
+    #region Dependency Properties
 
+    /// <summary>
+    /// Идентификатор свойства позиции viewport в мировых координатах.
+    /// </summary>
     public static readonly StyledProperty<Point> ViewportLocationProperty =
         AvaloniaProperty.Register<DesignEditor, Point>(nameof(ViewportLocation));
 
+    /// <summary>
+    /// Идентификатор свойства текущего масштаба viewport.
+    /// </summary>
     public static readonly StyledProperty<double> ViewportZoomProperty =
         AvaloniaProperty.Register<DesignEditor, double>(nameof(ViewportZoom), 1.0);
 
+    /// <summary>
+    /// Идентификатор свойства минимального допустимого масштаба.
+    /// </summary>
     public static readonly StyledProperty<double> MinZoomProperty =
         AvaloniaProperty.Register<DesignEditor, double>(nameof(MinZoom), 0.1);
 
+    /// <summary>
+    /// Идентификатор свойства максимального допустимого масштаба.
+    /// </summary>
     public static readonly StyledProperty<double> MaxZoomProperty =
         AvaloniaProperty.Register<DesignEditor, double>(nameof(MaxZoom), 5.0);
 
+    /// <summary>
+    /// Идентификатор трансформации viewport в логических координатах.
+    /// </summary>
     public static readonly StyledProperty<Transform> ViewportTransformProperty =
         AvaloniaProperty.Register<DesignEditor, Transform>(nameof(ViewportTransform), new TransformGroup());
 
+    /// <summary>
+    /// Идентификатор трансформации viewport с учетом текущего DPI.
+    /// </summary>
     public static readonly StyledProperty<Transform> DpiScaledViewportTransformProperty =
         AvaloniaProperty.Register<DesignEditor, Transform>(nameof(DpiScaledViewportTransform), new TransformGroup());
 
+    /// <summary>
+    /// Идентификатор темы для прямоугольника выделения.
+    /// </summary>
     public static readonly StyledProperty<ControlTheme> SelectionRectangleStyleProperty =
         AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SelectionRectangleStyle));
 
+    /// <summary>
+    /// Идентификатор свойства, показывающего активен ли marquee-selection.
+    /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> IsSelectingProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(IsSelecting), o => o.IsSelecting, (o, v) => o.IsSelecting = v);
 
+    /// <summary>
+    /// Идентификатор свойства прямоугольника выделения в мировых координатах.
+    /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> SelectedAreaProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(SelectedArea), o => o.SelectedArea, (o, v) => o.SelectedArea = v);
 
+    /// <summary>
+    /// Идентификатор свойства прямоугольника, охватывающего все размещенные элементы.
+    /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> ItemsExtentProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(ItemsExtent), o => o.ItemsExtent, (o, v) => o.ItemsExtent = v);
 
@@ -116,42 +190,70 @@ public class DesignEditor : SelectingItemsControl
 
     #region Wrappers
 
+    /// <summary>
+    /// Получает или задает положение viewport в мировых координатах.
+    /// </summary>
+    /// <remarks>
+    /// Значение задает левый верхний угол видимой области в координатах содержимого.
+    /// Обычно изменяется автоматически во время панорамирования или программно для перехода к нужной области.
+    /// </remarks>
     public Point ViewportLocation
     {
         get => GetValue(ViewportLocationProperty);
         set => SetValue(ViewportLocationProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает текущий коэффициент масштабирования viewport.
+    /// </summary>
+    /// <remarks>
+    /// Значение ограничивается диапазоном между <see cref="MinZoom"/> и <see cref="MaxZoom"/>.
+    /// </remarks>
     public double ViewportZoom
     {
         get => GetValue(ViewportZoomProperty);
         set => SetValue(ViewportZoomProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает минимальное значение <see cref="ViewportZoom"/>.
+    /// </summary>
     public double MinZoom
     {
         get => GetValue(MinZoomProperty);
         set => SetValue(MinZoomProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает максимальное значение <see cref="ViewportZoom"/>.
+    /// </summary>
     public double MaxZoom
     {
         get => GetValue(MaxZoomProperty);
         set => SetValue(MaxZoomProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает трансформацию, применяемую к содержимому viewport.
+    /// </summary>
     public Transform ViewportTransform
     {
         get => GetValue(ViewportTransformProperty);
         set => SetValue(ViewportTransformProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает DPI-aware трансформацию viewport.
+    /// </summary>
     public Transform DpiScaledViewportTransform
     {
         get => GetValue(DpiScaledViewportTransformProperty);
         set => SetValue(DpiScaledViewportTransformProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает тему визуализации рамки выделения.
+    /// </summary>
     public ControlTheme SelectionRectangleStyle
     {
         get => GetValue(SelectionRectangleStyleProperty);
@@ -159,6 +261,9 @@ public class DesignEditor : SelectingItemsControl
     }
 
     private bool _isSelecting;
+    /// <summary>
+    /// Получает или задает признак активного прямоугольного выделения.
+    /// </summary>
     public bool IsSelecting
     {
         get => _isSelecting;
@@ -166,6 +271,9 @@ public class DesignEditor : SelectingItemsControl
     }
 
     private Rect _selectedArea;
+    /// <summary>
+    /// Получает или задает текущий прямоугольник выделения в мировых координатах.
+    /// </summary>
     public Rect SelectedArea
     {
         get => _selectedArea;
@@ -173,6 +281,9 @@ public class DesignEditor : SelectingItemsControl
     }
 
     private Rect _itemsExtent;
+    /// <summary>
+    /// Получает или задает прямоугольник, охватывающий все дочерние элементы редактора.
+    /// </summary>
     public Rect ItemsExtent
     {
         get => _itemsExtent;
@@ -202,6 +313,9 @@ public class DesignEditor : SelectingItemsControl
         DesignEditorItem.DragCompletedEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragCompleted(e));
     }
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignEditor"/>.
+    /// </summary>
     public DesignEditor()
     {
         SelectionMode = SelectionMode.Multiple;
@@ -268,14 +382,29 @@ public class DesignEditor : SelectingItemsControl
         SetCurrentValue(DpiScaledViewportTransformProperty, dg);
     }
 
-    // --- Helper Methods ---
-
+    /// <summary>
+    /// Преобразует экранную точку в мировые координаты холста.
+    /// </summary>
+    /// <param name="screenPoint">Точка в координатах контрола.</param>
+    /// <returns>Точка в координатах содержимого редактора.</returns>
+    /// <example>
+    /// Это полезно, когда нужно разместить новый элемент в позиции курсора с учетом текущего зума и панорамирования.
+    /// </example>
     public Point GetWorldPosition(Point screenPoint)
         => (screenPoint / ViewportZoom) + ViewportLocation;
 
+    /// <summary>
+    /// Возвращает последнюю известную позицию указателя для текущего ввода.
+    /// </summary>
+    /// <param name="relativeTo">Параметр сохранен для совместимости с будущими реализациями.</param>
+    /// <returns>Последняя позиция указателя в координатах редактора.</returns>
     public Point GetPositionForInput(Visual relativeTo)
         => _lastMousePosition;
 
+    /// <summary>
+    /// Выполняет масштабирование относительно текущей позиции курсора.
+    /// </summary>
+    /// <param name="e">Аргументы колесика мыши.</param>
     public void HandleZoom(PointerWheelEventArgs e)
     {
         double prevZoom = ViewportZoom;

@@ -3,11 +3,18 @@ using Avalonia.Input;
 
 namespace ArxisStudio.States;
 
+/// <summary>
+/// Состояние панорамирования viewport редактора.
+/// </summary>
 public class EditorPanningState : EditorState
 {
     private Point _startMousePosition;
     private Point _startViewportLocation;
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="EditorPanningState"/>.
+    /// </summary>
+    /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorPanningState(DesignEditor editor) : base(editor) { }
 
     public override void Enter(EditorState? from)

@@ -4,10 +4,17 @@ using Avalonia.Input;
 
 namespace ArxisStudio.States;
 
+/// <summary>
+/// Состояние прямоугольного выделения элементов редактора.
+/// </summary>
 public class EditorSelectingState : EditorState
 {
     private Point _startLocationWorld;
 
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="EditorSelectingState"/>.
+    /// </summary>
+    /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorSelectingState(DesignEditor editor) : base(editor) { }
 
     public override void Enter(EditorState? from)
