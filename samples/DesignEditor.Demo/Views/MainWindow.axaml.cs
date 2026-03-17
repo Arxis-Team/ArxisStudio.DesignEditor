@@ -34,4 +34,16 @@ public partial class MainWindow : Window
         if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container)
             editor.FitToView(container);
     }
+
+    private void CenterSelection_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is { } editor)
+            editor.CenterOnSelection();
+    }
+
+    private void FitSelection_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is { } editor)
+            editor.FitSelectionToView();
+    }
 }

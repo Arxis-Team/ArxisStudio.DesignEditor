@@ -72,6 +72,7 @@ public partial class MainWindowViewModel : ObservableObject
     // НОВОЕ: Активный элемент (первый из выделенных) для отображения в панели свойств
     // Вычисляемое свойство, которое обновляется при изменении SelectedNodes
     public DesignItemViewModel? ActiveItem => SelectedNodes.FirstOrDefault() as DesignItemViewModel;
+    public bool HasSelection => SelectedNodes.Count > 0;
 
     [ObservableProperty]
     private double _zoom = 1.0;
@@ -87,13 +88,12 @@ public partial class MainWindowViewModel : ObservableObject
         // Заполняем демо-данными
         Nodes.Add(new LoginNodeViewModel(400, 300));
         Nodes.Add(new DashboardNodeViewModel(800, 300));
-        Nodes.Add(new LoginNodeViewModel(100, 100));
-        Nodes.Add(new DashboardNodeViewModel(100, 450));
 
         // ВАЖНО: Подписываемся на изменение выделения, чтобы обновлять UI (ActiveItem)
         SelectedNodes.CollectionChanged += (s, e) =>
         {
             OnPropertyChanged(nameof(ActiveItem));
+            OnPropertyChanged(nameof(HasSelection));
         };
     }
 }

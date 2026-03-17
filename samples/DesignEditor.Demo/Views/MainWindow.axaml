@@ -271,6 +271,38 @@
                     </StackPanel>
                 </Button>
 
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Center selected items in view"
+                        Click="CenterSelection_OnClick"
+                        IsVisible="{Binding HasSelection}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12,2L15,9H22L16.5,13.5L18.5,21L12,16.5L5.5,21L7.5,13.5L2,9H9L12,2Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Center Sel"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Fit selected items to view"
+                        Click="FitSelection_OnClick"
+                        IsVisible="{Binding HasSelection}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M4,4H9V6H6V9H4V4M20,4V9H18V6H15V4H20M4,20V15H6V18H9V20H4M20,20H15V18H18V15H20V20M9,9H15V15H9V9Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Fit Sel"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
             </StackPanel>
         </Border>
 

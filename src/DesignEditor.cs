@@ -437,6 +437,18 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
+    /// Смещает viewport так, чтобы центр указанной области оказался в центре видимой области редактора.
+    /// </summary>
+    /// <param name="bounds">Прямоугольная область в мировых координатах.</param>
+    /// <remarks>
+    /// Метод не изменяет <see cref="ViewportZoom"/> и использует геометрический центр переданного прямоугольника.
+    /// </remarks>
+    public void CenterOn(Rect bounds)
+    {
+        CenterOn(bounds.Center);
+    }
+
+    /// <summary>
     /// Смещает viewport так, чтобы указанный элемент оказался в центре видимой области редактора.
     /// </summary>
     /// <param name="item">Элемент, который необходимо центрировать в области просмотра.</param>
@@ -535,6 +547,78 @@ public class DesignEditor : SelectingItemsControl
             throw new InvalidOperationException("The specified item does not belong to this DesignEditor.");
 
         FitToView(new Rect(item.Location, item.Bounds.Size));
+    }
+
+    /// <summary>
+    /// Смещает viewport так, чтобы центр области, охватывающей все выбранные элементы, оказался в центре видимой области редактора.
+    /// </summary>
+    /// <remarks>
+    /// Метод не изменяет <see cref="ViewportZoom"/>. Если в редакторе нет выбранных элементов, вызов игнорируется.
+    /// </remarks>
+    public void CenterOnSelection()
+    {
+        if (TryGetSelectedItemsBounds(out var bounds))
+            CenterOn(bounds);
+    }
+
+    /// <summary>
+    /// Изменяет положение и масштаб viewport так, чтобы все выбранные элементы целиком поместились в видимой области редактора.
+    /// </summary>
+    /// <remarks>
+    /// Если в редакторе нет выбранных элементов, вызов игнорируется.
+    /// </remarks>
+    public void FitSelectionToView()
+    {
+        if (TryGetSelectedItemsBounds(out var bounds))
+            FitToView(bounds);
+    }
+
+    private bool TryGetSelectedItemsBounds(out Rect bounds)
+    {
+        bounds = default;
+
+        var items = SelectedItems;
+        if (items == null || items.Count == 0)
+            return false;
+
+        var hasBounds = false;
+        double left = 0;
+        double top = 0;
+        double right = 0;
+        double bottom = 0;
+
+        foreach (var item in items)
+        {
+            var container = ContainerFromItem(item) as DesignEditorItem;
+            if (container == null && item is DesignEditorItem directItem)
+                container = directItem;
+
+            if (container == null)
+                continue;
+
+            var itemBounds = new Rect(container.Location, container.Bounds.Size);
+
+            if (!hasBounds)
+            {
+                left = itemBounds.Left;
+                top = itemBounds.Top;
+                right = itemBounds.Right;
+                bottom = itemBounds.Bottom;
+                hasBounds = true;
+                continue;
+            }
+
+            left = Math.Min(left, itemBounds.Left);
+            top = Math.Min(top, itemBounds.Top);
+            right = Math.Max(right, itemBounds.Right);
+            bottom = Math.Max(bottom, itemBounds.Bottom);
+        }
+
+        if (!hasBounds)
+            return false;
+
+        bounds = new Rect(left, top, right - left, bottom - top);
+        return true;
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)

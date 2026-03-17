@@ -127,6 +127,7 @@ public class DesignNodeViewModel
 
 - `CenterOn(Point worldPoint)` — центрирует видимую область на указанной мировой точке
 - `CenterOnItem(DesignEditorItem item)` — центрирует видимую область на конкретном элементе
+- `CenterOnSelection()` — центрирует видимую область на общей области текущего выделения
 - `FitToView(Rect bounds)` — подбирает масштаб и позицию viewport так, чтобы область целиком поместилась в окне
 - `FitToView(DesignEditorItem item)` — вписывает конкретный элемент в видимую область
 
