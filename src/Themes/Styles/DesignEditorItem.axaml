@@ -64,10 +64,6 @@
         </Setter>
 
         <Style Selector="^:selected">
-            <Setter Property="BorderBrush" Value="{Binding SelectedBrush, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="BorderThickness" Value="{Binding SelectedBorderThickness, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="Margin" Value="{Binding SelectedMargin, RelativeSource={RelativeSource Self}}" />
-
             <Setter Property="ZIndex" Value="99" />
 
             <Style Selector="^ /template/ controls1|ResizeAdorner#PART_Resizer">

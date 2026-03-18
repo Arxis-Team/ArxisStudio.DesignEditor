@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using ArxisStudio.Controls;
 using ArxisStudio.States;
 
 namespace ArxisStudio;
@@ -170,6 +171,18 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SelectionRectangleStyle));
 
     /// <summary>
+    /// Идентификатор темы рамки одиночного выделения.
+    /// </summary>
+    public static readonly StyledProperty<ControlTheme> SelectionOutlineStyleProperty =
+        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SelectionOutlineStyle));
+
+    /// <summary>
+    /// Идентификатор темы рамки группового выделения.
+    /// </summary>
+    public static readonly StyledProperty<ControlTheme> GroupSelectionOutlineStyleProperty =
+        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(GroupSelectionOutlineStyle));
+
+    /// <summary>
     /// Идентификатор свойства, показывающего активен ли marquee-selection.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> IsSelectingProperty =
@@ -186,6 +199,24 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> ItemsExtentProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(ItemsExtent), o => o.ItemsExtent, (o, v) => o.ItemsExtent = v);
+
+    /// <summary>
+    /// Идентификатор свойства прямоугольника, охватывающего текущее выделение.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, Rect> SelectionBoundsProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(SelectionBounds), o => o.SelectionBounds, (o, v) => o.SelectionBounds = v);
+
+    /// <summary>
+    /// Идентификатор свойства, указывающего наличие ровно одного выбранного элемента.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> HasSingleSelectionProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasSingleSelection), o => o.HasSingleSelection, (o, v) => o.HasSingleSelection = v);
+
+    /// <summary>
+    /// Идентификатор свойства, указывающего наличие множественного выделения.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> HasMultipleSelectionProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleSelection), o => o.HasMultipleSelection, (o, v) => o.HasMultipleSelection = v);
 
     #endregion
 
@@ -261,6 +292,24 @@ public class DesignEditor : SelectingItemsControl
         set => SetValue(SelectionRectangleStyleProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает тему рамки одиночного выделения.
+    /// </summary>
+    public ControlTheme SelectionOutlineStyle
+    {
+        get => GetValue(SelectionOutlineStyleProperty);
+        set => SetValue(SelectionOutlineStyleProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает тему рамки группового выделения.
+    /// </summary>
+    public ControlTheme GroupSelectionOutlineStyle
+    {
+        get => GetValue(GroupSelectionOutlineStyleProperty);
+        set => SetValue(GroupSelectionOutlineStyleProperty, value);
+    }
+
     private bool _isSelecting;
     /// <summary>
     /// Получает или задает признак активного прямоугольного выделения.
@@ -291,6 +340,36 @@ public class DesignEditor : SelectingItemsControl
         set => SetAndRaise(ItemsExtentProperty, ref _itemsExtent, value);
     }
 
+    private Rect _selectionBounds;
+    /// <summary>
+    /// Получает или задает прямоугольник, охватывающий текущее выделение.
+    /// </summary>
+    public Rect SelectionBounds
+    {
+        get => _selectionBounds;
+        private set => SetAndRaise(SelectionBoundsProperty, ref _selectionBounds, value);
+    }
+
+    private bool _hasSingleSelection;
+    /// <summary>
+    /// Получает значение, указывающее, что в редакторе выбран ровно один элемент.
+    /// </summary>
+    public bool HasSingleSelection
+    {
+        get => _hasSingleSelection;
+        private set => SetAndRaise(HasSingleSelectionProperty, ref _hasSingleSelection, value);
+    }
+
+    private bool _hasMultipleSelection;
+    /// <summary>
+    /// Получает значение, указывающее, что в редакторе выбрано более одного элемента.
+    /// </summary>
+    public bool HasMultipleSelection
+    {
+        get => _hasMultipleSelection;
+        private set => SetAndRaise(HasMultipleSelectionProperty, ref _hasMultipleSelection, value);
+    }
+
     #endregion
 
     #region Internal Helpers
@@ -312,6 +391,17 @@ public class DesignEditor : SelectingItemsControl
         DesignEditorItem.DragStartedEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragStarted(e));
         DesignEditorItem.DragDeltaEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragDelta(e));
         DesignEditorItem.DragCompletedEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragCompleted(e));
+        DesignEditorItem.ResizeDeltaEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsResizeDelta(e));
+        DesignEditorItem.IsSelectedProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) =>
+        {
+            if (item.FindAncestorOfType<DesignEditor>() is { } editor)
+                editor.UpdateSelectionOverlayState();
+        });
+        DesignEditorItem.LocationProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) =>
+        {
+            if (item.IsSelected && item.FindAncestorOfType<DesignEditor>() is { } editor)
+                editor.UpdateSelectionOverlayState();
+        });
     }
 
     /// <summary>
@@ -332,6 +422,7 @@ public class DesignEditor : SelectingItemsControl
         SetCurrentValue(DpiScaledViewportTransformProperty, dpiGroup);
 
         _states.Push(new EditorIdleState(this));
+        UpdateSelectionOverlayState();
     }
 
     protected override bool NeedsContainerOverride(object? item, int index, out object? recycleKey)
@@ -557,7 +648,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void CenterOnSelection()
     {
-        if (TryGetSelectedItemsBounds(out var bounds))
+        if (TryGetSelectedItemsBounds(out var bounds, out _, out _))
             CenterOn(bounds);
     }
 
@@ -569,13 +660,15 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void FitSelectionToView()
     {
-        if (TryGetSelectedItemsBounds(out var bounds))
+        if (TryGetSelectedItemsBounds(out var bounds, out _, out _))
             FitToView(bounds);
     }
 
-    private bool TryGetSelectedItemsBounds(out Rect bounds)
+    private bool TryGetSelectedItemsBounds(out Rect bounds, out int selectedCount, out DesignEditorItem? primaryItem)
     {
         bounds = default;
+        selectedCount = 0;
+        primaryItem = null;
 
         var items = SelectedItems;
         if (items == null || items.Count == 0)
@@ -595,6 +688,9 @@ public class DesignEditor : SelectingItemsControl
 
             if (container == null)
                 continue;
+
+            selectedCount++;
+            primaryItem ??= container;
 
             var itemBounds = new Rect(container.Location, container.Bounds.Size);
 
@@ -621,6 +717,21 @@ public class DesignEditor : SelectingItemsControl
         return true;
     }
 
+    internal void UpdateSelectionOverlayState()
+    {
+        if (TryGetSelectedItemsBounds(out var bounds, out var selectedCount, out _))
+        {
+            SelectionBounds = bounds;
+            HasSingleSelection = selectedCount == 1;
+            HasMultipleSelection = selectedCount > 1;
+            return;
+        }
+
+        SelectionBounds = default;
+        HasSingleSelection = false;
+        HasMultipleSelection = false;
+    }
+
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
     {
         if (Presenter?.Panel == null) return;
@@ -638,6 +749,8 @@ public class DesignEditor : SelectingItemsControl
                 }
             }
         }
+
+        UpdateSelectionOverlayState();
     }
 
     // --- Input Handling ---
@@ -698,7 +811,14 @@ public class DesignEditor : SelectingItemsControl
             }
         }
         e.Handled = true;
+        UpdateSelectionOverlayState();
     }
 
     private void OnItemsDragCompleted(DragCompletedEventArgs e) => e.Handled = true;
+
+    private void OnItemsResizeDelta(ResizeDeltaEventArgs e)
+    {
+        UpdateSelectionOverlayState();
+        e.Handled = false;
+    }
 }
