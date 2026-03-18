@@ -169,6 +169,7 @@ public class ItemDraggingState : DesignEditorItemState
     private Point _previousPosition;
     private readonly Point _initialPosition;
     private Point _elementStartLocation;
+    private Control _dragTarget = null!;
 
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemDraggingState"/>.
@@ -183,7 +184,9 @@ public class ItemDraggingState : DesignEditorItemState
 
     public override void Enter(DesignEditorItemState from)
     {
-        _elementStartLocation = Container.Location;
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        _dragTarget = editor?.ResolveInteractionTarget(Container) ?? Container;
+        _elementStartLocation = editor?.GetDesignPosition(_dragTarget) ?? Container.Location;
         Container.RaiseEvent(new DragStartedEventArgs(_initialPosition.X, _initialPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
     }
 
@@ -207,7 +210,11 @@ public class ItemDraggingState : DesignEditorItemState
         double newX = Math.Round(_elementStartLocation.X + totalDelta.X);
         double newY = Math.Round(_elementStartLocation.Y + totalDelta.Y);
 
-        Container.Location = new Point(newX, newY);
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        if (editor != null)
+            editor.SetDesignPosition(_dragTarget, new Point(newX, newY));
+        else
+            Container.Location = new Point(newX, newY);
 
         var frameDelta = currentPosition - _previousPosition;
         Container.RaiseEvent(new DragDeltaEventArgs(frameDelta.X, frameDelta.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
@@ -228,6 +235,7 @@ public class ItemDraggingState : DesignEditorItemState
 /// </summary>
 public class ItemResizingState : DesignEditorItemState
 {
+    private readonly Control _target;
     private readonly ResizeDirection _direction;
     private Point _initialLocation;
     private Size _initialSize;
@@ -238,19 +246,24 @@ public class ItemResizingState : DesignEditorItemState
     /// </summary>
     /// <param name="container">Контейнер, размер которого изменяется.</param>
     /// <param name="direction">Направление активной ручки изменения размера.</param>
-    public ItemResizingState(DesignEditorItem container, ResizeDirection direction) : base(container) => _direction = direction;
+    public ItemResizingState(DesignEditorItem container, Control target, ResizeDirection direction) : base(container)
+    {
+        _target = target;
+        _direction = direction;
+    }
 
     public override void Enter(DesignEditorItemState from)
     {
-        _initialLocation = Container.Location;
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        _initialLocation = editor?.GetDesignPosition(_target) ?? Container.Location;
         _accumulatedDelta = Vector.Zero;
 
-        // Фиксируем размеры перед ресайзом, чтобы избежать схлопывания при Auto
-        double w = double.IsNaN(Container.Width) ? Container.Bounds.Width : Container.Width;
-        double h = double.IsNaN(Container.Height) ? Container.Bounds.Height : Container.Height;
-        Container.Width = w;
-        Container.Height = h;
-        _initialSize = new Size(w, h);
+        var size = editor?.GetDesignSize(_target) ?? new Size(
+            double.IsNaN(Container.Width) ? Container.Bounds.Width : Container.Width,
+            double.IsNaN(Container.Height) ? Container.Bounds.Height : Container.Height);
+
+        editor?.SetDesignSize(_target, size);
+        _initialSize = size;
     }
 
     public override void OnResizeDelta(ResizeDeltaEventArgs e)
@@ -289,13 +302,22 @@ public class ItemResizingState : DesignEditorItemState
         if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
             newY = initialBottom - newH;
 
-        Container.Width = Math.Round(newW);
-        Container.Height = Math.Round(newH);
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        if (editor != null)
+            editor.SetDesignSize(_target, new Size(Math.Round(newW), Math.Round(newH)));
+        else
+        {
+            Container.Width = Math.Round(newW);
+            Container.Height = Math.Round(newH);
+        }
 
         // Обновляем позицию только если она изменилась (при ресайзе слева/сверху)
         if (Math.Abs(newX - _initialLocation.X) > 0.1 || Math.Abs(newY - _initialLocation.Y) > 0.1)
         {
-            Container.Location = new Point(Math.Round(newX), Math.Round(newY));
+            if (editor != null)
+                editor.SetDesignPosition(_target, new Point(Math.Round(newX), Math.Round(newY)));
+            else
+                Container.Location = new Point(Math.Round(newX), Math.Round(newY));
         }
 
         Container.RaiseEvent(new ResizeDeltaEventArgs(e.Delta, _direction, DesignEditorItem.ResizeDeltaEvent));

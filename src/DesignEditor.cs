@@ -894,7 +894,9 @@ public class DesignEditor : SelectingItemsControl
 
             if (container != null && container.IsDraggable && !ReferenceEquals(container, sourceContainer))
             {
-                container.Location += delta;
+                var target = ResolveInteractionTarget(container);
+                var position = GetDesignPosition(target);
+                SetDesignPosition(target, position + delta);
             }
         }
         e.Handled = true;
@@ -914,7 +916,7 @@ public class DesignEditor : SelectingItemsControl
         if (_primarySelectionItem == null || _primarySelectionControl == null || !HasSingleSelection)
             return;
 
-        _primarySelectionItem.PushState(new ItemResizingState(_primarySelectionItem, e.Direction));
+        _primarySelectionItem.PushState(new ItemResizingState(_primarySelectionItem, _primarySelectionControl, e.Direction));
         _primarySelectionItem.OnResizeStarted(e.Vector);
         e.Handled = true;
     }
@@ -964,6 +966,48 @@ public class DesignEditor : SelectingItemsControl
             _selectionTargets[container] = target;
 
         UpdateSelectionOverlayState();
+    }
+
+    internal Control ResolveInteractionTarget(DesignEditorItem container)
+    {
+        return ResolveSelectionTarget(container);
+    }
+
+    internal Point GetDesignPosition(Control control)
+    {
+        if (control is DesignEditorItem item)
+            return item.Location;
+
+        if (TryGetDesignBounds(control, out var bounds))
+            return bounds.Position;
+
+        return new Point(DesignLayout.GetDesignX(control), DesignLayout.GetDesignY(control));
+    }
+
+    internal void SetDesignPosition(Control control, Point position)
+    {
+        if (control is DesignEditorItem item)
+        {
+            item.Location = position;
+            return;
+        }
+
+        EnsureTracked(control);
+        DesignLayout.SetDesignX(control, position.X);
+        DesignLayout.SetDesignY(control, position.Y);
+    }
+
+    internal Size GetDesignSize(Control control)
+    {
+        var width = double.IsNaN(control.Width) ? control.Bounds.Width : control.Width;
+        var height = double.IsNaN(control.Height) ? control.Bounds.Height : control.Height;
+        return new Size(width, height);
+    }
+
+    internal void SetDesignSize(Control control, Size size)
+    {
+        control.Width = size.Width;
+        control.Height = size.Height;
     }
 
     private bool TryGetDesignBounds(DesignEditorItem item, out Rect bounds)

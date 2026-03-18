@@ -164,6 +164,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 Навигационные методы `CenterOnItem(...)` и `FitToView(DesignEditorItem)` теперь используют не только `DesignEditorItem.Location`, но и геометрию реального visual target через `Layout`, если внутри контейнера присутствует контрол с designer-метаданными.
 
+Начиная с текущего этапа drag и resize также применяются к выбранному nested design target, если он найден в visual tree элемента и имеет designer-метаданные `Layout`.
+
 ## Пример использования `Layout`
 
 Для вложенного контента внутри шаблона элемента можно использовать `Layout` напрямую:
@@ -187,17 +189,20 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - рамки одиночного и группового выделения вынесены из `DesignEditorItem` на уровень редактора
 - `ResizeAdorner` вынесен из шаблона `DesignEditorItem` и теперь живет на `SelectionOverlayLayer`
 - `SelectionBounds` считаются по editor-space геометрии выбранного visual target через `Layout`
+- editor-level hit-testing вложенных контролов работает по `Layout`-геометрии и не зависит от runtime `IsHitTestVisible`
+- nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
+- drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
-- демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`
+- демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 
 ## Что дальше
 
 Следующий этап развития редактора:
 
-- добавить выбор и hit-testing глубоко вложенных контролов как самостоятельных design targets
-- отвязать selection model от `DesignEditorItem` и перейти к модели selected design object
-- перенести resize/drag с контейнера на designer target
+- формализовать публичную модель selected design object, а не только internal target-resolution
+- добавить group editing для нескольких nested targets, а не только overlay union
 - добавить editor overlays следующего уровня: guides, snap lines, hover outline
+- ввести политики редактирования для контролов без явных size metadata и для layout-driven контейнеров
 - позже подключить `ArxisStudio.Markup` как источник `$design`-метаданных, не меняя core-архитектуру редактора
 
 ## Запуск демо
@@ -211,6 +216,7 @@ dotnet run --project samples/DesignEditor.Demo
 В демо-приложении добавлена кнопка `Center`, которая использует `CenterOnItem(...)` для активного элемента.
 Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
 Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
+Также в верхней панели отображается текущий primary design target, чтобы было видно, какой nested control выбран редактором.
 
 ## Сборка
 
