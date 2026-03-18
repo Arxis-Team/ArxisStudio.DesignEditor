@@ -478,7 +478,7 @@ public class DesignEditor : SelectingItemsControl
     private Point _lastMousePosition;
     internal KeyModifiers LastInputModifiers { get; private set; }
 
-    private ResizeAdorner? _selectionResizeAdorner;
+    private SelectionAdorner? _selectionAdorner;
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
     private readonly Dictionary<DesignEditorItem, Control> _selectionTargets = new();
@@ -564,20 +564,20 @@ public class DesignEditor : SelectingItemsControl
     {
         base.OnApplyTemplate(e);
 
-        if (_selectionResizeAdorner != null)
+        if (_selectionAdorner != null)
         {
-            _selectionResizeAdorner.ResizeStarted -= OnSelectionResizeStarted;
-            _selectionResizeAdorner.ResizeDelta -= OnSelectionResizeDelta;
-            _selectionResizeAdorner.ResizeCompleted -= OnSelectionResizeCompleted;
+            _selectionAdorner.ResizeStarted -= OnSelectionResizeStarted;
+            _selectionAdorner.ResizeDelta -= OnSelectionResizeDelta;
+            _selectionAdorner.ResizeCompleted -= OnSelectionResizeCompleted;
         }
 
-        _selectionResizeAdorner = e.NameScope.Find<ResizeAdorner>("PART_SelectionResizer");
+        _selectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_SelectionAdorner");
 
-        if (_selectionResizeAdorner != null)
+        if (_selectionAdorner != null)
         {
-            _selectionResizeAdorner.ResizeStarted += OnSelectionResizeStarted;
-            _selectionResizeAdorner.ResizeDelta += OnSelectionResizeDelta;
-            _selectionResizeAdorner.ResizeCompleted += OnSelectionResizeCompleted;
+            _selectionAdorner.ResizeStarted += OnSelectionResizeStarted;
+            _selectionAdorner.ResizeDelta += OnSelectionResizeDelta;
+            _selectionAdorner.ResizeCompleted += OnSelectionResizeCompleted;
         }
     }
 

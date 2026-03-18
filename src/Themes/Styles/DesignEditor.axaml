@@ -99,28 +99,31 @@
                                 </Rectangle.Height>
                             </Rectangle>
 
-                            <controls:ResizeAdorner Name="PART_SelectionResizer"
-                                                    AdornerBrush="#0099FF"
-                                                    HandleSize="8"
-                                                    RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
-                                                    RenderTransformOrigin="0,0"
-                                                    Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
-                                                    Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
-                                                    IsVisible="{TemplateBinding HasSingleSelection}"
-                                                    IsHitTestVisible="True">
-                                <controls:ResizeAdorner.Width>
+                            <controls:SelectionAdorner Name="PART_SelectionAdorner"
+                                                       AdornerBrush="#0099FF"
+                                                       HandleSize="8"
+                                                       Role="Primary"
+                                                       ShowHandles="True"
+                                                       IsInteractive="True"
+                                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                       RenderTransformOrigin="0,0"
+                                                       Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       IsVisible="{TemplateBinding HasSingleSelection}"
+                                                       IsHitTestVisible="True">
+                                <controls:SelectionAdorner.Width>
                                     <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
                                         <Binding Path="SelectionBounds.Width" RelativeSource="{RelativeSource TemplatedParent}" />
                                         <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
                                     </MultiBinding>
-                                </controls:ResizeAdorner.Width>
-                                <controls:ResizeAdorner.Height>
+                                </controls:SelectionAdorner.Width>
+                                <controls:SelectionAdorner.Height>
                                     <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
                                         <Binding Path="SelectionBounds.Height" RelativeSource="{RelativeSource TemplatedParent}" />
                                         <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
                                     </MultiBinding>
-                                </controls:ResizeAdorner.Height>
-                            </controls:ResizeAdorner>
+                                </controls:SelectionAdorner.Height>
+                            </controls:SelectionAdorner>
                         </Canvas>
 
                         <Canvas Name="PART_InteractionOverlayLayer"
