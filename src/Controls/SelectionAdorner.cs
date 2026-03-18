@@ -1,0 +1,341 @@
+using Avalonia;
+using Avalonia.Collections;
+using Avalonia.Controls.Metadata;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+
+namespace ArxisStudio.Controls;
+
+/// <summary>
+/// Определяет направление изменения размера элемента.
+/// </summary>
+public enum ResizeDirection
+{
+    Top, Bottom, Left, Right,
+    TopLeft, TopRight, BottomLeft, BottomRight
+}
+
+/// <summary>
+/// Определяет роль адорнера в overlay-системе редактора.
+/// </summary>
+public enum SelectionAdornerRole
+{
+    Primary,
+    Secondary,
+    Group
+}
+
+/// <summary>
+/// Содержит данные о текущем шаге изменения размера.
+/// </summary>
+public class ResizeDeltaEventArgs : RoutedEventArgs
+{
+    /// <summary>
+    /// Получает вектор изменения размера.
+    /// </summary>
+    public Vector Delta { get; }
+
+    /// <summary>
+    /// Получает направление активной ручки изменения размера.
+    /// </summary>
+    public ResizeDirection Direction { get; }
+
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ResizeDeltaEventArgs"/>.
+    /// </summary>
+    public ResizeDeltaEventArgs(Vector delta, ResizeDirection direction, RoutedEvent routedEvent)
+        : base(routedEvent)
+    {
+        Delta = delta;
+        Direction = direction;
+    }
+}
+
+/// <summary>
+/// Содержит данные о начале изменения размера.
+/// </summary>
+public class ResizeStartedEventArgs : RoutedEventArgs
+{
+    /// <summary>
+    /// Получает направление активной ручки.
+    /// </summary>
+    public ResizeDirection Direction { get; }
+
+    /// <summary>
+    /// Получает начальный вектор изменения.
+    /// </summary>
+    public Vector Vector { get; }
+
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="ResizeStartedEventArgs"/>.
+    /// </summary>
+    public ResizeStartedEventArgs(Vector vector, ResizeDirection direction, RoutedEvent routedEvent)
+        : base(routedEvent)
+    {
+        Vector = vector;
+        Direction = direction;
+    }
+}
+
+/// <summary>
+/// Представляет editor adorner для отрисовки границ выделения и опциональных resize handles.
+/// </summary>
+[TemplatePart("PART_TopLeft", typeof(Thumb))]
+[TemplatePart("PART_Top", typeof(Thumb))]
+[TemplatePart("PART_TopRight", typeof(Thumb))]
+[TemplatePart("PART_Right", typeof(Thumb))]
+[TemplatePart("PART_BottomRight", typeof(Thumb))]
+[TemplatePart("PART_Bottom", typeof(Thumb))]
+[TemplatePart("PART_BottomLeft", typeof(Thumb))]
+[TemplatePart("PART_Left", typeof(Thumb))]
+public class SelectionAdorner : TemplatedControl
+{
+    private readonly Dictionary<Thumb, ResizeDirection> _thumbDirections = new();
+
+    /// <summary>
+    /// Идентификатор свойства кисти рамки и ручек.
+    /// </summary>
+    public static readonly StyledProperty<IBrush> AdornerBrushProperty =
+        AvaloniaProperty.Register<SelectionAdorner, IBrush>(nameof(AdornerBrush), Brushes.DodgerBlue);
+
+    /// <summary>
+    /// Идентификатор свойства размера ручек.
+    /// </summary>
+    public static readonly StyledProperty<double> HandleSizeProperty =
+        AvaloniaProperty.Register<SelectionAdorner, double>(nameof(HandleSize), 8.0);
+
+    /// <summary>
+    /// Идентификатор свойства видимости resize handles.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowHandlesProperty =
+        AvaloniaProperty.Register<SelectionAdorner, bool>(nameof(ShowHandles), true);
+
+    /// <summary>
+    /// Идентификатор свойства интерактивности адорнера.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsInteractiveProperty =
+        AvaloniaProperty.Register<SelectionAdorner, bool>(nameof(IsInteractive), true);
+
+    /// <summary>
+    /// Идентификатор свойства заливки рамки.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> FillProperty =
+        AvaloniaProperty.Register<SelectionAdorner, IBrush?>(nameof(Fill), Brushes.Transparent);
+
+    /// <summary>
+    /// Идентификатор толщины рамки.
+    /// </summary>
+    public static readonly StyledProperty<double> StrokeThicknessProperty =
+        AvaloniaProperty.Register<SelectionAdorner, double>(nameof(StrokeThickness), 1.0);
+
+    /// <summary>
+    /// Идентификатор штрихового паттерна рамки.
+    /// </summary>
+    public static readonly StyledProperty<AvaloniaList<double>?> StrokeDashArrayProperty =
+        AvaloniaProperty.Register<SelectionAdorner, AvaloniaList<double>?>(nameof(StrokeDashArray));
+
+    /// <summary>
+    /// Идентификатор роли адорнера.
+    /// </summary>
+    public static readonly StyledProperty<SelectionAdornerRole> RoleProperty =
+        AvaloniaProperty.Register<SelectionAdorner, SelectionAdornerRole>(nameof(Role), SelectionAdornerRole.Primary);
+
+    /// <summary>
+    /// Идентификатор routed event изменения размера.
+    /// </summary>
+    public static readonly RoutedEvent<ResizeDeltaEventArgs> ResizeDeltaEvent =
+        RoutedEvent.Register<ResizeDeltaEventArgs>(nameof(ResizeDelta), RoutingStrategies.Bubble, typeof(SelectionAdorner));
+
+    /// <summary>
+    /// Идентификатор routed event начала изменения размера.
+    /// </summary>
+    public static readonly RoutedEvent<ResizeStartedEventArgs> ResizeStartedEvent =
+        RoutedEvent.Register<ResizeStartedEventArgs>(nameof(ResizeStarted), RoutingStrategies.Bubble, typeof(SelectionAdorner));
+
+    /// <summary>
+    /// Идентификатор routed event завершения изменения размера.
+    /// </summary>
+    public static readonly RoutedEvent<VectorEventArgs> ResizeCompletedEvent =
+        RoutedEvent.Register<VectorEventArgs>(nameof(ResizeCompleted), RoutingStrategies.Bubble, typeof(SelectionAdorner));
+
+    static SelectionAdorner()
+    {
+        ShowHandlesProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
+        IsInteractiveProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
+    }
+
+    /// <summary>
+    /// Кисть для отрисовки рамки и границ ручек.
+    /// </summary>
+    public IBrush AdornerBrush
+    {
+        get => GetValue(AdornerBrushProperty);
+        set => SetValue(AdornerBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Размер ручек в пикселях.
+    /// </summary>
+    public double HandleSize
+    {
+        get => GetValue(HandleSizeProperty);
+        set => SetValue(HandleSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак видимости resize handles.
+    /// </summary>
+    public bool ShowHandles
+    {
+        get => GetValue(ShowHandlesProperty);
+        set => SetValue(ShowHandlesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак интерактивности адорнера.
+    /// </summary>
+    public bool IsInteractive
+    {
+        get => GetValue(IsInteractiveProperty);
+        set => SetValue(IsInteractiveProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает заливку рамки адорнера.
+    /// </summary>
+    public IBrush? Fill
+    {
+        get => GetValue(FillProperty);
+        set => SetValue(FillProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает толщину рамки адорнера.
+    /// </summary>
+    public double StrokeThickness
+    {
+        get => GetValue(StrokeThicknessProperty);
+        set => SetValue(StrokeThicknessProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает штриховой паттерн рамки адорнера.
+    /// </summary>
+    public AvaloniaList<double>? StrokeDashArray
+    {
+        get => GetValue(StrokeDashArrayProperty);
+        set => SetValue(StrokeDashArrayProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает роль адорнера в overlay-системе редактора.
+    /// </summary>
+    public SelectionAdornerRole Role
+    {
+        get => GetValue(RoleProperty);
+        set => SetValue(RoleProperty, value);
+    }
+
+    /// <summary>
+    /// Возникает при изменении размера через одну из ручек.
+    /// </summary>
+    public event EventHandler<ResizeDeltaEventArgs> ResizeDelta
+    {
+        add => AddHandler(ResizeDeltaEvent, value);
+        remove => RemoveHandler(ResizeDeltaEvent, value);
+    }
+
+    /// <summary>
+    /// Возникает в момент начала изменения размера.
+    /// </summary>
+    public event EventHandler<ResizeStartedEventArgs> ResizeStarted
+    {
+        add => AddHandler(ResizeStartedEvent, value);
+        remove => RemoveHandler(ResizeStartedEvent, value);
+    }
+
+    /// <summary>
+    /// Возникает после завершения изменения размера.
+    /// </summary>
+    public event EventHandler<VectorEventArgs> ResizeCompleted
+    {
+        add => AddHandler(ResizeCompletedEvent, value);
+        remove => RemoveHandler(ResizeCompletedEvent, value);
+    }
+
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+
+        UnbindThumbs();
+        BindThumb(e, "PART_TopLeft", ResizeDirection.TopLeft);
+        BindThumb(e, "PART_Top", ResizeDirection.Top);
+        BindThumb(e, "PART_TopRight", ResizeDirection.TopRight);
+        BindThumb(e, "PART_Right", ResizeDirection.Right);
+        BindThumb(e, "PART_BottomRight", ResizeDirection.BottomRight);
+        BindThumb(e, "PART_Bottom", ResizeDirection.Bottom);
+        BindThumb(e, "PART_BottomLeft", ResizeDirection.BottomLeft);
+        BindThumb(e, "PART_Left", ResizeDirection.Left);
+        UpdateThumbBindings();
+    }
+
+    private void BindThumb(TemplateAppliedEventArgs e, string name, ResizeDirection direction)
+    {
+        if (e.NameScope.Find(name) is Thumb thumb)
+            _thumbDirections[thumb] = direction;
+    }
+
+    private void UpdateThumbBindings()
+    {
+        var shouldBind = ShowHandles && IsInteractive;
+
+        foreach (var thumb in _thumbDirections.Keys)
+        {
+            thumb.DragDelta -= OnThumbDragDelta;
+            thumb.DragStarted -= OnThumbDragStarted;
+            thumb.DragCompleted -= OnThumbDragCompleted;
+
+            if (!shouldBind)
+                continue;
+
+            thumb.DragDelta += OnThumbDragDelta;
+            thumb.DragStarted += OnThumbDragStarted;
+            thumb.DragCompleted += OnThumbDragCompleted;
+        }
+    }
+
+    private void UnbindThumbs()
+    {
+        foreach (var thumb in _thumbDirections.Keys)
+        {
+            thumb.DragDelta -= OnThumbDragDelta;
+            thumb.DragStarted -= OnThumbDragStarted;
+            thumb.DragCompleted -= OnThumbDragCompleted;
+        }
+
+        _thumbDirections.Clear();
+    }
+
+    private void OnThumbDragDelta(object? sender, VectorEventArgs args)
+    {
+        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+            RaiseEvent(new ResizeDeltaEventArgs(args.Vector, direction, ResizeDeltaEvent));
+    }
+
+    private void OnThumbDragStarted(object? sender, VectorEventArgs args)
+    {
+        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+            RaiseEvent(new ResizeStartedEventArgs(args.Vector, direction, ResizeStartedEvent));
+    }
+
+    private void OnThumbDragCompleted(object? sender, VectorEventArgs args)
+    {
+        RaiseEvent(new VectorEventArgs
+        {
+            RoutedEvent = ResizeCompletedEvent,
+            Vector = args.Vector
+        });
+    }
+}
