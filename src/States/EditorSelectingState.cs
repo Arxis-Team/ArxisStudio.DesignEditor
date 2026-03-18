@@ -25,10 +25,9 @@ public class EditorSelectingState : EditorState
         // 2. Запоминаем точку старта в МИРОВЫХ координатах (с учетом зума и пана)
         _startLocationWorld = Editor.GetWorldPosition(Editor.GetPositionForInput(Editor));
 
-        // 3. Сбрасываем текущее выделение, если не нажат Ctrl
-        // (Для полной поддержки Shift/Append можно добавить логику здесь, но пока Ctrl)
-        var modifiers = Editor.LastInputModifiers; // Нужно будет добавить свойство или передавать аргументы в Enter
-        if (!modifiers.HasFlag(KeyModifiers.Control))
+        // 3. Сбрасываем текущее выделение, если не активен additive selection.
+        var modifiers = Editor.LastInputModifiers;
+        if (!Editor.ShouldUseAdditiveSelection(modifiers))
         {
             Editor.SelectedItem = null; // Сброс одиночного выделения
             Editor.Selection.Clear();   // Сброс множественного
@@ -58,7 +57,7 @@ public class EditorSelectingState : EditorState
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         // Применяем выделение
-        Editor.CommitSelection(Editor.SelectedArea, e.KeyModifiers.HasFlag(KeyModifiers.Control));
+        Editor.CommitSelection(Editor.SelectedArea, Editor.ShouldUseAdditiveSelection(e.KeyModifiers));
 
         // Возвращаемся в Idle
         Editor.PopState();

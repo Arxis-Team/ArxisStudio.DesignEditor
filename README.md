@@ -51,6 +51,7 @@
 Сейчас в нем уже доступен:
 
 - `ContainerInteractionModifiers` — модификаторы, которые принудительно переключают selection, drag и resize на уровень `DesignEditorItem`
+- `AdditiveSelectionModifiers` — модификаторы, которые включают additive selection
 
 ### `DesignEditorItem`
 
@@ -109,7 +110,8 @@
                      SelectionMode="Multiple"
                      ViewportZoom="{Binding Zoom, Mode=TwoWay}">
     <design:DesignEditor.InputGestures>
-        <design:DesignEditorInputGestures ContainerInteractionModifiers="Control" />
+        <design:DesignEditorInputGestures ContainerInteractionModifiers="Control"
+                                          AdditiveSelectionModifiers="Shift" />
     </design:DesignEditor.InputGestures>
 
     <design:DesignEditor.Styles>
@@ -152,6 +154,12 @@ public class DesignNodeViewModel
 - обычный клик работает с nested design target
 - клик с `ContainerInteractionModifiers` выбирает `DesignEditorItem`
 - drag с теми же модификаторами перемещает весь контейнер целиком
+
+Additive selection управляется отдельно через `InputGestures.AdditiveSelectionModifiers`:
+
+- `Ctrl + Click` — exclusive container selection
+- `Ctrl + Shift + Click` — additive container selection
+- `Ctrl + Shift + marquee` — additive групповое выделение контейнеров
 
 ## Навигация по viewport
 
@@ -217,6 +225,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
+- additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
 - демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 

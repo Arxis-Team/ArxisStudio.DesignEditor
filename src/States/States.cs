@@ -132,10 +132,11 @@ public class ItemIdleState : DesignEditorItemState
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor == null) return;
-        bool isCtrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        editor.SetLastInputModifiers(e.KeyModifiers);
+        bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
         if (!Container.IsSelected)
         {
-            if (!isCtrl) editor.Selection.Clear();
+            if (!isAdditive) editor.Selection.Clear();
             editor.Selection.Select(editor.IndexFromContainer(Container));
             _shouldSkipSelectionToggle = true;
         } else _shouldSkipSelectionToggle = false;
@@ -147,14 +148,15 @@ public class ItemIdleState : DesignEditorItemState
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor == null) return;
-        bool isCtrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
+        bool isContainerInteraction = editor.ShouldUseContainerInteraction(e.KeyModifiers);
         var index = editor.IndexFromContainer(Container);
-        if (isCtrl) {
+        if (isAdditive && !isContainerInteraction) {
             if (!_shouldSkipSelectionToggle) {
                 if (Container.IsSelected) editor.Selection.Deselect(index);
                 else editor.Selection.Select(index);
             }
-        } else if (Container.IsSelected && editor.Selection.Count > 1) {
+        } else if (!isAdditive && Container.IsSelected && editor.Selection.Count > 1) {
             editor.Selection.Clear();
             editor.Selection.Select(index);
         }

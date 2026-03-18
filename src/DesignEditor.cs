@@ -202,6 +202,15 @@ public class DesignEditor : SelectingItemsControl
             (o, v) => o.ContainerInteractionModifiers = v);
 
     /// <summary>
+    /// Идентификатор модификаторов additive selection.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, KeyModifiers> AdditiveSelectionModifiersProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, KeyModifiers>(
+            nameof(AdditiveSelectionModifiers),
+            o => o.AdditiveSelectionModifiers,
+            (o, v) => o.AdditiveSelectionModifiers = v);
+
+    /// <summary>
     /// Идентификатор свойства, показывающего активен ли marquee-selection.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> IsSelectingProperty =
@@ -351,6 +360,7 @@ public class DesignEditor : SelectingItemsControl
             var gestures = value ?? new DesignEditorInputGestures();
             SetAndRaise(InputGesturesProperty, ref _inputGestures, gestures);
             SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, gestures.ContainerInteractionModifiers);
+            SetAndRaise(AdditiveSelectionModifiersProperty, ref _additiveSelectionModifiers, gestures.AdditiveSelectionModifiers);
         }
     }
 
@@ -370,6 +380,24 @@ public class DesignEditor : SelectingItemsControl
         {
             SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, value);
             InputGestures.ContainerInteractionModifiers = value;
+        }
+    }
+
+    /// <summary>
+    /// Получает или задает модификаторы additive selection.
+    /// </summary>
+    /// <remarks>
+    /// Совместимое сокращенное свойство над <see cref="InputGestures"/>.
+    /// Для нового кода рекомендуется использовать <see cref="InputGestures"/> напрямую.
+    /// </remarks>
+    private KeyModifiers _additiveSelectionModifiers = KeyModifiers.Shift;
+    public KeyModifiers AdditiveSelectionModifiers
+    {
+        get => InputGestures.AdditiveSelectionModifiers;
+        set
+        {
+            SetAndRaise(AdditiveSelectionModifiersProperty, ref _additiveSelectionModifiers, value);
+            InputGestures.AdditiveSelectionModifiers = value;
         }
     }
 
@@ -454,6 +482,7 @@ public class DesignEditor : SelectingItemsControl
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
     private readonly Dictionary<DesignEditorItem, Control> _selectionTargets = new();
+    private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
@@ -505,6 +534,7 @@ public class DesignEditor : SelectingItemsControl
         SelectionMode = SelectionMode.Multiple;
         _inputGestures = new DesignEditorInputGestures();
         _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;
+        _additiveSelectionModifiers = _inputGestures.AdditiveSelectionModifiers;
 
         var contentGroup = new TransformGroup();
         contentGroup.Children.Add(_scaleTransform);
@@ -869,6 +899,7 @@ public class DesignEditor : SelectingItemsControl
         }
 
         _selectionTargets.Clear();
+        _containerSelectionTargets.Clear();
         SelectionBounds = default;
         HasSingleSelection = false;
         HasMultipleSelection = false;
@@ -880,6 +911,7 @@ public class DesignEditor : SelectingItemsControl
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
     {
         if (Presenter?.Panel == null) return;
+        var useContainerSelection = ShouldUseContainerInteraction(LastInputModifiers);
 
         using (Selection.BatchUpdate())
         {
@@ -889,8 +921,20 @@ public class DesignEditor : SelectingItemsControl
             {
                 if (child is DesignEditorItem container)
                 {
-                    if (TryGetDesignBounds(container, out var itemBounds) && bounds.Intersects(itemBounds))
+                    var intersects = useContainerSelection
+                        ? bounds.Intersects(new Rect(container.Location, container.Bounds.Size))
+                        : TryGetDesignBounds(container, out var itemBounds) && bounds.Intersects(itemBounds);
+
+                    if (intersects)
+                    {
+                        if (useContainerSelection)
+                        {
+                            _selectionTargets.Remove(container);
+                            _containerSelectionTargets.Add(container);
+                        }
+
                         Selection.Select(IndexFromContainer(container));
+                    }
                 }
             }
         }
@@ -1003,6 +1047,7 @@ public class DesignEditor : SelectingItemsControl
 
     internal void UpdateSelectionTargetFromSource(DesignEditorItem container, Visual? source)
     {
+        _containerSelectionTargets.Remove(container);
         var target = ResolveSelectionTarget(container, source);
 
         if (ReferenceEquals(target, container))
@@ -1018,10 +1063,12 @@ public class DesignEditor : SelectingItemsControl
         if (ShouldUseContainerInteraction(modifiers))
         {
             _selectionTargets.Remove(container);
+            _containerSelectionTargets.Add(container);
             UpdateSelectionOverlayState();
             return;
         }
 
+        _containerSelectionTargets.Remove(container);
         var worldPoint = GetWorldPosition(screenPoint);
         var target = ResolveSelectionTargetAtPoint(container, worldPoint);
 
@@ -1035,10 +1082,15 @@ public class DesignEditor : SelectingItemsControl
 
     internal Control ResolveInteractionTarget(DesignEditorItem container)
     {
-        if (ShouldUseContainerInteraction(LastInputModifiers))
+        if (_containerSelectionTargets.Contains(container) || ShouldUseContainerInteraction(LastInputModifiers))
             return container;
 
         return ResolveSelectionTarget(container);
+    }
+
+    internal void SetLastInputModifiers(KeyModifiers modifiers)
+    {
+        LastInputModifiers = modifiers;
     }
 
     internal Point GetDesignPosition(Control control)
@@ -1138,11 +1190,16 @@ public class DesignEditor : SelectingItemsControl
 
     private static Control ResolveSelectionTarget(DesignEditorItem item)
     {
-        if (item.FindAncestorOfType<DesignEditor>() is { } editor &&
-            editor._selectionTargets.TryGetValue(item, out var explicitTarget) &&
-            IsOwnedByContainer(explicitTarget, item))
+        if (item.FindAncestorOfType<DesignEditor>() is { } editor)
         {
-            return explicitTarget;
+            if (editor._containerSelectionTargets.Contains(item))
+                return item;
+
+            if (editor._selectionTargets.TryGetValue(item, out var explicitTarget) &&
+                IsOwnedByContainer(explicitTarget, item))
+            {
+                return explicitTarget;
+            }
         }
 
         foreach (var control in EnumerateSelectionCandidates(item))
@@ -1265,7 +1322,7 @@ public class DesignEditor : SelectingItemsControl
 
     private void CleanupSelectionTargets()
     {
-        if (_selectionTargets.Count == 0)
+        if (_selectionTargets.Count == 0 && _containerSelectionTargets.Count == 0)
             return;
 
         var selectedContainers = new HashSet<DesignEditorItem>();
@@ -1295,6 +1352,8 @@ public class DesignEditor : SelectingItemsControl
 
         foreach (var container in staleContainers)
             _selectionTargets.Remove(container);
+
+        _containerSelectionTargets.RemoveWhere(container => !selectedContainers.Contains(container));
     }
 
     private static string DescribeSelectionTarget(Control? control)
@@ -1325,6 +1384,12 @@ public class DesignEditor : SelectingItemsControl
     internal bool ShouldUseContainerInteraction(KeyModifiers modifiers)
     {
         var requiredModifiers = InputGestures.ContainerInteractionModifiers;
+        return requiredModifiers != KeyModifiers.None && modifiers.HasFlag(requiredModifiers);
+    }
+
+    internal bool ShouldUseAdditiveSelection(KeyModifiers modifiers)
+    {
+        var requiredModifiers = InputGestures.AdditiveSelectionModifiers;
         return requiredModifiers != KeyModifiers.None && modifiers.HasFlag(requiredModifiers);
     }
 

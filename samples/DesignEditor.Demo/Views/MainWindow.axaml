@@ -84,9 +84,10 @@
                                  ItemsSource="{Binding Nodes}"
                                  SelectedItems="{Binding SelectedNodes}"
                                  SelectionMode="Multiple"
-                                 ViewportZoom="{Binding Zoom, Mode=TwoWay}">
+                                  ViewportZoom="{Binding Zoom, Mode=TwoWay}">
             <arxisStudio:DesignEditor.InputGestures>
-                <arxisStudio:DesignEditorInputGestures ContainerInteractionModifiers="Control" />
+                <arxisStudio:DesignEditorInputGestures ContainerInteractionModifiers="Control"
+                                                       AdditiveSelectionModifiers="Shift" />
             </arxisStudio:DesignEditor.InputGestures>
 
             <arxisStudio:DesignEditor.DataTemplates>
@@ -130,6 +131,21 @@
                                Foreground="#F6C768"
                                FontSize="11"
                                FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Opacity="0.75">
+                    <TextBlock Text="Gestures:"
+                               Foreground="#666"
+                               FontSize="10"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Ctrl = item"
+                               Foreground="#A9D1FF"
+                               FontSize="10"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Ctrl+Shift = add"
+                               Foreground="#A9D1FF"
+                               FontSize="10"
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
