@@ -79,37 +79,12 @@
                                 IsHitTestVisible="True"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
-                            <ItemsControl ItemsSource="{TemplateBinding SecondarySelectionAdorners}"
-                                          IsVisible="{TemplateBinding HasMultipleSelection}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <controls:SelectionAdorner Theme="{Binding SecondarySelectionOutlineStyle, RelativeSource={RelativeSource AncestorType=local:DesignEditor}}"
-                                                                   Role="{Binding Role}"
-                                                                   RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource AncestorType=local:DesignEditor}, Converter={StaticResource UnscaleTransformConverter}}"
-                                                                   RenderTransformOrigin="0,0"
-                                                                   Canvas.Top="{Binding Bounds.Y}"
-                                                                   Canvas.Left="{Binding Bounds.X}">
-                                            <controls:SelectionAdorner.Width>
-                                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
-                                                    <Binding Path="Bounds.Width" />
-                                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource AncestorType=local:DesignEditor}" />
-                                                </MultiBinding>
-                                            </controls:SelectionAdorner.Width>
-                                            <controls:SelectionAdorner.Height>
-                                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
-                                                    <Binding Path="Bounds.Height" />
-                                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource AncestorType=local:DesignEditor}" />
-                                                </MultiBinding>
-                                            </controls:SelectionAdorner.Height>
-                                        </controls:SelectionAdorner>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <controls:SelectionAdornerLayer Items="{TemplateBinding SecondarySelectionAdorners}"
+                                                            AdornerTheme="{TemplateBinding SecondarySelectionOutlineStyle}"
+                                                            ViewportZoom="{TemplateBinding ViewportZoom}"
+                                                            ClipToBounds="False"
+                                                            IsHitTestVisible="False"
+                                                            IsVisible="{TemplateBinding HasMultipleSelection}" />
 
                             <controls:SelectionAdorner Name="PART_SelectionAdorner"
                                                        Theme="{TemplateBinding SelectionOutlineStyle}"
@@ -136,13 +111,17 @@
                                 </controls:SelectionAdorner.Height>
                             </controls:SelectionAdorner>
 
-                            <controls:SelectionAdorner Theme="{TemplateBinding GroupSelectionOutlineStyle}"
+                            <controls:SelectionAdorner Name="PART_GroupSelectionAdorner"
+                                                       Theme="{TemplateBinding GroupSelectionOutlineStyle}"
                                                        Role="Group"
+                                                       ShowHandles="True"
+                                                       IsInteractive="True"
                                                        RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
                                                        RenderTransformOrigin="0,0"
                                                        Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                                        Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
-                                                       IsVisible="{TemplateBinding HasMultipleSelection}">
+                                                       IsVisible="{TemplateBinding HasMultipleSelection}"
+                                                       IsHitTestVisible="True">
                                 <controls:SelectionAdorner.Width>
                                     <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
                                         <Binding Path="SelectionBounds.Width" RelativeSource="{RelativeSource TemplatedParent}" />

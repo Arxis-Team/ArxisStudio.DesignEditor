@@ -21,6 +21,7 @@ public class EditorSelectingState : EditorState
     {
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
+        Editor.BeginMarqueeSelection(Editor.GetPositionForInput(Editor), Editor.LastInputModifiers);
 
         // 2. Запоминаем точку старта в МИРОВЫХ координатах (с учетом зума и пана)
         _startLocationWorld = Editor.GetWorldPosition(Editor.GetPositionForInput(Editor));

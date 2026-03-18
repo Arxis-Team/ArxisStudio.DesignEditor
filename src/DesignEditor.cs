@@ -250,6 +250,14 @@ public class DesignEditor : SelectingItemsControl
             (o, v) => o.SecondarySelectionAdorners = v);
 
     /// <summary>
+    /// Идентификатор количества secondary selection adorner'ов.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, int> SecondarySelectionAdornersCountProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, int>(
+            nameof(SecondarySelectionAdornersCount),
+            o => o.SecondarySelectionAdornersCount);
+
+    /// <summary>
     /// Идентификатор свойства, указывающего наличие ровно одного выбранного элемента.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> HasSingleSelectionProperty =
@@ -472,8 +480,18 @@ public class DesignEditor : SelectingItemsControl
     public IReadOnlyList<SelectionAdornerInfo> SecondarySelectionAdorners
     {
         get => _secondarySelectionAdorners;
-        private set => SetAndRaise(SecondarySelectionAdornersProperty, ref _secondarySelectionAdorners, value);
+        private set
+        {
+            SetAndRaise(SecondarySelectionAdornersProperty, ref _secondarySelectionAdorners, value);
+            SetAndRaise(SecondarySelectionAdornersCountProperty, ref _secondarySelectionAdornersCount, value.Count);
+        }
     }
+
+    private int _secondarySelectionAdornersCount;
+    /// <summary>
+    /// Получает количество secondary adorner'ов в текущем multi-selection overlay.
+    /// </summary>
+    public int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
 
     private bool _hasSingleSelection;
     /// <summary>
@@ -513,14 +531,32 @@ public class DesignEditor : SelectingItemsControl
     internal KeyModifiers LastInputModifiers { get; private set; }
 
     private SelectionAdorner? _selectionAdorner;
+    private SelectionAdorner? _groupSelectionAdorner;
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
-    private readonly Dictionary<DesignEditorItem, Control> _selectionTargets = new();
+    private DesignEditorItem? _marqueeSelectionOwner;
+    private readonly Dictionary<DesignEditorItem, List<Control>> _selectionTargets = new();
     private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
+    private GroupResizeSession? _groupResizeSession;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
     private readonly TranslateTransform _dpiTranslateTransform = new TranslateTransform();
+
+    private sealed class GroupResizeSession
+    {
+        public ResizeDirection Direction { get; set; }
+        public Rect InitialBounds { get; set; }
+        public IReadOnlyList<GroupResizeTargetSnapshot> Targets { get; set; } = Array.Empty<GroupResizeTargetSnapshot>();
+        public Vector AccumulatedDelta { get; set; }
+    }
+
+    private sealed class GroupResizeTargetSnapshot
+    {
+        public DesignEditorItem Container { get; set; } = null!;
+        public Control Target { get; set; } = null!;
+        public Rect InitialBounds { get; set; }
+    }
     #endregion
 
     static DesignEditor()
@@ -605,13 +641,28 @@ public class DesignEditor : SelectingItemsControl
             _selectionAdorner.ResizeCompleted -= OnSelectionResizeCompleted;
         }
 
+        if (_groupSelectionAdorner != null)
+        {
+            _groupSelectionAdorner.ResizeStarted -= OnGroupSelectionResizeStarted;
+            _groupSelectionAdorner.ResizeDelta -= OnGroupSelectionResizeDelta;
+            _groupSelectionAdorner.ResizeCompleted -= OnGroupSelectionResizeCompleted;
+        }
+
         _selectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_SelectionAdorner");
+        _groupSelectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_GroupSelectionAdorner");
 
         if (_selectionAdorner != null)
         {
             _selectionAdorner.ResizeStarted += OnSelectionResizeStarted;
             _selectionAdorner.ResizeDelta += OnSelectionResizeDelta;
             _selectionAdorner.ResizeCompleted += OnSelectionResizeCompleted;
+        }
+
+        if (_groupSelectionAdorner != null)
+        {
+            _groupSelectionAdorner.ResizeStarted += OnGroupSelectionResizeStarted;
+            _groupSelectionAdorner.ResizeDelta += OnGroupSelectionResizeDelta;
+            _groupSelectionAdorner.ResizeCompleted += OnGroupSelectionResizeCompleted;
         }
     }
 
@@ -889,34 +940,35 @@ public class DesignEditor : SelectingItemsControl
             if (container == null)
                 continue;
 
-            var selectionTarget = ResolveSelectionTarget(container);
-
-            if (!TryGetDesignBounds(selectionTarget, out var itemBounds))
-                continue;
-
-            selectedCount++;
-            primaryItem ??= container;
-            primaryControl ??= selectionTarget;
-            perTargetBounds.Add(new SelectionAdornerInfo
+            foreach (var selectionTarget in ResolveSelectionTargets(container))
             {
-                Bounds = itemBounds,
-                Role = SelectionAdornerRole.Secondary
-            });
+                if (!TryGetDesignBounds(selectionTarget, out var itemBounds))
+                    continue;
 
-            if (!hasBounds)
-            {
-                left = itemBounds.Left;
-                top = itemBounds.Top;
-                right = itemBounds.Right;
-                bottom = itemBounds.Bottom;
-                hasBounds = true;
-                continue;
+                selectedCount++;
+                primaryItem ??= container;
+                primaryControl ??= selectionTarget;
+                perTargetBounds.Add(new SelectionAdornerInfo
+                {
+                    Bounds = itemBounds,
+                    Role = SelectionAdornerRole.Secondary
+                });
+
+                if (!hasBounds)
+                {
+                    left = itemBounds.Left;
+                    top = itemBounds.Top;
+                    right = itemBounds.Right;
+                    bottom = itemBounds.Bottom;
+                    hasBounds = true;
+                    continue;
+                }
+
+                left = Math.Min(left, itemBounds.Left);
+                top = Math.Min(top, itemBounds.Top);
+                right = Math.Max(right, itemBounds.Right);
+                bottom = Math.Max(bottom, itemBounds.Bottom);
             }
-
-            left = Math.Min(left, itemBounds.Left);
-            top = Math.Min(top, itemBounds.Top);
-            right = Math.Max(right, itemBounds.Right);
-            bottom = Math.Max(bottom, itemBounds.Bottom);
         }
 
         if (!hasBounds)
@@ -957,6 +1009,7 @@ public class DesignEditor : SelectingItemsControl
     {
         if (Presenter?.Panel == null) return;
         var useContainerSelection = ShouldUseContainerInteraction(LastInputModifiers);
+        var marqueeOwner = useContainerSelection ? null : (_marqueeSelectionOwner ?? FindContainerForMarquee(bounds));
 
         using (Selection.BatchUpdate())
         {
@@ -966,24 +1019,53 @@ public class DesignEditor : SelectingItemsControl
             {
                 if (child is DesignEditorItem container)
                 {
-                    var intersects = useContainerSelection
-                        ? bounds.Intersects(new Rect(container.Location, container.Bounds.Size))
-                        : TryGetDesignBounds(container, out var itemBounds) && bounds.Intersects(itemBounds);
+                    if (marqueeOwner != null && !ReferenceEquals(container, marqueeOwner))
+                        continue;
 
-                    if (intersects)
+                    if (useContainerSelection)
                     {
-                        if (useContainerSelection)
-                        {
-                            _selectionTargets.Remove(container);
-                            _containerSelectionTargets.Add(container);
-                        }
+                        var intersectsContainer = bounds.Intersects(new Rect(container.Location, container.Bounds.Size));
+                        if (!intersectsContainer)
+                            continue;
 
+                        _selectionTargets.Remove(container);
+                        _containerSelectionTargets.Add(container);
                         Selection.Select(IndexFromContainer(container));
+                        continue;
                     }
+
+                    var nestedTargets = new List<Control>();
+                    foreach (var target in EnumerateSelectionCandidates(container))
+                    {
+                        if (!HasDesignerLayoutMetadata(target))
+                            continue;
+
+                        if (TryGetDesignBounds(target, out var targetBounds) && bounds.Intersects(targetBounds))
+                            nestedTargets.Add(target);
+                    }
+
+                    if (nestedTargets.Count == 0)
+                        continue;
+
+                    if (isCtrlPressed &&
+                        _selectionTargets.TryGetValue(container, out var existingTargets) &&
+                        existingTargets.Count > 0)
+                    {
+                        foreach (var target in existingTargets)
+                        {
+                            if (!nestedTargets.Contains(target))
+                                nestedTargets.Add(target);
+                        }
+                    }
+
+                    _containerSelectionTargets.Remove(container);
+                    _selectionTargets[container] = nestedTargets;
+                    Selection.Select(IndexFromContainer(container));
                 }
             }
         }
 
+        _marqueeSelectionOwner = null;
         UpdateSelectionOverlayState();
     }
 
@@ -1090,6 +1172,55 @@ public class DesignEditor : SelectingItemsControl
         e.Handled = true;
     }
 
+    private void OnGroupSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
+    {
+        if (!HasMultipleSelection || !TryCreateGroupResizeSession(e.Direction, out var session))
+            return;
+
+        _groupResizeSession = session;
+        e.Handled = true;
+    }
+
+    private void OnGroupSelectionResizeDelta(object? sender, ResizeDeltaEventArgs e)
+    {
+        if (_groupResizeSession == null)
+            return;
+
+        _groupResizeSession.AccumulatedDelta += e.Delta;
+        var nextBounds = CalculateResizedBounds(
+            _groupResizeSession.InitialBounds,
+            _groupResizeSession.Direction,
+            _groupResizeSession.AccumulatedDelta);
+        var initialBounds = _groupResizeSession.InitialBounds;
+        var scaleX = initialBounds.Width > 0 ? nextBounds.Width / initialBounds.Width : 1.0;
+        var scaleY = initialBounds.Height > 0 ? nextBounds.Height / initialBounds.Height : 1.0;
+
+        foreach (var snapshot in _groupResizeSession.Targets)
+        {
+            var initialTargetBounds = snapshot.InitialBounds;
+            var newX = nextBounds.X + ((initialTargetBounds.X - initialBounds.X) * scaleX);
+            var newY = nextBounds.Y + ((initialTargetBounds.Y - initialBounds.Y) * scaleY);
+            var newWidth = Math.Max(10, initialTargetBounds.Width * scaleX);
+            var newHeight = Math.Max(10, initialTargetBounds.Height * scaleY);
+
+            SetDesignSize(snapshot.Target, new Size(Math.Round(newWidth), Math.Round(newHeight)));
+            SetDesignPosition(snapshot.Target, new Point(Math.Round(newX), Math.Round(newY)));
+        }
+
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
+    private void OnGroupSelectionResizeCompleted(object? sender, VectorEventArgs e)
+    {
+        if (_groupResizeSession == null)
+            return;
+
+        _groupResizeSession = null;
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
     internal void UpdateSelectionTargetFromSource(DesignEditorItem container, Visual? source)
     {
         _containerSelectionTargets.Remove(container);
@@ -1098,7 +1229,7 @@ public class DesignEditor : SelectingItemsControl
         if (ReferenceEquals(target, container))
             _selectionTargets.Remove(container);
         else
-            _selectionTargets[container] = target;
+            _selectionTargets[container] = new List<Control> { target };
 
         UpdateSelectionOverlayState();
     }
@@ -1120,7 +1251,7 @@ public class DesignEditor : SelectingItemsControl
         if (ReferenceEquals(target, container))
             _selectionTargets.Remove(container);
         else
-            _selectionTargets[container] = target;
+            _selectionTargets[container] = new List<Control> { target };
 
         UpdateSelectionOverlayState();
     }
@@ -1136,6 +1267,13 @@ public class DesignEditor : SelectingItemsControl
     internal void SetLastInputModifiers(KeyModifiers modifiers)
     {
         LastInputModifiers = modifiers;
+    }
+
+    internal void BeginMarqueeSelection(Point screenPoint, KeyModifiers modifiers)
+    {
+        _marqueeSelectionOwner = ShouldUseContainerInteraction(modifiers)
+            ? null
+            : FindContainerAtWorldPoint(GetWorldPosition(screenPoint));
     }
 
     internal Point GetDesignPosition(Control control)
@@ -1240,13 +1378,23 @@ public class DesignEditor : SelectingItemsControl
             if (editor._containerSelectionTargets.Contains(item))
                 return item;
 
-            if (editor._selectionTargets.TryGetValue(item, out var explicitTarget) &&
-                IsOwnedByContainer(explicitTarget, item))
+            if (editor._selectionTargets.TryGetValue(item, out var explicitTargets) &&
+                explicitTargets.Count > 0)
             {
-                return explicitTarget;
+                for (var i = explicitTargets.Count - 1; i >= 0; i--)
+                {
+                    var explicitTarget = explicitTargets[i];
+                    if (IsOwnedByContainer(explicitTarget, item))
+                        return explicitTarget;
+                }
             }
         }
 
+        return ResolveDefaultSelectionTarget(item);
+    }
+
+    private static Control ResolveDefaultSelectionTarget(DesignEditorItem item)
+    {
         foreach (var control in EnumerateSelectionCandidates(item))
         {
             if (HasDesignerLayoutMetadata(control))
@@ -1358,8 +1506,14 @@ public class DesignEditor : SelectingItemsControl
             if (container == null && item is DesignEditorItem directItem)
                 container = directItem;
 
-            if (container != null && ReferenceEquals(ResolveSelectionTarget(container), control))
-                return true;
+            if (container == null)
+                continue;
+
+            foreach (var selectionTarget in ResolveSelectionTargets(container))
+            {
+                if (ReferenceEquals(selectionTarget, control))
+                    return true;
+            }
         }
 
         return false;
@@ -1389,16 +1543,36 @@ public class DesignEditor : SelectingItemsControl
         foreach (var pair in _selectionTargets)
         {
             if (!selectedContainers.Contains(pair.Key) ||
-                !IsOwnedByContainer(pair.Value, pair.Key))
+                pair.Value.Count == 0)
             {
                 staleContainers.Add(pair.Key);
+                continue;
             }
+
+            pair.Value.RemoveAll(control => !IsOwnedByContainer(control, pair.Key));
+            if (pair.Value.Count == 0)
+                staleContainers.Add(pair.Key);
         }
 
         foreach (var container in staleContainers)
             _selectionTargets.Remove(container);
 
         _containerSelectionTargets.RemoveWhere(container => !selectedContainers.Contains(container));
+    }
+
+    private IReadOnlyList<Control> ResolveSelectionTargets(DesignEditorItem item)
+    {
+        if (_containerSelectionTargets.Contains(item))
+            return new[] { (Control)item };
+
+        if (_selectionTargets.TryGetValue(item, out var explicitTargets) && explicitTargets.Count > 0)
+        {
+            explicitTargets.RemoveAll(control => !IsOwnedByContainer(control, item));
+            if (explicitTargets.Count > 0)
+                return explicitTargets;
+        }
+
+        return new[] { ResolveDefaultSelectionTarget(item) };
     }
 
     private static string DescribeSelectionTarget(Control? control)
@@ -1449,5 +1623,174 @@ public class DesignEditor : SelectingItemsControl
                 yield return control;
             }
         }
+    }
+
+    private DesignEditorItem? FindContainerAtWorldPoint(Point worldPoint)
+    {
+        if (Presenter?.Panel == null)
+            return null;
+
+        DesignEditorItem? bestMatch = null;
+
+        foreach (var child in Presenter.Panel.Children)
+        {
+            if (child is not DesignEditorItem container || container.Bounds.Width <= 0 || container.Bounds.Height <= 0)
+                continue;
+
+            var bounds = new Rect(container.Location, container.Bounds.Size);
+            if (!bounds.Contains(worldPoint))
+                continue;
+
+            bestMatch = container;
+        }
+
+        return bestMatch;
+    }
+
+    private DesignEditorItem? FindContainerForMarquee(Rect bounds)
+    {
+        if (Presenter?.Panel == null)
+            return null;
+
+        DesignEditorItem? bestMatch = null;
+        var bestArea = 0.0;
+
+        foreach (var child in Presenter.Panel.Children)
+        {
+            if (child is not DesignEditorItem container || container.Bounds.Width <= 0 || container.Bounds.Height <= 0)
+                continue;
+
+            var containerBounds = new Rect(container.Location, container.Bounds.Size);
+            var intersection = containerBounds.Intersect(bounds);
+            if (intersection.Width <= 0 || intersection.Height <= 0)
+                continue;
+
+            var area = intersection.Width * intersection.Height;
+            if (area > bestArea)
+            {
+                bestArea = area;
+                bestMatch = container;
+            }
+        }
+
+        return bestMatch;
+    }
+
+    private bool TryCreateGroupResizeSession(ResizeDirection direction, out GroupResizeSession? session)
+    {
+        session = null;
+
+        if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _)
+            || selectedCount <= 1)
+        {
+            return false;
+        }
+
+        var targets = new List<GroupResizeTargetSnapshot>();
+        var items = SelectedItems;
+        if (items == null)
+            return false;
+
+        foreach (var item in items)
+        {
+            var container = ContainerFromItem(item) as DesignEditorItem;
+            if (container == null && item is DesignEditorItem directItem)
+                container = directItem;
+
+            if (container == null)
+                continue;
+
+            foreach (var target in ResolveSelectionTargets(container))
+            {
+                if (!TryGetDesignBounds(target, out var bounds))
+                    continue;
+
+                SetDesignSize(target, GetDesignSize(target));
+
+                targets.Add(new GroupResizeTargetSnapshot
+                {
+                    Container = container,
+                    Target = target,
+                    InitialBounds = bounds
+                });
+            }
+        }
+
+        if (targets.Count <= 1)
+            return false;
+
+        session = new GroupResizeSession
+        {
+            Direction = direction,
+            InitialBounds = selectionBounds,
+            Targets = targets
+        };
+
+        return true;
+    }
+
+    private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta)
+    {
+        var newX = initialBounds.X;
+        var newY = initialBounds.Y;
+        var newWidth = initialBounds.Width;
+        var newHeight = initialBounds.Height;
+        const double minSize = 10;
+
+        switch (direction)
+        {
+            case ResizeDirection.Right:
+                newWidth += delta.X;
+                break;
+            case ResizeDirection.Bottom:
+                newHeight += delta.Y;
+                break;
+            case ResizeDirection.Left:
+                newWidth -= delta.X;
+                newX += delta.X;
+                break;
+            case ResizeDirection.Top:
+                newHeight -= delta.Y;
+                newY += delta.Y;
+                break;
+            case ResizeDirection.BottomRight:
+                newWidth += delta.X;
+                newHeight += delta.Y;
+                break;
+            case ResizeDirection.BottomLeft:
+                newWidth -= delta.X;
+                newX += delta.X;
+                newHeight += delta.Y;
+                break;
+            case ResizeDirection.TopRight:
+                newWidth += delta.X;
+                newHeight -= delta.Y;
+                newY += delta.Y;
+                break;
+            case ResizeDirection.TopLeft:
+                newWidth -= delta.X;
+                newX += delta.X;
+                newHeight -= delta.Y;
+                newY += delta.Y;
+                break;
+        }
+
+        var initialRight = initialBounds.Right;
+        var initialBottom = initialBounds.Bottom;
+
+        newWidth = Math.Max(minSize, newWidth);
+        newHeight = Math.Max(minSize, newHeight);
+
+        if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            newX = initialRight - newWidth;
+
+        if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            newY = initialBottom - newHeight;
+
+        return new Rect(
+            Math.Round(newX),
+            Math.Round(newY),
+            Math.Round(newWidth),
+            Math.Round(newHeight));
     }
 }

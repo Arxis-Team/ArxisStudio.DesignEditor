@@ -132,6 +132,16 @@
                                FontSize="11"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
+                    <TextBlock Text="Secondary:"
+                               Foreground="#666"
+                               FontSize="10"
+                               Margin="10,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.SecondarySelectionAdornersCount}"
+                               Foreground="#7EE787"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Opacity="0.75">
