@@ -1,6 +1,5 @@
 ﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:controls1="clr-namespace:ArxisStudio.Controls"
                     xmlns:arxisStudio="clr-namespace:ArxisStudio">
 
     <SolidColorBrush x:Key="DesignEditorItem.HighlightColor" Color="DodgerBlue" Opacity="0.2" />
@@ -43,12 +42,6 @@
                             IsHitTestVisible="False"
                             Opacity="0" />
 
-                    <controls1:ResizeAdorner Name="PART_Resizer"
-                                            AdornerBrush="{TemplateBinding SelectedBrush}"
-                                            HandleSize="8"
-                                            IsVisible="False"
-                                            IsHitTestVisible="True" />
-
                     <StackPanel Name="PART_Toolbar"
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Right"
@@ -66,9 +59,6 @@
         <Style Selector="^:selected">
             <Setter Property="ZIndex" Value="99" />
 
-            <Style Selector="^ /template/ controls1|ResizeAdorner#PART_Resizer">
-                <Setter Property="IsVisible" Value="True"/>
-            </Style>
             <Style Selector="^ /template/ StackPanel#PART_Toolbar">
                 <Setter Property="Opacity" Value="1"/>
                 <Setter Property="IsHitTestVisible" Value="True"/>

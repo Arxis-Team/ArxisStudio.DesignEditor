@@ -30,12 +30,10 @@ namespace ArxisStudio;
 /// ]]></code>
 /// </example>
 [TemplatePart("PART_Border", typeof(Border))]
-[TemplatePart("PART_Resizer", typeof(ResizeAdorner))]
 [PseudoClasses(":selected", ":dragging", ":resizing")]
 public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 {
     #region Fields
-    private ResizeAdorner? _resizeAdorner;
     private readonly Stack<DesignEditorItemState> _states = new();
     private bool _isUpdatingLocation;
     #endregion
@@ -235,27 +233,6 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         _states.Push(new ItemIdleState(this));
     }
 
-    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
-    {
-        base.OnApplyTemplate(e);
-
-        if (_resizeAdorner != null)
-        {
-            _resizeAdorner.ResizeDelta -= OnAdornerResizeDelta;
-            _resizeAdorner.ResizeStarted -= OnAdornerResizeStarted;
-            _resizeAdorner.ResizeCompleted -= OnAdornerResizeCompleted;
-        }
-
-        _resizeAdorner = e.NameScope.Find<ResizeAdorner>("PART_Resizer");
-
-        if (_resizeAdorner != null)
-        {
-            _resizeAdorner.ResizeDelta += OnAdornerResizeDelta;
-            _resizeAdorner.ResizeStarted += OnAdornerResizeStarted;
-            _resizeAdorner.ResizeCompleted += OnAdornerResizeCompleted;
-        }
-    }
-
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -361,11 +338,10 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
     protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); CurrentState.OnPointerReleased(e); }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); while (_states.Count > 1) PopState(); }
 
-    private void OnAdornerResizeStarted(object? sender, ResizeStartedEventArgs e) { PushState(new ItemResizingState(this, e.Direction)); RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeStartedEvent, Vector = e.Vector }); e.Handled = true; }
-    private void OnAdornerResizeDelta(object? sender, ResizeDeltaEventArgs e) { CurrentState.OnResizeDelta(e); e.Handled = true; }
-    private void OnAdornerResizeCompleted(object? sender, VectorEventArgs e) { PopState(); RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeCompletedEvent, Vector = e.Vector }); e.Handled = true; }
-
     internal void OnDragStarted(DragStartedEventArgs e) => RaiseEvent(e);
     internal void OnDragDelta(DragDeltaEventArgs e) => RaiseEvent(e);
     internal void OnDragCompleted(DragCompletedEventArgs e) => RaiseEvent(e);
+    internal void OnResizeStarted(Vector vector) => RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeStartedEvent, Vector = vector });
+    internal void OnResizeDelta(ResizeDeltaEventArgs e) => RaiseEvent(e);
+    internal void OnResizeCompleted(Vector vector) => RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeCompletedEvent, Vector = vector });
 }

@@ -7,6 +7,7 @@
 - бесконечную поверхность с панорамированием и зумом
 - прямоугольное и множественное выделение
 - контейнеры элементов с drag-and-drop и resize
+- editor-level overlay-слои для рамок выделения, marquee и resize handles
 - систему attached-свойств для позиционирования
 - DPI-aware трансформации для фона, сетки и оверлеев
 - демо-приложение с типовым сценарием интеграции
@@ -26,10 +27,17 @@
 - позицию viewport через `ViewportLocation`
 - масштаб через `ViewportZoom`, `MinZoom`, `MaxZoom`
 - выделение через `Selection` и `SelectedItems`
+- overlay-систему редактора поверх содержимого
 - состояния взаимодействия: idle, selecting, panning
 - групповое перемещение выбранных элементов
 - навигацию viewport через `CenterOn(...)` и `CenterOnItem(...)`
 - вписывание области или элемента через `FitToView(...)`
+
+Текущий template `DesignEditor` уже разделен на слои:
+
+- `ItemsLayer` — реальное содержимое редактора и `DesignEditorItem`
+- `SelectionOverlayLayer` — рамки выделения и resize handles
+- `InteractionOverlayLayer` — marquee-selection и временные interaction overlays
 
 ### `DesignEditorItem`
 
@@ -37,9 +45,10 @@
 
 - состояние выделения
 - перетаскивание
-- ручки изменения размера
 - привязку позиции через `Location`
 - визуальные состояния `:selected`, `:dragging`, `:resizing`
+
+Начиная с текущей версии `DesignEditorItem` больше не рисует selection frame и resize handles внутри собственного шаблона. Эти editor overlays вынесены на уровень `DesignEditor`.
 
 ### `Layout`
 
@@ -119,7 +128,7 @@ public class DesignNodeViewModel
 - выделение кликом по элементу
 - множественное выделение через модель выбора Avalonia
 - drag выбранных элементов
-- resize через `ResizeAdorner`
+- resize через `ResizeAdorner`, расположенный на `SelectionOverlayLayer`
 
 ## Навигация по viewport
 
@@ -153,19 +162,43 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - ограничивают масштаб значениями `MinZoom` и `MaxZoom`
 - добавляют внутренний padding вокруг целевой области
 
+Навигационные методы `CenterOnItem(...)` и `FitToView(DesignEditorItem)` теперь используют не только `DesignEditorItem.Location`, но и геометрию реального visual target через `Layout`, если внутри контейнера присутствует контрол с designer-метаданными.
+
 ## Пример использования `Layout`
 
 Для вложенного контента внутри шаблона элемента можно использовать `Layout` напрямую:
 
 ```xml
 <controls:AbsolutePanel>
-    <TextBlock attached:Layout.DesignX="200"
-               attached:Layout.DesignY="100"
+    <TextBlock attached:Layout.X="200"
+               attached:Layout.Y="100"
+               attached:Layout.IsTracked="True"
                Text="Dashboard" />
 </controls:AbsolutePanel>
 ```
 
-Это удобно, когда внутреннему содержимому шаблона нужны координаты относительно всей поверхности дизайна.
+Это удобно, когда внутреннему содержимому шаблона нужны designer-координаты и редактор должен уметь строить overlay над вложенным контролом, а не только над `DesignEditorItem`.
+
+`Layout.DesignX` / `Layout.DesignY` поддерживаются автоматически и дают геометрию элемента в координатах `DesignEditor`.
+
+## Что уже сделано
+
+- `DesignEditor` переведен на layered-архитектуру с `ItemsLayer`, `SelectionOverlayLayer` и `InteractionOverlayLayer`
+- рамки одиночного и группового выделения вынесены из `DesignEditorItem` на уровень редактора
+- `ResizeAdorner` вынесен из шаблона `DesignEditorItem` и теперь живет на `SelectionOverlayLayer`
+- `SelectionBounds` считаются по editor-space геометрии выбранного visual target через `Layout`
+- `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
+- демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`
+
+## Что дальше
+
+Следующий этап развития редактора:
+
+- добавить выбор и hit-testing глубоко вложенных контролов как самостоятельных design targets
+- отвязать selection model от `DesignEditorItem` и перейти к модели selected design object
+- перенести resize/drag с контейнера на designer target
+- добавить editor overlays следующего уровня: guides, snap lines, hover outline
+- позже подключить `ArxisStudio.Markup` как источник `$design`-метаданных, не меняя core-архитектуру редактора
 
 ## Запуск демо
 
@@ -177,6 +210,7 @@ dotnet run --project samples/DesignEditor.Demo
 
 В демо-приложении добавлена кнопка `Center`, которая использует `CenterOnItem(...)` для активного элемента.
 Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
+Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
 
 ## Сборка
 

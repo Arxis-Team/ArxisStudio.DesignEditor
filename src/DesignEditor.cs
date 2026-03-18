@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DesignLayout = ArxisStudio.Attached.Layout;
 using ArxisStudio.Controls;
 using ArxisStudio.States;
 
@@ -377,6 +378,10 @@ public class DesignEditor : SelectingItemsControl
     private Point _lastMousePosition;
     internal KeyModifiers LastInputModifiers { get; private set; }
 
+    private ResizeAdorner? _selectionResizeAdorner;
+    private DesignEditorItem? _primarySelectionItem;
+    private Control? _primarySelectionControl;
+
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
     private readonly TranslateTransform _dpiTranslateTransform = new TranslateTransform();
@@ -400,6 +405,21 @@ public class DesignEditor : SelectingItemsControl
         DesignEditorItem.LocationProperty.Changed.AddClassHandler<DesignEditorItem>((item, _) =>
         {
             if (item.IsSelected && item.FindAncestorOfType<DesignEditor>() is { } editor)
+                editor.UpdateSelectionOverlayState();
+        });
+        DesignLayout.DesignXProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
+                editor.UpdateSelectionOverlayState();
+        });
+        DesignLayout.DesignYProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
+                editor.UpdateSelectionOverlayState();
+        });
+        BoundsProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
                 editor.UpdateSelectionOverlayState();
         });
     }
@@ -433,6 +453,27 @@ public class DesignEditor : SelectingItemsControl
     protected override Control CreateContainerForItemOverride(object? item, int index, object? recycleKey)
     {
         return new DesignEditorItem();
+    }
+
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+
+        if (_selectionResizeAdorner != null)
+        {
+            _selectionResizeAdorner.ResizeStarted -= OnSelectionResizeStarted;
+            _selectionResizeAdorner.ResizeDelta -= OnSelectionResizeDelta;
+            _selectionResizeAdorner.ResizeCompleted -= OnSelectionResizeCompleted;
+        }
+
+        _selectionResizeAdorner = e.NameScope.Find<ResizeAdorner>("PART_SelectionResizer");
+
+        if (_selectionResizeAdorner != null)
+        {
+            _selectionResizeAdorner.ResizeStarted += OnSelectionResizeStarted;
+            _selectionResizeAdorner.ResizeDelta += OnSelectionResizeDelta;
+            _selectionResizeAdorner.ResizeCompleted += OnSelectionResizeCompleted;
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -571,11 +612,17 @@ public class DesignEditor : SelectingItemsControl
         if (!ReferenceEquals(item.FindAncestorOfType<DesignEditor>(), this))
             throw new InvalidOperationException("The specified item does not belong to this DesignEditor.");
 
-        var itemCenter = new Point(
+        if (TryGetDesignBounds(item, out var bounds))
+        {
+            CenterOn(bounds.Center);
+            return;
+        }
+
+        var fallbackCenter = new Point(
             item.Location.X + (item.Bounds.Width / 2),
             item.Location.Y + (item.Bounds.Height / 2));
 
-        CenterOn(itemCenter);
+        CenterOn(fallbackCenter);
     }
 
     /// <summary>
@@ -637,6 +684,12 @@ public class DesignEditor : SelectingItemsControl
         if (!ReferenceEquals(item.FindAncestorOfType<DesignEditor>(), this))
             throw new InvalidOperationException("The specified item does not belong to this DesignEditor.");
 
+        if (TryGetDesignBounds(item, out var bounds))
+        {
+            FitToView(bounds);
+            return;
+        }
+
         FitToView(new Rect(item.Location, item.Bounds.Size));
     }
 
@@ -648,7 +701,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void CenterOnSelection()
     {
-        if (TryGetSelectedItemsBounds(out var bounds, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _))
             CenterOn(bounds);
     }
 
@@ -660,15 +713,20 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void FitSelectionToView()
     {
-        if (TryGetSelectedItemsBounds(out var bounds, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _))
             FitToView(bounds);
     }
 
-    private bool TryGetSelectedItemsBounds(out Rect bounds, out int selectedCount, out DesignEditorItem? primaryItem)
+    private bool TryGetSelectedDesignBounds(
+        out Rect bounds,
+        out int selectedCount,
+        out DesignEditorItem? primaryItem,
+        out Control? primaryControl)
     {
         bounds = default;
         selectedCount = 0;
         primaryItem = null;
+        primaryControl = null;
 
         var items = SelectedItems;
         if (items == null || items.Count == 0)
@@ -689,10 +747,14 @@ public class DesignEditor : SelectingItemsControl
             if (container == null)
                 continue;
 
+            var selectionTarget = ResolveSelectionTarget(container);
+
+            if (!TryGetDesignBounds(selectionTarget, out var itemBounds))
+                continue;
+
             selectedCount++;
             primaryItem ??= container;
-
-            var itemBounds = new Rect(container.Location, container.Bounds.Size);
+            primaryControl ??= selectionTarget;
 
             if (!hasBounds)
             {
@@ -719,17 +781,21 @@ public class DesignEditor : SelectingItemsControl
 
     internal void UpdateSelectionOverlayState()
     {
-        if (TryGetSelectedItemsBounds(out var bounds, out var selectedCount, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out var selectedCount, out var primaryItem, out var primaryControl))
         {
             SelectionBounds = bounds;
             HasSingleSelection = selectedCount == 1;
             HasMultipleSelection = selectedCount > 1;
+            _primarySelectionItem = primaryItem;
+            _primarySelectionControl = primaryControl;
             return;
         }
 
         SelectionBounds = default;
         HasSingleSelection = false;
         HasMultipleSelection = false;
+        _primarySelectionItem = null;
+        _primarySelectionControl = null;
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
@@ -820,5 +886,145 @@ public class DesignEditor : SelectingItemsControl
     {
         UpdateSelectionOverlayState();
         e.Handled = false;
+    }
+
+    private void OnSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
+    {
+        if (_primarySelectionItem == null || _primarySelectionControl == null || !HasSingleSelection)
+            return;
+
+        _primarySelectionItem.PushState(new ItemResizingState(_primarySelectionItem, e.Direction));
+        _primarySelectionItem.OnResizeStarted(e.Vector);
+        e.Handled = true;
+    }
+
+    private void OnSelectionResizeDelta(object? sender, ResizeDeltaEventArgs e)
+    {
+        if (_primarySelectionItem == null || _primarySelectionControl == null || _primarySelectionItem.CurrentState is not ItemResizingState)
+            return;
+
+        _primarySelectionItem.CurrentState.OnResizeDelta(e);
+        _primarySelectionItem.OnResizeDelta(new ResizeDeltaEventArgs(e.Delta, e.Direction, DesignEditorItem.ResizeDeltaEvent));
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
+    private void OnSelectionResizeCompleted(object? sender, VectorEventArgs e)
+    {
+        if (_primarySelectionItem == null || _primarySelectionControl == null || _primarySelectionItem.CurrentState is not ItemResizingState)
+            return;
+
+        _primarySelectionItem.PopState();
+        _primarySelectionItem.OnResizeCompleted(e.Vector);
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
+    private bool TryGetDesignBounds(DesignEditorItem item, out Rect bounds)
+    {
+        if (item == null)
+        {
+            bounds = default;
+            return false;
+        }
+
+        return TryGetDesignBounds(ResolveSelectionTarget(item), out bounds);
+    }
+
+    private bool TryGetDesignBounds(Control control, out Rect bounds)
+    {
+        if (!ReferenceEquals(control.FindAncestorOfType<DesignEditor>(), this))
+        {
+            bounds = default;
+            return false;
+        }
+
+        if (control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        EnsureTracked(control);
+
+        var x = DesignLayout.GetDesignX(control);
+        var y = DesignLayout.GetDesignY(control);
+
+        if (double.IsNaN(x) || double.IsNaN(y))
+        {
+            Visual? reference = control.FindAncestorOfType<DesignSurface>()
+                                ?? control.FindAncestorOfType<DesignEditor>() as Visual;
+            var position = reference != null
+                ? control.TranslatePoint(new Point(0, 0), reference)
+                : null;
+            if (!position.HasValue)
+            {
+                bounds = default;
+                return false;
+            }
+
+            x = position.Value.X;
+            y = position.Value.Y;
+        }
+
+        bounds = new Rect(new Point(x, y), control.Bounds.Size);
+        return true;
+    }
+
+    private static Control ResolveSelectionTarget(DesignEditorItem item)
+    {
+        if (item.Content is Control content)
+            return ResolveSelectionTarget(content);
+
+        return item;
+    }
+
+    private static Control ResolveSelectionTarget(Control root)
+    {
+        if (HasDesignerLayoutMetadata(root))
+            return root;
+
+        foreach (var descendant in root.GetVisualDescendants())
+        {
+            if (descendant is Control control && HasDesignerLayoutMetadata(control))
+                return control;
+        }
+
+        return root;
+    }
+
+    private static bool HasDesignerLayoutMetadata(Control control)
+    {
+        return DesignLayout.GetIsTracked(control)
+            || !double.IsNaN(DesignLayout.GetX(control))
+            || !double.IsNaN(DesignLayout.GetY(control));
+    }
+
+    private static void EnsureTracked(Control control)
+    {
+        if (!DesignLayout.GetIsTracked(control))
+            DesignLayout.Track(control);
+    }
+
+    private bool IsSelectionOverlayControl(Control control)
+    {
+        if (_primarySelectionControl != null && ReferenceEquals(_primarySelectionControl, control))
+            return true;
+
+        var items = SelectedItems;
+        if (items == null || items.Count == 0)
+            return false;
+
+        foreach (var item in items)
+        {
+            var container = ContainerFromItem(item) as DesignEditorItem;
+            if (container == null && item is DesignEditorItem directItem)
+                container = directItem;
+
+            if (container != null && ReferenceEquals(ResolveSelectionTarget(container), control))
+                return true;
+        }
+
+        return false;
     }
 }
