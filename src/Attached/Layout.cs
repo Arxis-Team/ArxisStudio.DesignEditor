@@ -190,8 +190,13 @@ public static class Layout
 
                  if (local.HasValue)
                  {
-                     SetX(control, local.Value.X);
-                     SetY(control, local.Value.Y);
+                     // Layout.X/Y represent the slot position in the parent panel.
+                     // TranslatePoint returns the visual top-left of the control, which already
+                     // includes Margin offsets. Subtract them here so drag/resize does not
+                     // re-apply the margin on the next arrange pass.
+                     var margin = control.Margin;
+                     SetX(control, local.Value.X - margin.Left);
+                     SetY(control, local.Value.Y - margin.Top);
                  }
              }
         }
