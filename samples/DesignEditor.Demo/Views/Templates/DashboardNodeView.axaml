@@ -9,27 +9,31 @@
             BorderThickness="1">
         <controls:AbsolutePanel>
             <TextBlock Name="TextBlock1"
-                       attached:Layout.DesignX="100"
-                       attached:Layout.DesignY="100"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="100"
+                       attached:Layout.Y="100"
                        Text="Dashboard"
                        FontWeight="Bold"
                        FontSize="16"
                        Foreground="White" />
 
-            <StackPanel Orientation="Horizontal"
+            <StackPanel Name="StackPanel1"
+                        IsHitTestVisible="False"
+                        Orientation="Horizontal"
+                        attached:Layout.IsTracked="True"
                         Spacing="5"
                         Margin="0,10,0,0"
                         Opacity="0.5">
-                <TextBlock Text="X:" Foreground="#CCC" />
+                <TextBlock Text="DesignX:" Foreground="#CCC" />
                 <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignX), StringFormat='{}{0:0}'}"
                            Foreground="White" />
-                <TextBlock Text="Y:" Foreground="#CCC" />
+                <TextBlock Text="DesignY:" Foreground="#CCC" />
                 <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignY), StringFormat='{}{0:0}'}"
                            Foreground="White" />
-                <TextBlock Text="DesX:" Foreground="#CCC" />
+                <TextBlock Text="X:" Foreground="#CCC" />
                 <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.X), StringFormat='{}{0:0}'}"
                            Foreground="White" />
-                <TextBlock Text="DesY:" Foreground="#CCC" />
+                <TextBlock Text="Y:" Foreground="#CCC" />
                 <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.Y), StringFormat='{}{0:0}'}"
                            Foreground="White" />
             </StackPanel>

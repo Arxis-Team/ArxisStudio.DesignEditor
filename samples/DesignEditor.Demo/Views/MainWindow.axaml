@@ -114,6 +114,22 @@
                                Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                 </StackPanel>
 
+                <StackPanel Orientation="Horizontal"
+                            Spacing="6"
+                            VerticalAlignment="Center"
+                            Opacity="0.9"
+                            IsVisible="{Binding #Editor.PrimarySelectionTargetDescription, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Target:"
+                               Foreground="#666"
+                               FontSize="10"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.PrimarySelectionTargetDescription}"
+                               Foreground="#F6C768"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>
 
                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Opacity="0.9"

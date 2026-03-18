@@ -139,6 +139,8 @@ public class ItemIdleState : DesignEditorItemState
             editor.Selection.Select(editor.IndexFromContainer(Container));
             _shouldSkipSelectionToggle = true;
         } else _shouldSkipSelectionToggle = false;
+
+        editor.UpdateSelectionTargetFromPoint(Container, e.GetPosition(editor));
     }
 
     private void HandleSelectionOnRelease(PointerReleasedEventArgs e)
