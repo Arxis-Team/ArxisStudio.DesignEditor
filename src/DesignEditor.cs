@@ -184,6 +184,12 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(GroupSelectionOutlineStyle));
 
     /// <summary>
+    /// Идентификатор темы secondary outline для multi-selection.
+    /// </summary>
+    public static readonly StyledProperty<ControlTheme> SecondarySelectionOutlineStyleProperty =
+        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SecondarySelectionOutlineStyle));
+
+    /// <summary>
     /// Идентификатор объекта с настройками input gestures редактора.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, DesignEditorInputGestures> InputGesturesProperty =
@@ -233,6 +239,15 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> SelectionBoundsProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(SelectionBounds), o => o.SelectionBounds, (o, v) => o.SelectionBounds = v);
+
+    /// <summary>
+    /// Идентификатор коллекции per-target secondary outlines для multi-selection.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, IReadOnlyList<SelectionAdornerInfo>> SecondarySelectionAdornersProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<SelectionAdornerInfo>>(
+            nameof(SecondarySelectionAdorners),
+            o => o.SecondarySelectionAdorners,
+            (o, v) => o.SecondarySelectionAdorners = v);
 
     /// <summary>
     /// Идентификатор свойства, указывающего наличие ровно одного выбранного элемента.
@@ -345,6 +360,15 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
+    /// Получает или задает тему secondary outline для каждого target в multi-selection.
+    /// </summary>
+    public ControlTheme SecondarySelectionOutlineStyle
+    {
+        get => GetValue(SecondarySelectionOutlineStyleProperty);
+        set => SetValue(SecondarySelectionOutlineStyleProperty, value);
+    }
+
+    /// <summary>
     /// Получает или задает набор настраиваемых input gestures редактора.
     /// </summary>
     /// <remarks>
@@ -439,6 +463,16 @@ public class DesignEditor : SelectingItemsControl
     {
         get => _selectionBounds;
         private set => SetAndRaise(SelectionBoundsProperty, ref _selectionBounds, value);
+    }
+
+    private IReadOnlyList<SelectionAdornerInfo> _secondarySelectionAdorners = Array.Empty<SelectionAdornerInfo>();
+    /// <summary>
+    /// Получает коллекцию per-target secondary adorner'ов для multi-selection.
+    /// </summary>
+    public IReadOnlyList<SelectionAdornerInfo> SecondarySelectionAdorners
+    {
+        get => _secondarySelectionAdorners;
+        private set => SetAndRaise(SecondarySelectionAdornersProperty, ref _secondarySelectionAdorners, value);
     }
 
     private bool _hasSingleSelection;
@@ -806,7 +840,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void CenterOnSelection()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _))
             CenterOn(bounds);
     }
 
@@ -818,7 +852,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void FitSelectionToView()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _))
             FitToView(bounds);
     }
 
@@ -826,17 +860,20 @@ public class DesignEditor : SelectingItemsControl
         out Rect bounds,
         out int selectedCount,
         out DesignEditorItem? primaryItem,
-        out Control? primaryControl)
+        out Control? primaryControl,
+        out IReadOnlyList<SelectionAdornerInfo> secondaryAdorners)
     {
         bounds = default;
         selectedCount = 0;
         primaryItem = null;
         primaryControl = null;
+        secondaryAdorners = Array.Empty<SelectionAdornerInfo>();
 
         var items = SelectedItems;
         if (items == null || items.Count == 0)
             return false;
 
+        var perTargetBounds = new List<SelectionAdornerInfo>();
         var hasBounds = false;
         double left = 0;
         double top = 0;
@@ -860,6 +897,11 @@ public class DesignEditor : SelectingItemsControl
             selectedCount++;
             primaryItem ??= container;
             primaryControl ??= selectionTarget;
+            perTargetBounds.Add(new SelectionAdornerInfo
+            {
+                Bounds = itemBounds,
+                Role = SelectionAdornerRole.Secondary
+            });
 
             if (!hasBounds)
             {
@@ -881,15 +923,17 @@ public class DesignEditor : SelectingItemsControl
             return false;
 
         bounds = new Rect(left, top, right - left, bottom - top);
+        secondaryAdorners = selectedCount > 1 ? perTargetBounds : Array.Empty<SelectionAdornerInfo>();
         return true;
     }
 
     internal void UpdateSelectionOverlayState()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out var selectedCount, out var primaryItem, out var primaryControl))
+        if (TryGetSelectedDesignBounds(out var bounds, out var selectedCount, out var primaryItem, out var primaryControl, out var secondaryAdorners))
         {
             CleanupSelectionTargets();
             SelectionBounds = bounds;
+            SecondarySelectionAdorners = secondaryAdorners;
             HasSingleSelection = selectedCount == 1;
             HasMultipleSelection = selectedCount > 1;
             _primarySelectionItem = primaryItem;
@@ -901,6 +945,7 @@ public class DesignEditor : SelectingItemsControl
         _selectionTargets.Clear();
         _containerSelectionTargets.Clear();
         SelectionBounds = default;
+        SecondarySelectionAdorners = Array.Empty<SelectionAdornerInfo>();
         HasSingleSelection = false;
         HasMultipleSelection = false;
         _primarySelectionItem = null;

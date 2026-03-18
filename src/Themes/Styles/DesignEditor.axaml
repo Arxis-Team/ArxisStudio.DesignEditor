@@ -14,7 +14,9 @@
         <Setter Property="IsHitTestVisible" Value="False"/>
     </ControlTheme>
 
-    <ControlTheme x:Key="SelectionOutlineStyle" TargetType="controls:SelectionAdorner">
+    <ControlTheme x:Key="SelectionOutlineStyle"
+                  TargetType="controls:SelectionAdorner"
+                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
         <Setter Property="AdornerBrush" Value="#0099FF" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Fill" Value="Transparent" />
@@ -23,11 +25,24 @@
         <Setter Property="IsHitTestVisible" Value="False" />
     </ControlTheme>
 
-    <ControlTheme x:Key="GroupSelectionOutlineStyle" TargetType="controls:SelectionAdorner">
+    <ControlTheme x:Key="GroupSelectionOutlineStyle"
+                  TargetType="controls:SelectionAdorner"
+                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
         <Setter Property="AdornerBrush" Value="#00C2FF" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="StrokeDashArray" Value="4,2" />
         <Setter Property="Fill" Value="#0A00C2FF" />
+        <Setter Property="ShowHandles" Value="False" />
+        <Setter Property="IsInteractive" Value="False" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </ControlTheme>
+
+    <ControlTheme x:Key="SecondarySelectionOutlineStyle"
+                  TargetType="controls:SelectionAdorner"
+                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
+        <Setter Property="AdornerBrush" Value="#5FA8FF" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Fill" Value="Transparent" />
         <Setter Property="ShowHandles" Value="False" />
         <Setter Property="IsInteractive" Value="False" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -39,6 +54,7 @@
         <Setter Property="SelectionRectangleStyle" Value="{StaticResource SelectionRectangleStyle}" />
         <Setter Property="SelectionOutlineStyle" Value="{StaticResource SelectionOutlineStyle}" />
         <Setter Property="GroupSelectionOutlineStyle" Value="{StaticResource GroupSelectionOutlineStyle}" />
+        <Setter Property="SecondarySelectionOutlineStyle" Value="{StaticResource SecondarySelectionOutlineStyle}" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
@@ -63,9 +79,43 @@
                                 IsHitTestVisible="True"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
+                            <ItemsControl ItemsSource="{TemplateBinding SecondarySelectionAdorners}"
+                                          IsVisible="{TemplateBinding HasMultipleSelection}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <controls:SelectionAdorner Theme="{Binding SecondarySelectionOutlineStyle, RelativeSource={RelativeSource AncestorType=local:DesignEditor}}"
+                                                                   Role="{Binding Role}"
+                                                                   RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource AncestorType=local:DesignEditor}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                                   RenderTransformOrigin="0,0"
+                                                                   Canvas.Top="{Binding Bounds.Y}"
+                                                                   Canvas.Left="{Binding Bounds.X}">
+                                            <controls:SelectionAdorner.Width>
+                                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                                    <Binding Path="Bounds.Width" />
+                                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource AncestorType=local:DesignEditor}" />
+                                                </MultiBinding>
+                                            </controls:SelectionAdorner.Width>
+                                            <controls:SelectionAdorner.Height>
+                                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                                    <Binding Path="Bounds.Height" />
+                                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource AncestorType=local:DesignEditor}" />
+                                                </MultiBinding>
+                                            </controls:SelectionAdorner.Height>
+                                        </controls:SelectionAdorner>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <controls:SelectionAdorner Name="PART_SelectionAdorner"
                                                        Theme="{TemplateBinding SelectionOutlineStyle}"
                                                        Role="Primary"
+                                                       ShowHandles="True"
+                                                       IsInteractive="True"
                                                        RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
                                                        RenderTransformOrigin="0,0"
                                                        Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
