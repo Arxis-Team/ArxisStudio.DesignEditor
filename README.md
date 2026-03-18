@@ -7,7 +7,7 @@
 - бесконечную поверхность с панорамированием и зумом
 - прямоугольное и множественное выделение
 - контейнеры элементов с drag-and-drop и resize
-- editor-level overlay-слои для рамок выделения, marquee и resize handles
+- editor-level overlay-слои для рамок выделения, marquee и selection handles
 - систему attached-свойств для позиционирования
 - DPI-aware трансформации для фона, сетки и оверлеев
 - демо-приложение с типовым сценарием интеграции
@@ -36,8 +36,18 @@
 Текущий template `DesignEditor` уже разделен на слои:
 
 - `ItemsLayer` — реальное содержимое редактора и `DesignEditorItem`
-- `SelectionOverlayLayer` — рамки выделения и resize handles
-- `InteractionOverlayLayer` — marquee-selection и временные interaction overlays
+- `SelectionOverlayLayer` — `SelectionAdorner`, secondary outlines, group outline и selection handles
+- `InteractionOverlayLayer` — временные interaction overlays, которые живут только во время действия пользователя
+
+`PART_InteractionOverlayLayer` предназначен не для постоянного editor chrome, а для временной визуализации процессов:
+
+- marquee selection rectangle
+- snap lines и alignment guides
+- drag / resize preview
+- insertion markers
+- hover preview и временные измерительные подсказки
+
+Сейчас на нем уже живет прямоугольник marquee-selection. В дальнейшем этот слой будет точкой расширения для guides, snapping и preview overlays.
 
 ### `DesignEditorInputGestures`
 
@@ -96,7 +106,7 @@
         <ResourceDictionary.MergedDictionaries>
             <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditor.axaml" />
             <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditorItem.axaml" />
-            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/ResizeAdorner.axaml" />
+            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/SelectionAdorner.axaml" />
         </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
 </Application.Resources>
@@ -147,7 +157,7 @@ public class DesignNodeViewModel
 - выделение кликом по элементу
 - множественное выделение через модель выбора Avalonia
 - drag выбранных элементов
-- resize через `ResizeAdorner`, расположенный на `SelectionOverlayLayer`
+- resize через `SelectionAdorner`, расположенный на `SelectionOverlayLayer`
 
 Дополнительно редактор поддерживает переключение на уровень контейнера через `InputGestures.ContainerInteractionModifiers`:
 
@@ -160,6 +170,12 @@ Additive selection управляется отдельно через `InputGest
 - `Ctrl + Click` — exclusive container selection
 - `Ctrl + Shift + Click` — additive container selection
 - `Ctrl + Shift + marquee` — additive групповое выделение контейнеров
+
+Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
+
+- nested controls выбираются только внутри одного UI-контейнера
+- controls из других `DesignEditorItem` в группу не попадают
+- это защищает от случайного group edit между разными документными узлами
 
 ## Навигация по viewport
 
@@ -197,6 +213,13 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 Начиная с текущего этапа drag и resize также применяются к выбранному nested design target, если он найден в visual tree элемента и имеет designer-метаданные `Layout`.
 
+При multi-selection редактор использует профессиональную схему overlay:
+
+- над каждым выбранным nested control рисуется secondary outline без handles
+- поверх всей группы рисуется один group outline
+- handles располагаются только на общей group рамке
+- group resize применяется ко всем selected targets относительно общей рамки группы
+
 ## Пример использования `Layout`
 
 Для вложенного контента внутри шаблона элемента можно использовать `Layout` напрямую:
@@ -218,26 +241,50 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 - `DesignEditor` переведен на layered-архитектуру с `ItemsLayer`, `SelectionOverlayLayer` и `InteractionOverlayLayer`
 - рамки одиночного и группового выделения вынесены из `DesignEditorItem` на уровень редактора
-- `ResizeAdorner` вынесен из шаблона `DesignEditorItem` и теперь живет на `SelectionOverlayLayer`
+- `ResizeAdorner` заменен на более общий `SelectionAdorner`
+- `SelectionAdorner` используется для primary selection, group selection и secondary outlines
 - `SelectionBounds` считаются по editor-space геометрии выбранного visual target через `Layout`
 - editor-level hit-testing вложенных контролов работает по `Layout`-геометрии и не зависит от runtime `IsHitTestVisible`
 - nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
+- реализован group resize для multi-selection через общую рамку группы
+- реализованы secondary outlines для каждого selected target в multi-selection
+- обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
 - демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 
-## Что дальше
+## Roadmap
 
 Следующий этап развития редактора:
 
-- формализовать публичную модель selected design object, а не только internal target-resolution
-- добавить group editing для нескольких nested targets, а не только overlay union
-- добавить editor overlays следующего уровня: guides, snap lines, hover outline
-- ввести политики редактирования для контролов без явных size metadata и для layout-driven контейнеров
-- позже подключить `ArxisStudio.Markup` как источник `$design`-метаданных, не меняя core-архитектуру редактора
+1. Упорядочить публичный API selection.
+Нужно отделить item-level selection от nested design targets и оформить это как явный публичный контракт, а не как набор internal-resolution и diagnostic properties.
+
+2. Довести group interaction.
+После group resize нужно унифицировать group drag, ограничения и поведение primary target внутри multi-selection.
+
+3. Развить `PART_InteractionOverlayLayer`.
+Следующие кандидаты:
+- snap lines
+- alignment guides
+- drag / resize preview
+- hover outline
+- distance / spacing overlays
+
+4. Ввести editing policies для разных типов контролов.
+Особенно для:
+- layout-driven controls
+- controls без явного size metadata
+- контейнеров, которые должны вести себя как host, а не как свободно ресайзимый target
+
+5. Очистить публичную поверхность библиотеки.
+Скрыть internal state machine и overlay implementation details, оставив стабильный API редактора, viewport navigation, gestures и design target interaction.
+
+6. Подготовить интеграцию с `ArxisStudio.Markup`.
+Подключить `$design`-метаданные как источник designer-only координат и editor flags, не меняя core-архитектуру `DesignEditor`.
 
 ## Запуск демо
 
