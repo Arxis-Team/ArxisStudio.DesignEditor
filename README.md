@@ -39,6 +39,19 @@
 - `SelectionOverlayLayer` — рамки выделения и resize handles
 - `InteractionOverlayLayer` — marquee-selection и временные interaction overlays
 
+### `DesignEditorInputGestures`
+
+Объект конфигурации input gestures редактора. Позволяет настраивать горячие клавиши и модификаторы взаимодействия:
+
+- из AXAML
+- через `Style`
+- через code-behind
+- через binding / MVVM
+
+Сейчас в нем уже доступен:
+
+- `ContainerInteractionModifiers` — модификаторы, которые принудительно переключают selection, drag и resize на уровень `DesignEditorItem`
+
 ### `DesignEditorItem`
 
 Контейнер элемента редактора, который создается автоматически для каждого item'а. Добавляет:
@@ -95,6 +108,10 @@
                      SelectedItems="{Binding SelectedNodes}"
                      SelectionMode="Multiple"
                      ViewportZoom="{Binding Zoom, Mode=TwoWay}">
+    <design:DesignEditor.InputGestures>
+        <design:DesignEditorInputGestures ContainerInteractionModifiers="Control" />
+    </design:DesignEditor.InputGestures>
+
     <design:DesignEditor.Styles>
         <Style Selector="design|DesignEditorItem">
             <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
@@ -129,6 +146,12 @@ public class DesignNodeViewModel
 - множественное выделение через модель выбора Avalonia
 - drag выбранных элементов
 - resize через `ResizeAdorner`, расположенный на `SelectionOverlayLayer`
+
+Дополнительно редактор поддерживает переключение на уровень контейнера через `InputGestures.ContainerInteractionModifiers`:
+
+- обычный клик работает с nested design target
+- клик с `ContainerInteractionModifiers` выбирает `DesignEditorItem`
+- drag с теми же модификаторами перемещает весь контейнер целиком
 
 ## Навигация по viewport
 
@@ -192,6 +215,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - editor-level hit-testing вложенных контролов работает по `Layout`-геометрии и не зависит от runtime `IsHitTestVisible`
 - nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
+- input-policy вынесен в публичный API `DesignEditorInputGestures`
+- контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
 - демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 
@@ -217,6 +242,7 @@ dotnet run --project samples/DesignEditor.Demo
 Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
 Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
 Также в верхней панели отображается текущий primary design target, чтобы было видно, какой nested control выбран редактором.
+Конфигурация gesture policy в демо задается через `DesignEditor.InputGestures`.
 
 ## Сборка
 

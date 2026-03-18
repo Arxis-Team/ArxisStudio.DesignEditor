@@ -184,6 +184,24 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(GroupSelectionOutlineStyle));
 
     /// <summary>
+    /// Идентификатор объекта с настройками input gestures редактора.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, DesignEditorInputGestures> InputGesturesProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignEditorInputGestures>(
+            nameof(InputGestures),
+            o => o.InputGestures,
+            (o, v) => o.InputGestures = v);
+
+    /// <summary>
+    /// Идентификатор модификаторов, принудительно переключающих взаимодействие на уровень контейнера.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, KeyModifiers> ContainerInteractionModifiersProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, KeyModifiers>(
+            nameof(ContainerInteractionModifiers),
+            o => o.ContainerInteractionModifiers,
+            (o, v) => o.ContainerInteractionModifiers = v);
+
+    /// <summary>
     /// Идентификатор свойства, показывающего активен ли marquee-selection.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> IsSelectingProperty =
@@ -317,6 +335,44 @@ public class DesignEditor : SelectingItemsControl
         set => SetValue(GroupSelectionOutlineStyleProperty, value);
     }
 
+    /// <summary>
+    /// Получает или задает набор настраиваемых input gestures редактора.
+    /// </summary>
+    /// <remarks>
+    /// Это основная точка конфигурации горячих клавиш и модификаторов взаимодействия.
+    /// Свойство можно задавать из AXAML, styles, code-behind или через привязки.
+    /// </remarks>
+    private DesignEditorInputGestures _inputGestures = new DesignEditorInputGestures();
+    public DesignEditorInputGestures InputGestures
+    {
+        get => _inputGestures;
+        set
+        {
+            var gestures = value ?? new DesignEditorInputGestures();
+            SetAndRaise(InputGesturesProperty, ref _inputGestures, gestures);
+            SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, gestures.ContainerInteractionModifiers);
+        }
+    }
+
+    /// <summary>
+    /// Получает или задает модификаторы клавиатуры, которые принудительно переключают selection,
+    /// drag и resize на уровень <see cref="DesignEditorItem"/>.
+    /// </summary>
+    /// <remarks>
+    /// Совместимое сокращенное свойство над <see cref="InputGestures"/>.
+    /// Для нового кода рекомендуется использовать <see cref="InputGestures"/> напрямую.
+    /// </remarks>
+    private KeyModifiers _containerInteractionModifiers = KeyModifiers.Control;
+    public KeyModifiers ContainerInteractionModifiers
+    {
+        get => InputGestures.ContainerInteractionModifiers;
+        set
+        {
+            SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, value);
+            InputGestures.ContainerInteractionModifiers = value;
+        }
+    }
+
     private bool _isSelecting;
     /// <summary>
     /// Получает или задает признак активного прямоугольного выделения.
@@ -447,6 +503,8 @@ public class DesignEditor : SelectingItemsControl
     public DesignEditor()
     {
         SelectionMode = SelectionMode.Multiple;
+        _inputGestures = new DesignEditorInputGestures();
+        _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;
 
         var contentGroup = new TransformGroup();
         contentGroup.Children.Add(_scaleTransform);
@@ -955,8 +1013,15 @@ public class DesignEditor : SelectingItemsControl
         UpdateSelectionOverlayState();
     }
 
-    internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint)
+    internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
     {
+        if (ShouldUseContainerInteraction(modifiers))
+        {
+            _selectionTargets.Remove(container);
+            UpdateSelectionOverlayState();
+            return;
+        }
+
         var worldPoint = GetWorldPosition(screenPoint);
         var target = ResolveSelectionTargetAtPoint(container, worldPoint);
 
@@ -970,6 +1035,9 @@ public class DesignEditor : SelectingItemsControl
 
     internal Control ResolveInteractionTarget(DesignEditorItem container)
     {
+        if (ShouldUseContainerInteraction(LastInputModifiers))
+            return container;
+
         return ResolveSelectionTarget(container);
     }
 
@@ -1252,6 +1320,12 @@ public class DesignEditor : SelectingItemsControl
         }
 
         return false;
+    }
+
+    internal bool ShouldUseContainerInteraction(KeyModifiers modifiers)
+    {
+        var requiredModifiers = InputGestures.ContainerInteractionModifiers;
+        return requiredModifiers != KeyModifiers.None && modifiers.HasFlag(requiredModifiers);
     }
 
     private static IEnumerable<Control> EnumerateSelectionCandidates(DesignEditorItem item)
