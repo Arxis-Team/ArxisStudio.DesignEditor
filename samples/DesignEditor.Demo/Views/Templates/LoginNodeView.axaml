@@ -7,8 +7,9 @@
             BorderBrush="#383838"
             BorderThickness="1"
             CornerRadius="12"
-            Padding="30">
-        <StackPanel Spacing="20">
+            Padding="30"
+            attached1:Layout.IsTracked="True">
+        <StackPanel Spacing="20" attached1:Layout.IsTracked="True">
             <TextBlock IsHitTestVisible="False"
                        attached1:Layout.IsTracked="True"
                        Text="Login Form"
@@ -16,7 +17,7 @@
                        FontWeight="Bold"
                        Foreground="White"
                        HorizontalAlignment="Center" />
-            <StackPanel Spacing="12">
+            <StackPanel Spacing="12" attached1:Layout.IsTracked="True">
                 <TextBox IsHitTestVisible="False"
                          attached1:Layout.IsTracked="True"
                          Watermark="Email"
