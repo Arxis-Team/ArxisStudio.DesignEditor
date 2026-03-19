@@ -20,27 +20,20 @@ public class EditorIdleState : EditorState
         var props = e.GetCurrentPoint(Editor).Properties;
         var modifiers = e.KeyModifiers;
 
-        // 1. Панорамирование (Средняя кнопка ИЛИ Alt + Левая)
-        if (props.IsMiddleButtonPressed || (props.IsLeftButtonPressed && modifiers.HasFlag(KeyModifiers.Alt)))
+        if (Editor.ShouldStartPan(props, modifiers))
         {
             Editor.PushState(new EditorPanningState(Editor));
             return;
         }
 
-        // 2. Выделение (Левая кнопка по пустому месту)
-        // Проверяем, что клик не пришелся на дочерний элемент (DesignEditorItem)
         var source = e.Source as Visual;
         var itemContainer = source?.FindAncestorOfType<DesignEditorItem>();
 
-        if (props.IsLeftButtonPressed && itemContainer == null)
+        if (itemContainer == null && Editor.ShouldStartMarquee(props, modifiers))
         {
             Editor.PushState(new EditorSelectingState(Editor));
             return;
         }
-
-        // Если кликнули по элементу DesignEditorItem, событие уйдет к нему (в его ItemIdleState),
-        // так как DesignEditorItem находится выше в визуальном дереве и обработает Bubble событие,
-        // либо мы не ставим e.Handled, и оно дойдет сюда, но мы его игнорируем.
     }
 
     public override void OnPointerWheelChanged(PointerWheelEventArgs e)

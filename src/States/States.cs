@@ -151,12 +151,15 @@ public class ItemIdleState : DesignEditorItemState
         bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
         bool isContainerInteraction = editor.ShouldUseContainerInteraction(e.KeyModifiers);
         var index = editor.IndexFromContainer(Container);
-        if (isAdditive && !isContainerInteraction) {
-            if (!_shouldSkipSelectionToggle) {
-                if (Container.IsSelected) editor.Selection.Deselect(index);
-                else editor.Selection.Select(index);
-            }
-        } else if (!isAdditive && Container.IsSelected && editor.Selection.Count > 1) {
+        if (isAdditive && !isContainerInteraction)
+        {
+            // Additive click should never remove selection from already selected item.
+            // This keeps primary target/adorner stable when retargeting nested controls.
+            if (!_shouldSkipSelectionToggle && !Container.IsSelected)
+                editor.Selection.Select(index);
+        }
+        else if (!isAdditive && Container.IsSelected && editor.Selection.Count > 1)
+        {
             editor.Selection.Clear();
             editor.Selection.Select(index);
         }

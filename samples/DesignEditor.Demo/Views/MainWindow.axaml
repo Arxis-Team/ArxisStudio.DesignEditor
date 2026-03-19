@@ -84,9 +84,14 @@
                                  ItemsSource="{Binding Nodes}"
                                  SelectedItems="{Binding SelectedNodes}"
                                  SelectionMode="Multiple"
-                                  ViewportZoom="{Binding Zoom, Mode=TwoWay}">
+                                 ViewportZoom="{Binding Zoom, Mode=TwoWay}">
             <arxisStudio:DesignEditor.InputGestures>
-                <arxisStudio:DesignEditorInputGestures ContainerInteractionModifiers="Control"
+                <arxisStudio:DesignEditorInputGestures PanButton="Middle"
+                                                       PanModifiers="None"
+                                                       MarqueeButton="Left"
+                                                       MarqueeModifiers="None"
+                                                       ZoomModifiers="None"
+                                                       ContainerInteractionModifiers="Control"
                                                        AdditiveSelectionModifiers="Shift" />
             </arxisStudio:DesignEditor.InputGestures>
 

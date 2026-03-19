@@ -60,6 +60,9 @@
 
 Сейчас в нем уже доступен:
 
+- `PanButton` / `PanModifiers` — кнопка мыши и модификаторы для старта панорамирования
+- `MarqueeButton` / `MarqueeModifiers` — кнопка мыши и модификаторы для старта marquee-selection по пустой области
+- `ZoomModifiers` — модификаторы для wheel-zoom
 - `ContainerInteractionModifiers` — модификаторы, которые принудительно переключают selection, drag и resize на уровень `DesignEditorItem`
 - `AdditiveSelectionModifiers` — модификаторы, которые включают additive selection
 
@@ -120,7 +123,12 @@
                      SelectionMode="Multiple"
                      ViewportZoom="{Binding Zoom, Mode=TwoWay}">
     <design:DesignEditor.InputGestures>
-        <design:DesignEditorInputGestures ContainerInteractionModifiers="Control"
+        <design:DesignEditorInputGestures PanButton="Middle"
+                                          PanModifiers="None"
+                                          MarqueeButton="Left"
+                                          MarqueeModifiers="None"
+                                          ZoomModifiers="None"
+                                          ContainerInteractionModifiers="Control"
                                           AdditiveSelectionModifiers="Shift" />
     </design:DesignEditor.InputGestures>
 
@@ -170,6 +178,8 @@ Additive selection управляется отдельно через `InputGest
 - `Ctrl + Click` — exclusive container selection
 - `Ctrl + Shift + Click` — additive container selection
 - `Ctrl + Shift + marquee` — additive групповое выделение контейнеров
+- `Shift + Click` по уже выбранному nested control не снимает выделение и сохраняет текущий target
+- `Shift + Click` по другому nested control добавляет его в группу выделения
 
 Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
 
@@ -285,6 +295,12 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 6. Подготовить интеграцию с `ArxisStudio.Markup`.
 Подключить `$design`-метаданные как источник designer-only координат и editor flags, не меняя core-архитектуру `DesignEditor`.
+
+7. Вынести runtime-настройки взаимодействия в отдельный options-объект (или отдельные свойства `DesignEditor`).
+В первую очередь:
+- `ZoomStep`
+- порог начала drag
+- минимальный размер при resize
 
 ## Запуск демо
 

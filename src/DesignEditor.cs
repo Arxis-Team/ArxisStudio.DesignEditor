@@ -376,6 +376,8 @@ public class DesignEditor : SelectingItemsControl
         set => SetValue(SecondarySelectionOutlineStyleProperty, value);
     }
 
+    private DesignEditorInputGestures _inputGestures = new DesignEditorInputGestures();
+
     /// <summary>
     /// Получает или задает набор настраиваемых input gestures редактора.
     /// </summary>
@@ -383,7 +385,6 @@ public class DesignEditor : SelectingItemsControl
     /// Это основная точка конфигурации горячих клавиш и модификаторов взаимодействия.
     /// Свойство можно задавать из AXAML, styles, code-behind или через привязки.
     /// </remarks>
-    private DesignEditorInputGestures _inputGestures = new DesignEditorInputGestures();
     public DesignEditorInputGestures InputGestures
     {
         get => _inputGestures;
@@ -396,6 +397,8 @@ public class DesignEditor : SelectingItemsControl
         }
     }
 
+    private KeyModifiers _containerInteractionModifiers = KeyModifiers.Control;
+
     /// <summary>
     /// Получает или задает модификаторы клавиатуры, которые принудительно переключают selection,
     /// drag и resize на уровень <see cref="DesignEditorItem"/>.
@@ -404,7 +407,6 @@ public class DesignEditor : SelectingItemsControl
     /// Совместимое сокращенное свойство над <see cref="InputGestures"/>.
     /// Для нового кода рекомендуется использовать <see cref="InputGestures"/> напрямую.
     /// </remarks>
-    private KeyModifiers _containerInteractionModifiers = KeyModifiers.Control;
     public KeyModifiers ContainerInteractionModifiers
     {
         get => InputGestures.ContainerInteractionModifiers;
@@ -415,6 +417,8 @@ public class DesignEditor : SelectingItemsControl
         }
     }
 
+    private KeyModifiers _additiveSelectionModifiers = KeyModifiers.Shift;
+
     /// <summary>
     /// Получает или задает модификаторы additive selection.
     /// </summary>
@@ -422,7 +426,6 @@ public class DesignEditor : SelectingItemsControl
     /// Совместимое сокращенное свойство над <see cref="InputGestures"/>.
     /// Для нового кода рекомендуется использовать <see cref="InputGestures"/> напрямую.
     /// </remarks>
-    private KeyModifiers _additiveSelectionModifiers = KeyModifiers.Shift;
     public KeyModifiers AdditiveSelectionModifiers
     {
         get => InputGestures.AdditiveSelectionModifiers;
@@ -730,6 +733,9 @@ public class DesignEditor : SelectingItemsControl
     /// <param name="e">Аргументы колесика мыши.</param>
     public void HandleZoom(PointerWheelEventArgs e)
     {
+        if (!ShouldHandleZoom(e.KeyModifiers))
+            return;
+
         double prevZoom = ViewportZoom;
         double newZoom = e.Delta.Y > 0 ? prevZoom * ZoomFactor : prevZoom / ZoomFactor;
         newZoom = Math.Max(GetValue(MinZoomProperty), Math.Min(GetValue(MaxZoomProperty), newZoom));
@@ -1247,11 +1253,29 @@ public class DesignEditor : SelectingItemsControl
         _containerSelectionTargets.Remove(container);
         var worldPoint = GetWorldPosition(screenPoint);
         var target = ResolveSelectionTargetAtPoint(container, worldPoint);
+        var isAdditive = ShouldUseAdditiveSelection(modifiers);
 
         if (ReferenceEquals(target, container))
-            _selectionTargets.Remove(container);
+        {
+            if (!isAdditive)
+                _selectionTargets.Remove(container);
+        }
+        else if (isAdditive)
+        {
+            if (_selectionTargets.TryGetValue(container, out var existingTargets) && existingTargets.Count > 0)
+            {
+                if (!existingTargets.Contains(target))
+                    existingTargets.Add(target);
+            }
+            else
+            {
+                _selectionTargets[container] = new List<Control> { target };
+            }
+        }
         else
+        {
             _selectionTargets[container] = new List<Control> { target };
+        }
 
         UpdateSelectionOverlayState();
     }
@@ -1610,6 +1634,39 @@ public class DesignEditor : SelectingItemsControl
     {
         var requiredModifiers = InputGestures.AdditiveSelectionModifiers;
         return requiredModifiers != KeyModifiers.None && modifiers.HasFlag(requiredModifiers);
+    }
+
+    internal bool ShouldStartPan(PointerPointProperties pointerProperties, KeyModifiers modifiers)
+    {
+        return MatchesModifiers(modifiers, InputGestures.PanModifiers)
+               && IsPointerButtonPressed(pointerProperties, InputGestures.PanButton);
+    }
+
+    internal bool ShouldStartMarquee(PointerPointProperties pointerProperties, KeyModifiers modifiers)
+    {
+        return MatchesModifiers(modifiers, InputGestures.MarqueeModifiers)
+               && IsPointerButtonPressed(pointerProperties, InputGestures.MarqueeButton);
+    }
+
+    internal bool ShouldHandleZoom(KeyModifiers modifiers)
+    {
+        return MatchesModifiers(modifiers, InputGestures.ZoomModifiers);
+    }
+
+    private static bool MatchesModifiers(KeyModifiers actual, KeyModifiers required)
+    {
+        return required == KeyModifiers.None || actual.HasFlag(required);
+    }
+
+    private static bool IsPointerButtonPressed(PointerPointProperties pointerProperties, DesignEditorPointerButton button)
+    {
+        return button switch
+        {
+            DesignEditorPointerButton.Left => pointerProperties.IsLeftButtonPressed,
+            DesignEditorPointerButton.Middle => pointerProperties.IsMiddleButtonPressed,
+            DesignEditorPointerButton.Right => pointerProperties.IsRightButtonPressed,
+            _ => false
+        };
     }
 
     private static IEnumerable<Control> EnumerateSelectionCandidates(DesignEditorItem item)
