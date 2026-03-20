@@ -113,7 +113,9 @@ public class ItemIdleState : DesignEditorItemState
         if (!isAbsolute) return;
 
         var currentPoint = e.GetPosition((Visual)parent);
-        if (Vector.Distance(_startPoint, currentPoint) > 3)
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
+        if (Vector.Distance(_startPoint, currentPoint) > dragStartThreshold)
             Container.PushState(new ItemDraggingState(Container, _startPoint));
     }
 
@@ -279,7 +281,8 @@ public class ItemResizingState : DesignEditorItemState
         double newH = _initialSize.Height;
         double newX = _initialLocation.X;
         double newY = _initialLocation.Y;
-        double minSize = 10;
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        double minSize = Math.Max(0.0, editor?.InteractionOptions.ResizeMinSize ?? 10.0);
         double initialRight = _initialLocation.X + _initialSize.Width;
         double initialBottom = _initialLocation.Y + _initialSize.Height;
 
@@ -307,7 +310,6 @@ public class ItemResizingState : DesignEditorItemState
         if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
             newY = initialBottom - newH;
 
-        var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor != null)
             editor.SetDesignSize(_target, new Size(newW, newH));
         else

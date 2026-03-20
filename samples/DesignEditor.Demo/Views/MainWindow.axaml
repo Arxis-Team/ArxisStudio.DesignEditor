@@ -94,6 +94,11 @@
                                                        ContainerInteractionModifiers="Control"
                                                        AdditiveSelectionModifiers="Shift" />
             </arxisStudio:DesignEditor.InputGestures>
+            <arxisStudio:DesignEditor.InteractionOptions>
+                <arxisStudio:DesignEditorInteractionOptions ZoomStep="1.1"
+                                                           DragStartThreshold="3"
+                                                           ResizeMinSize="10" />
+            </arxisStudio:DesignEditor.InteractionOptions>
 
             <arxisStudio:DesignEditor.DataTemplates>
                 <DataTemplate DataType="{x:Type vm:LoginNodeViewModel}">

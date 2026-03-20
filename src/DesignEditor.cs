@@ -39,7 +39,6 @@ namespace ArxisStudio;
 public class DesignEditor : SelectingItemsControl
 {
     #region Constants
-    private const double ZoomFactor = 1.1;
     private const double ZoomTolerance = 0.0001;
     private const double FitToViewPadding = 32.0;
     #endregion
@@ -197,6 +196,15 @@ public class DesignEditor : SelectingItemsControl
             nameof(InputGestures),
             o => o.InputGestures,
             (o, v) => o.InputGestures = v);
+
+    /// <summary>
+    /// Идентификатор объекта с runtime-настройками взаимодействия редактора.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, DesignEditorInteractionOptions> InteractionOptionsProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignEditorInteractionOptions>(
+            nameof(InteractionOptions),
+            o => o.InteractionOptions,
+            (o, v) => o.InteractionOptions = v);
 
     /// <summary>
     /// Идентификатор модификаторов, принудительно переключающих взаимодействие на уровень контейнера.
@@ -394,6 +402,25 @@ public class DesignEditor : SelectingItemsControl
             SetAndRaise(InputGesturesProperty, ref _inputGestures, gestures);
             SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, gestures.ContainerInteractionModifiers);
             SetAndRaise(AdditiveSelectionModifiersProperty, ref _additiveSelectionModifiers, gestures.AdditiveSelectionModifiers);
+        }
+    }
+
+    private DesignEditorInteractionOptions _interactionOptions = new DesignEditorInteractionOptions();
+
+    /// <summary>
+    /// Получает или задает runtime-настройки взаимодействия редактора, не относящиеся к жестам ввода.
+    /// </summary>
+    /// <remarks>
+    /// В этом объекте настраиваются числовые параметры поведения, такие как шаг zoom,
+    /// порог начала drag и минимальный размер при resize.
+    /// </remarks>
+    public DesignEditorInteractionOptions InteractionOptions
+    {
+        get => _interactionOptions;
+        set
+        {
+            var options = value ?? new DesignEditorInteractionOptions();
+            SetAndRaise(InteractionOptionsProperty, ref _interactionOptions, options);
         }
     }
 
@@ -736,8 +763,9 @@ public class DesignEditor : SelectingItemsControl
         if (!ShouldHandleZoom(e.KeyModifiers))
             return;
 
+        var zoomStep = InteractionOptions.ZoomStep > 1.0 ? InteractionOptions.ZoomStep : 1.1;
         double prevZoom = ViewportZoom;
-        double newZoom = e.Delta.Y > 0 ? prevZoom * ZoomFactor : prevZoom / ZoomFactor;
+        double newZoom = e.Delta.Y > 0 ? prevZoom * zoomStep : prevZoom / zoomStep;
         newZoom = Math.Max(GetValue(MinZoomProperty), Math.Min(GetValue(MaxZoomProperty), newZoom));
 
         if (Math.Abs(newZoom - prevZoom) > ZoomTolerance)
@@ -1202,7 +1230,8 @@ public class DesignEditor : SelectingItemsControl
         var nextBounds = CalculateResizedBounds(
             _groupResizeSession.InitialBounds,
             _groupResizeSession.Direction,
-            _groupResizeSession.AccumulatedDelta);
+            _groupResizeSession.AccumulatedDelta,
+            Math.Max(0.0, InteractionOptions.ResizeMinSize));
         var initialBounds = _groupResizeSession.InitialBounds;
         var scaleX = initialBounds.Width > 0 ? nextBounds.Width / initialBounds.Width : 1.0;
         var scaleY = initialBounds.Height > 0 ? nextBounds.Height / initialBounds.Height : 1.0;
@@ -1212,8 +1241,9 @@ public class DesignEditor : SelectingItemsControl
             var initialTargetBounds = snapshot.InitialBounds;
             var newX = nextBounds.X + ((initialTargetBounds.X - initialBounds.X) * scaleX);
             var newY = nextBounds.Y + ((initialTargetBounds.Y - initialBounds.Y) * scaleY);
-            var newWidth = Math.Max(10, initialTargetBounds.Width * scaleX);
-            var newHeight = Math.Max(10, initialTargetBounds.Height * scaleY);
+            var minSize = Math.Max(0.0, InteractionOptions.ResizeMinSize);
+            var newWidth = Math.Max(minSize, initialTargetBounds.Width * scaleX);
+            var newHeight = Math.Max(minSize, initialTargetBounds.Height * scaleY);
 
             SetDesignSize(snapshot.Target, new Size(newWidth, newHeight));
             SetDesignPosition(snapshot.Target, new Point(newX, newY));
@@ -1798,13 +1828,12 @@ public class DesignEditor : SelectingItemsControl
         return true;
     }
 
-    private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta)
+    private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta, double minSize)
     {
         var newX = initialBounds.X;
         var newY = initialBounds.Y;
         var newWidth = initialBounds.Width;
         var newHeight = initialBounds.Height;
-        const double minSize = 10;
 
         switch (direction)
         {

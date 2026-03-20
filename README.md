@@ -66,6 +66,14 @@
 - `ContainerInteractionModifiers` — модификаторы, которые принудительно переключают selection, drag и resize на уровень `DesignEditorItem`
 - `AdditiveSelectionModifiers` — модификаторы, которые включают additive selection
 
+### `DesignEditorInteractionOptions`
+
+Объект runtime-параметров взаимодействия редактора, которые не относятся к gesture policy:
+
+- `ZoomStep` — шаг wheel-zoom
+- `DragStartThreshold` — порог старта drag в пикселях
+- `ResizeMinSize` — минимальный размер при resize
+
 ### `DesignEditorItem`
 
 Контейнер элемента редактора, который создается автоматически для каждого item'а. Добавляет:
@@ -131,6 +139,11 @@
                                           ContainerInteractionModifiers="Control"
                                           AdditiveSelectionModifiers="Shift" />
     </design:DesignEditor.InputGestures>
+    <design:DesignEditor.InteractionOptions>
+        <design:DesignEditorInteractionOptions ZoomStep="1.1"
+                                              DragStartThreshold="3"
+                                              ResizeMinSize="10" />
+    </design:DesignEditor.InteractionOptions>
 
     <design:DesignEditor.Styles>
         <Style Selector="design|DesignEditorItem">
@@ -261,6 +274,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - реализованы secondary outlines для каждого selected target в multi-selection
 - обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
+- runtime numeric policy вынесен в отдельный API `DesignEditorInteractionOptions`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
@@ -296,11 +310,10 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 6. Подготовить интеграцию с `ArxisStudio.Markup`.
 Подключить `$design`-метаданные как источник designer-only координат и editor flags, не меняя core-архитектуру `DesignEditor`.
 
-7. Вынести runtime-настройки взаимодействия в отдельный options-объект (или отдельные свойства `DesignEditor`).
-В первую очередь:
-- `ZoomStep`
-- порог начала drag
-- минимальный размер при resize
+7. Расширить `DesignEditorInteractionOptions` и определить финальный публичный контракт runtime-настроек.
+Решение на следующий этап:
+- оставить только options-объект
+- или добавить плоские свойства-алиасы на `DesignEditor`
 
 ## Запуск демо
 
@@ -314,7 +327,7 @@ dotnet run --project samples/DesignEditor.Demo
 Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
 Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
 Также в верхней панели отображается текущий primary design target, чтобы было видно, какой nested control выбран редактором.
-Конфигурация gesture policy в демо задается через `DesignEditor.InputGestures`.
+Конфигурация interaction policy в демо задается через `DesignEditor.InputGestures` и `DesignEditor.InteractionOptions`.
 
 ## Сборка
 
