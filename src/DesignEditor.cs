@@ -1161,8 +1161,14 @@ public class DesignEditor : SelectingItemsControl
         if (_primarySelectionItem == null || _primarySelectionControl == null || _primarySelectionItem.CurrentState is not ItemResizingState)
             return;
 
-        _primarySelectionItem.CurrentState.OnResizeDelta(e);
-        _primarySelectionItem.OnResizeDelta(new ResizeDeltaEventArgs(e.Delta, e.Direction, DesignEditorItem.ResizeDeltaEvent));
+        var worldDelta = NormalizeResizeDelta(e.Delta);
+        var normalizedArgs = new ResizeDeltaEventArgs(worldDelta, e.Direction, SelectionAdorner.ResizeDeltaEvent)
+        {
+            Source = e.Source
+        };
+
+        _primarySelectionItem.CurrentState.OnResizeDelta(normalizedArgs);
+        _primarySelectionItem.OnResizeDelta(new ResizeDeltaEventArgs(worldDelta, e.Direction, DesignEditorItem.ResizeDeltaEvent));
         UpdateSelectionOverlayState();
         e.Handled = true;
     }
@@ -1192,7 +1198,7 @@ public class DesignEditor : SelectingItemsControl
         if (_groupResizeSession == null)
             return;
 
-        _groupResizeSession.AccumulatedDelta += e.Delta;
+        _groupResizeSession.AccumulatedDelta += NormalizeResizeDelta(e.Delta);
         var nextBounds = CalculateResizedBounds(
             _groupResizeSession.InitialBounds,
             _groupResizeSession.Direction,
@@ -1209,12 +1215,18 @@ public class DesignEditor : SelectingItemsControl
             var newWidth = Math.Max(10, initialTargetBounds.Width * scaleX);
             var newHeight = Math.Max(10, initialTargetBounds.Height * scaleY);
 
-            SetDesignSize(snapshot.Target, new Size(Math.Round(newWidth), Math.Round(newHeight)));
-            SetDesignPosition(snapshot.Target, new Point(Math.Round(newX), Math.Round(newY)));
+            SetDesignSize(snapshot.Target, new Size(newWidth, newHeight));
+            SetDesignPosition(snapshot.Target, new Point(newX, newY));
         }
 
         UpdateSelectionOverlayState();
         e.Handled = true;
+    }
+
+    private Vector NormalizeResizeDelta(Vector delta)
+    {
+        var zoom = Math.Max(0.0001, ViewportZoom);
+        return delta / zoom;
     }
 
     private void OnGroupSelectionResizeCompleted(object? sender, VectorEventArgs e)
@@ -1844,10 +1856,6 @@ public class DesignEditor : SelectingItemsControl
         if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
             newY = initialBottom - newHeight;
 
-        return new Rect(
-            Math.Round(newX),
-            Math.Round(newY),
-            Math.Round(newWidth),
-            Math.Round(newHeight));
+        return new Rect(newX, newY, newWidth, newHeight);
     }
 }

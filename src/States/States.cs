@@ -309,20 +309,20 @@ public class ItemResizingState : DesignEditorItemState
 
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor != null)
-            editor.SetDesignSize(_target, new Size(Math.Round(newW), Math.Round(newH)));
+            editor.SetDesignSize(_target, new Size(newW, newH));
         else
         {
-            Container.Width = Math.Round(newW);
-            Container.Height = Math.Round(newH);
+            Container.Width = newW;
+            Container.Height = newH;
         }
 
         // Обновляем позицию только если она изменилась (при ресайзе слева/сверху)
         if (Math.Abs(newX - _initialLocation.X) > 0.1 || Math.Abs(newY - _initialLocation.Y) > 0.1)
         {
             if (editor != null)
-                editor.SetDesignPosition(_target, new Point(Math.Round(newX), Math.Round(newY)));
+                editor.SetDesignPosition(_target, new Point(newX, newY));
             else
-                Container.Location = new Point(Math.Round(newX), Math.Round(newY));
+                Container.Location = new Point(newX, newY);
         }
 
         Container.RaiseEvent(new ResizeDeltaEventArgs(e.Delta, _direction, DesignEditorItem.ResizeDeltaEvent));
