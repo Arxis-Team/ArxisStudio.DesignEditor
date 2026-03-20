@@ -74,6 +74,21 @@
 - `DragStartThreshold` — порог старта drag в пикселях
 - `ResizeMinSize` — минимальный размер при resize
 
+### `DesignSelectionTarget`
+
+Публичный контракт выбранного target в редакторе:
+
+- `Container` — `DesignEditorItem`, которому принадлежит target
+- `Target` — фактически выбранный `Control`
+- `Scope` — уровень выбора (`Container` или `NestedTarget`)
+- `DisplayName` — диагностическое имя target для UI/логов
+
+`DesignEditor` предоставляет:
+
+- `PrimarySelectionTarget` — текущий primary target
+- `SelectedDesignTargets` — снимок всех выбранных targets
+- `SelectedDesignTargetsCount` — количество выбранных targets
+
 ### `DesignEditorItem`
 
 Контейнер элемента редактора, который создается автоматически для каждого item'а. Добавляет:
@@ -193,6 +208,7 @@ Additive selection управляется отдельно через `InputGest
 - `Ctrl + Shift + marquee` — additive групповое выделение контейнеров
 - `Shift + Click` по уже выбранному nested control не снимает выделение и сохраняет текущий target
 - `Shift + Click` по другому nested control добавляет его в группу выделения
+- `Shift + Click` по nested control из другого `DesignEditorItem` не объединяет группы между контейнерами и ничего не меняет в текущем owner
 
 Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
 
@@ -275,6 +291,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - runtime numeric policy вынесен в отдельный API `DesignEditorInteractionOptions`
+- selection target API вынесен в явный публичный контракт `DesignSelectionTarget`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
@@ -284,8 +301,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 Следующий этап развития редактора:
 
-1. Упорядочить публичный API selection.
-Нужно отделить item-level selection от nested design targets и оформить это как явный публичный контракт, а не как набор internal-resolution и diagnostic properties.
+1. Расширить selection API событиями и командами высокого уровня.
+Ввести явные события изменения primary target и набора selected targets, чтобы интеграции не зависели от внутренних overlay-обновлений.
 
 2. Довести group interaction.
 После group resize нужно унифицировать group drag, ограничения и поведение primary target внутри multi-selection.
@@ -326,7 +343,7 @@ dotnet run --project samples/DesignEditor.Demo
 В демо-приложении добавлена кнопка `Center`, которая использует `CenterOnItem(...)` для активного элемента.
 Также добавлена кнопка `Fit`, которая использует `FitToView(...)` для активного элемента.
 Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
-Также в верхней панели отображается текущий primary design target, чтобы было видно, какой nested control выбран редактором.
+Также в верхней панели отображается текущий primary design target и количество выбранных targets.
 Конфигурация interaction policy в демо задается через `DesignEditor.InputGestures` и `DesignEditor.InteractionOptions`.
 
 ## Сборка

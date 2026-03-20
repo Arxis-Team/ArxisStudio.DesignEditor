@@ -266,6 +266,31 @@ public class DesignEditor : SelectingItemsControl
             o => o.SecondarySelectionAdornersCount);
 
     /// <summary>
+    /// Идентификатор primary selection target.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, DesignSelectionTarget?> PrimarySelectionTargetProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignSelectionTarget?>(
+            nameof(PrimarySelectionTarget),
+            o => o.PrimarySelectionTarget);
+
+    /// <summary>
+    /// Идентификатор коллекции всех выбранных design targets.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSelectionTarget>> SelectedDesignTargetsProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSelectionTarget>>(
+            nameof(SelectedDesignTargets),
+            o => o.SelectedDesignTargets,
+            (o, v) => o.SelectedDesignTargets = v);
+
+    /// <summary>
+    /// Идентификатор количества выбранных design targets.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, int> SelectedDesignTargetsCountProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, int>(
+            nameof(SelectedDesignTargetsCount),
+            o => o.SelectedDesignTargetsCount);
+
+    /// <summary>
     /// Идентификатор свойства, указывающего наличие ровно одного выбранного элемента.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> HasSingleSelectionProperty =
@@ -276,12 +301,6 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> HasMultipleSelectionProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleSelection), o => o.HasMultipleSelection, (o, v) => o.HasMultipleSelection = v);
-
-    /// <summary>
-    /// Идентификатор свойства описания текущего primary selection target.
-    /// </summary>
-    public static readonly DirectProperty<DesignEditor, string?> PrimarySelectionTargetDescriptionProperty =
-        AvaloniaProperty.RegisterDirect<DesignEditor, string?>(nameof(PrimarySelectionTargetDescription), o => o.PrimarySelectionTargetDescription);
 
     #endregion
 
@@ -523,6 +542,36 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     public int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
 
+    private DesignSelectionTarget? _primarySelectionTarget;
+    /// <summary>
+    /// Получает primary selection target редактора.
+    /// </summary>
+    public DesignSelectionTarget? PrimarySelectionTarget
+    {
+        get => _primarySelectionTarget;
+        private set => SetAndRaise(PrimarySelectionTargetProperty, ref _primarySelectionTarget, value);
+    }
+
+    private IReadOnlyList<DesignSelectionTarget> _selectedDesignTargets = Array.Empty<DesignSelectionTarget>();
+    /// <summary>
+    /// Получает снимок всех выбранных design targets.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> SelectedDesignTargets
+    {
+        get => _selectedDesignTargets;
+        private set
+        {
+            SetAndRaise(SelectedDesignTargetsProperty, ref _selectedDesignTargets, value);
+            SetAndRaise(SelectedDesignTargetsCountProperty, ref _selectedDesignTargetsCount, value.Count);
+        }
+    }
+
+    private int _selectedDesignTargetsCount;
+    /// <summary>
+    /// Получает количество выбранных design targets.
+    /// </summary>
+    public int SelectedDesignTargetsCount => _selectedDesignTargetsCount;
+
     private bool _hasSingleSelection;
     /// <summary>
     /// Получает значение, указывающее, что в редакторе выбран ровно один элемент.
@@ -541,16 +590,6 @@ public class DesignEditor : SelectingItemsControl
     {
         get => _hasMultipleSelection;
         private set => SetAndRaise(HasMultipleSelectionProperty, ref _hasMultipleSelection, value);
-    }
-
-    private string? _primarySelectionTargetDescription;
-    /// <summary>
-    /// Получает описание текущего primary selection target для отладки и диагностического UI.
-    /// </summary>
-    public string? PrimarySelectionTargetDescription
-    {
-        get => _primarySelectionTargetDescription;
-        private set => SetAndRaise(PrimarySelectionTargetDescriptionProperty, ref _primarySelectionTargetDescription, value);
     }
 
     #endregion
@@ -1024,7 +1063,8 @@ public class DesignEditor : SelectingItemsControl
             HasMultipleSelection = selectedCount > 1;
             _primarySelectionItem = primaryItem;
             _primarySelectionControl = primaryControl;
-            PrimarySelectionTargetDescription = DescribeSelectionTarget(primaryControl);
+            SelectedDesignTargets = CreateSelectionTargetsSnapshot(primaryItem, primaryControl);
+            PrimarySelectionTarget = SelectedDesignTargets.Count > 0 ? SelectedDesignTargets[0] : null;
             return;
         }
 
@@ -1036,7 +1076,8 @@ public class DesignEditor : SelectingItemsControl
         HasMultipleSelection = false;
         _primarySelectionItem = null;
         _primarySelectionControl = null;
-        PrimarySelectionTargetDescription = null;
+        SelectedDesignTargets = Array.Empty<DesignSelectionTarget>();
+        PrimarySelectionTarget = null;
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
@@ -1044,6 +1085,11 @@ public class DesignEditor : SelectingItemsControl
         if (Presenter?.Panel == null) return;
         var useContainerSelection = ShouldUseContainerInteraction(LastInputModifiers);
         var marqueeOwner = useContainerSelection ? null : (_marqueeSelectionOwner ?? FindContainerForMarquee(bounds));
+        if (!useContainerSelection && isCtrlPressed && marqueeOwner != null && !CanAddNestedTargetToContainer(marqueeOwner))
+        {
+            _marqueeSelectionOwner = null;
+            return;
+        }
 
         using (Selection.BatchUpdate())
         {
@@ -1148,6 +1194,9 @@ public class DesignEditor : SelectingItemsControl
 
         var delta = new Vector(e.HorizontalChange, e.VerticalChange);
         var sourceContainer = e.Source as DesignEditorItem;
+        var sourceDragTarget = sourceContainer != null
+            ? ResolveInteractionTarget(sourceContainer)
+            : null;
 
         foreach (var item in items)
         {
@@ -1155,7 +1204,28 @@ public class DesignEditor : SelectingItemsControl
             if (container == null && item is DesignEditorItem directItem)
                 container = directItem;
 
-            if (container != null && container.IsDraggable && !ReferenceEquals(container, sourceContainer))
+            if (container == null || !container.IsDraggable)
+                continue;
+
+            if (ReferenceEquals(container, sourceContainer))
+            {
+                var targets = ResolveSelectionTargets(container);
+                if (targets.Count > 1)
+                {
+                    foreach (var target in targets)
+                    {
+                        if (ReferenceEquals(target, sourceDragTarget))
+                            continue;
+
+                        var position = GetDesignPosition(target);
+                        SetDesignPosition(target, position + delta);
+                    }
+                }
+
+                continue;
+            }
+
+            if (!ReferenceEquals(container, sourceContainer))
             {
                 var target = ResolveInteractionTarget(container);
                 var position = GetDesignPosition(target);
@@ -1296,6 +1366,8 @@ public class DesignEditor : SelectingItemsControl
         var worldPoint = GetWorldPosition(screenPoint);
         var target = ResolveSelectionTargetAtPoint(container, worldPoint);
         var isAdditive = ShouldUseAdditiveSelection(modifiers);
+        if (isAdditive && !CanAddNestedTargetToContainer(container))
+            return;
 
         if (ReferenceEquals(target, container))
         {
@@ -1641,15 +1713,66 @@ public class DesignEditor : SelectingItemsControl
         return new[] { ResolveDefaultSelectionTarget(item) };
     }
 
-    private static string DescribeSelectionTarget(Control? control)
+    private IReadOnlyList<DesignSelectionTarget> CreateSelectionTargetsSnapshot(DesignEditorItem? primaryItem, Control? primaryControl)
     {
-        if (control == null)
-            return string.Empty;
+        var result = new List<DesignSelectionTarget>();
+        var dedup = new HashSet<Control>();
 
-        var typeName = control.GetType().Name;
-        return !string.IsNullOrWhiteSpace(control.Name)
-            ? $"{typeName} ({control.Name})"
-            : typeName;
+        if (primaryItem != null && primaryControl != null && dedup.Add(primaryControl))
+            result.Add(new DesignSelectionTarget(primaryItem, primaryControl));
+
+        var items = SelectedItems;
+        if (items == null)
+            return result;
+
+        foreach (var item in items)
+        {
+            var container = ContainerFromItem(item) as DesignEditorItem;
+            if (container == null && item is DesignEditorItem directItem)
+                container = directItem;
+
+            if (container == null)
+                continue;
+
+            foreach (var target in ResolveSelectionTargets(container))
+            {
+                if (!dedup.Add(target))
+                    continue;
+
+                result.Add(new DesignSelectionTarget(container, target));
+            }
+        }
+
+        return result;
+    }
+
+    internal bool CanAddNestedTargetToContainer(DesignEditorItem container)
+    {
+        var items = SelectedItems;
+        if (items == null || items.Count == 0)
+            return true;
+
+        DesignEditorItem? owner = null;
+        foreach (var item in items)
+        {
+            var selectedContainer = ContainerFromItem(item) as DesignEditorItem;
+            if (selectedContainer == null && item is DesignEditorItem directItem)
+                selectedContainer = directItem;
+
+            if (selectedContainer == null)
+                continue;
+
+            if (owner == null)
+            {
+                owner = selectedContainer;
+                continue;
+            }
+
+            if (!ReferenceEquals(owner, selectedContainer))
+                return false;
+        }
+
+        return owner == null || ReferenceEquals(owner, container);
     }
 
     private static bool IsOwnedByContainer(Visual visual, DesignEditorItem container)

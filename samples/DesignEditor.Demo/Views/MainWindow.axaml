@@ -132,22 +132,22 @@
                             Spacing="6"
                             VerticalAlignment="Center"
                             Opacity="0.9"
-                            IsVisible="{Binding #Editor.PrimarySelectionTargetDescription, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            IsVisible="{Binding #Editor.PrimarySelectionTarget, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <TextBlock Text="Target:"
                                Foreground="#666"
                                FontSize="10"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding #Editor.PrimarySelectionTargetDescription}"
+                    <TextBlock Text="{Binding #Editor.PrimarySelectionTarget.DisplayName}"
                                Foreground="#F6C768"
                                FontSize="11"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="Secondary:"
+                    <TextBlock Text="Targets:"
                                Foreground="#666"
                                FontSize="10"
                                Margin="10,0,0,0"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding #Editor.SecondarySelectionAdornersCount}"
+                    <TextBlock Text="{Binding #Editor.SelectedDesignTargetsCount, StringFormat='{}{0}'}"
                                Foreground="#7EE787"
                                FontSize="11"
                                FontWeight="SemiBold"

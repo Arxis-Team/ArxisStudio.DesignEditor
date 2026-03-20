@@ -136,6 +136,13 @@ public class ItemIdleState : DesignEditorItemState
         if (editor == null) return;
         editor.SetLastInputModifiers(e.KeyModifiers);
         bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
+        bool isContainerInteraction = editor.ShouldUseContainerInteraction(e.KeyModifiers);
+        if (isAdditive && !isContainerInteraction && !editor.CanAddNestedTargetToContainer(Container))
+        {
+            _shouldSkipSelectionToggle = true;
+            return;
+        }
+
         if (!Container.IsSelected)
         {
             if (!isAdditive) editor.Selection.Clear();
