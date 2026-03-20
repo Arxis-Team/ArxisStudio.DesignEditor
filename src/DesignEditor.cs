@@ -607,6 +607,7 @@ public class DesignEditor : SelectingItemsControl
     private readonly Dictionary<DesignEditorItem, List<Control>> _selectionTargets = new();
     private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
     private GroupResizeSession? _groupResizeSession;
+    private GroupDragSession? _groupDragSession;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
@@ -625,6 +626,20 @@ public class DesignEditor : SelectingItemsControl
         public DesignEditorItem Container { get; set; } = null!;
         public Control Target { get; set; } = null!;
         public Rect InitialBounds { get; set; }
+    }
+
+    private sealed class GroupDragSession
+    {
+        public DesignEditorItem SourceContainer { get; set; } = null!;
+        public Control SourceTarget { get; set; } = null!;
+        public Point SourceInitialPosition { get; set; }
+        public IReadOnlyList<GroupDragTargetSnapshot> Targets { get; set; } = Array.Empty<GroupDragTargetSnapshot>();
+    }
+
+    private sealed class GroupDragTargetSnapshot
+    {
+        public Control Target { get; set; } = null!;
+        public Point InitialPosition { get; set; }
     }
     #endregion
 
@@ -1183,20 +1198,26 @@ public class DesignEditor : SelectingItemsControl
 
     // --- Drag & Drop ---
 
-    private void OnItemsDragStarted(DragStartedEventArgs e) => e.Handled = true;
-
-    private void OnItemsDragDelta(DragDeltaEventArgs e)
+    private void OnItemsDragStarted(DragStartedEventArgs e)
     {
-        if (IsSelecting || CurrentState is EditorPanningState) return;
+        _groupDragSession = null;
 
-        var items = SelectedItems;
-        if (items == null || items.Count == 0) return;
+        if (IsSelecting || CurrentState is EditorPanningState)
+        {
+            e.Handled = true;
+            return;
+        }
 
-        var delta = new Vector(e.HorizontalChange, e.VerticalChange);
         var sourceContainer = e.Source as DesignEditorItem;
-        var sourceDragTarget = sourceContainer != null
-            ? ResolveInteractionTarget(sourceContainer)
-            : null;
+        var items = SelectedItems;
+        if (sourceContainer == null || items == null || items.Count == 0)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        var sourceTarget = ResolveInteractionTarget(sourceContainer);
+        var targets = new List<GroupDragTargetSnapshot>();
 
         foreach (var item in items)
         {
@@ -1207,36 +1228,80 @@ public class DesignEditor : SelectingItemsControl
             if (container == null || !container.IsDraggable)
                 continue;
 
-            if (ReferenceEquals(container, sourceContainer))
+            foreach (var target in ResolveSelectionTargets(container))
             {
-                var targets = ResolveSelectionTargets(container);
-                if (targets.Count > 1)
+                if (ReferenceEquals(container, sourceContainer) && ReferenceEquals(target, sourceTarget))
+                    continue;
+
+                targets.Add(new GroupDragTargetSnapshot
                 {
-                    foreach (var target in targets)
-                    {
-                        if (ReferenceEquals(target, sourceDragTarget))
-                            continue;
-
-                        var position = GetDesignPosition(target);
-                        SetDesignPosition(target, position + delta);
-                    }
-                }
-
-                continue;
+                    Target = target,
+                    InitialPosition = GetDesignPosition(target)
+                });
             }
+        }
 
-            if (!ReferenceEquals(container, sourceContainer))
+        if (targets.Count > 0)
+        {
+            _groupDragSession = new GroupDragSession
             {
-                var target = ResolveInteractionTarget(container);
-                var position = GetDesignPosition(target);
-                SetDesignPosition(target, position + delta);
-            }
+                SourceContainer = sourceContainer,
+                SourceTarget = sourceTarget,
+                SourceInitialPosition = GetDesignPosition(sourceTarget),
+                Targets = targets
+            };
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnItemsDragDelta(DragDeltaEventArgs e)
+    {
+        if (IsSelecting || CurrentState is EditorPanningState) return;
+
+        var items = SelectedItems;
+        if (items == null || items.Count == 0) return;
+
+        if (_groupDragSession != null &&
+            e.Source is DesignEditorItem sourceContainer &&
+            ReferenceEquals(sourceContainer, _groupDragSession.SourceContainer))
+        {
+            var sourcePosition = GetDesignPosition(_groupDragSession.SourceTarget);
+            var totalDelta = sourcePosition - _groupDragSession.SourceInitialPosition;
+
+            foreach (var snapshot in _groupDragSession.Targets)
+                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + totalDelta);
+
+            e.Handled = true;
+            UpdateSelectionOverlayState();
+            return;
+        }
+
+        var delta = new Vector(e.HorizontalChange, e.VerticalChange);
+        var source = e.Source as DesignEditorItem;
+
+        foreach (var item in items)
+        {
+            var container = ContainerFromItem(item) as DesignEditorItem;
+            if (container == null && item is DesignEditorItem directItem)
+                container = directItem;
+
+            if (container == null || !container.IsDraggable || ReferenceEquals(container, source))
+                continue;
+
+            var target = ResolveInteractionTarget(container);
+            var position = GetDesignPosition(target);
+            SetDesignPosition(target, position + delta);
         }
         e.Handled = true;
         UpdateSelectionOverlayState();
     }
 
-    private void OnItemsDragCompleted(DragCompletedEventArgs e) => e.Handled = true;
+    private void OnItemsDragCompleted(DragCompletedEventArgs e)
+    {
+        _groupDragSession = null;
+        e.Handled = true;
+    }
 
     private void OnItemsResizeDelta(ResizeDeltaEventArgs e)
     {

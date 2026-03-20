@@ -258,6 +258,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - поверх всей группы рисуется один group outline
 - handles располагаются только на общей group рамке
 - group resize применяется ко всем selected targets относительно общей рамки группы
+- group drag сохраняет относительные расстояния между selected targets (без разъезда на любом zoom)
 
 ## Пример использования `Layout`
 
@@ -287,6 +288,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
 - реализован group resize для multi-selection через общую рамку группы
+- реализован group drag для multi-selection nested targets с zoom-stable смещением
 - реализованы secondary outlines для каждого selected target в multi-selection
 - обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
@@ -294,6 +296,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - selection target API вынесен в явный публичный контракт `DesignSelectionTarget`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
+- cross-container additive nested selection работает как `no-op` (owner не меняется)
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
 - демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 
