@@ -21,10 +21,26 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private double _zoom = 1.0;
 
+    partial void OnIsGestureHelpExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsGestureHelpCollapsed));
+    }
+
+    [ObservableProperty]
+    private bool _isGestureHelpExpanded = true;
+
+    public bool IsGestureHelpCollapsed => !IsGestureHelpExpanded;
+
     [RelayCommand]
     public void ResetZoom()
     {
         Zoom = 1.0;
+    }
+
+    [RelayCommand]
+    public void ToggleGestureHelp()
+    {
+        IsGestureHelpExpanded = !IsGestureHelpExpanded;
     }
 
     public MainWindowViewModel()
