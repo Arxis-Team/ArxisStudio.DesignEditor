@@ -95,8 +95,13 @@ public class ItemIdleState : DesignEditorItemState
             e.Handled = true;
             _isPressed = true;
 
+            var editor = Container.FindAncestorOfType<DesignEditor>();
             var parent = Container.GetVisualParent();
-            if (parent != null) _startPoint = e.GetPosition((Visual)parent);
+            if (editor != null)
+                _startPoint = e.GetPosition(editor);
+            else if (parent != null)
+                _startPoint = e.GetPosition((Visual)parent);
+
             HandleSelectionOnPress(e);
         }
     }
@@ -112,8 +117,10 @@ public class ItemIdleState : DesignEditorItemState
         bool isAbsolute = parent is AbsolutePanel || parent is Canvas;
         if (!isAbsolute) return;
 
-        var currentPoint = e.GetPosition((Visual)parent);
         var editor = Container.FindAncestorOfType<DesignEditor>();
+        var currentPoint = editor != null
+            ? e.GetPosition(editor)
+            : e.GetPosition((Visual)parent);
         var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
         if (Vector.Distance(_startPoint, currentPoint) > dragStartThreshold)
             Container.PushState(new ItemDraggingState(Container, _startPoint));
@@ -180,8 +187,8 @@ public class ItemIdleState : DesignEditorItemState
 /// </summary>
 public class ItemDraggingState : DesignEditorItemState
 {
-    private Point _previousPosition;
-    private readonly Point _initialPosition;
+    private Point _previousPointerPosition;
+    private readonly Point _initialPointerPosition;
     private Point _elementStartLocation;
     private Control _dragTarget = null!;
 
@@ -189,11 +196,11 @@ public class ItemDraggingState : DesignEditorItemState
     /// Инициализирует новый экземпляр <see cref="ItemDraggingState"/>.
     /// </summary>
     /// <param name="container">Контейнер, который перетаскивается.</param>
-    /// <param name="initialPosition">Начальная точка перетаскивания.</param>
-    public ItemDraggingState(DesignEditorItem container, Point initialPosition) : base(container)
+    /// <param name="initialPointerPosition">Начальная позиция указателя в координатах редактора.</param>
+    public ItemDraggingState(DesignEditorItem container, Point initialPointerPosition) : base(container)
     {
-        _initialPosition = initialPosition;
-        _previousPosition = initialPosition;
+        _initialPointerPosition = initialPointerPosition;
+        _previousPointerPosition = initialPointerPosition;
     }
 
     public override void Enter(DesignEditorItemState from)
@@ -201,38 +208,45 @@ public class ItemDraggingState : DesignEditorItemState
         var editor = Container.FindAncestorOfType<DesignEditor>();
         _dragTarget = editor?.ResolveInteractionTarget(Container) ?? Container;
         _elementStartLocation = editor?.GetDesignPosition(_dragTarget) ?? Container.Location;
-        Container.RaiseEvent(new DragStartedEventArgs(_initialPosition.X, _initialPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
+        Container.RaiseEvent(new DragStartedEventArgs(_initialPointerPosition.X, _initialPointerPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
     }
 
     public override void Exit()
     {
-        var total = _previousPosition - _initialPosition;
+        var total = _previousPointerPosition - _initialPointerPosition;
         Container.RaiseEvent(new DragCompletedEventArgs(total.X, total.Y, false) { RoutedEvent = DesignEditorItem.DragCompletedEvent });
     }
 
     public override void OnPointerMoved(PointerEventArgs e)
     {
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        if (editor != null)
+        {
+            var currentPointerPosition = e.GetPosition(editor);
+            var totalDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_initialPointerPosition);
+
+            double newX = Math.Round(_elementStartLocation.X + totalDelta.X);
+            double newY = Math.Round(_elementStartLocation.Y + totalDelta.Y);
+            editor.SetDesignPosition(_dragTarget, new Point(newX, newY));
+            var frameDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_previousPointerPosition);
+            Container.RaiseEvent(new DragDeltaEventArgs(frameDelta.X, frameDelta.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
+            _previousPointerPosition = currentPointerPosition;
+            e.Handled = true;
+            return;
+        }
+
         var parent = Container.GetVisualParent();
         if (parent == null) return;
 
-        var currentPosition = e.GetPosition((Visual)parent);
+        var currentPointerPositionFallback = e.GetPosition((Visual)parent);
+        var totalDeltaFallback = currentPointerPositionFallback - _initialPointerPosition;
+        double fallbackX = Math.Round(_elementStartLocation.X + totalDeltaFallback.X);
+        double fallbackY = Math.Round(_elementStartLocation.Y + totalDeltaFallback.Y);
+        Container.Location = new Point(fallbackX, fallbackY);
 
-        // 1. Считаем полный вектор смещения от точки нажатия
-        var totalDelta = currentPosition - _initialPosition;
-
-        // 2. Новая позиция = Старт элемента + Полный вектор
-        double newX = Math.Round(_elementStartLocation.X + totalDelta.X);
-        double newY = Math.Round(_elementStartLocation.Y + totalDelta.Y);
-
-        var editor = Container.FindAncestorOfType<DesignEditor>();
-        if (editor != null)
-            editor.SetDesignPosition(_dragTarget, new Point(newX, newY));
-        else
-            Container.Location = new Point(newX, newY);
-
-        var frameDelta = currentPosition - _previousPosition;
-        Container.RaiseEvent(new DragDeltaEventArgs(frameDelta.X, frameDelta.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
-        _previousPosition = currentPosition;
+        var frameDeltaFallback = currentPointerPositionFallback - _previousPointerPosition;
+        Container.RaiseEvent(new DragDeltaEventArgs(frameDeltaFallback.X, frameDeltaFallback.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
+        _previousPointerPosition = currentPointerPositionFallback;
         e.Handled = true;
     }
 
