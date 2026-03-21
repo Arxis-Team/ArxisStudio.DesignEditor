@@ -19,6 +19,15 @@
                        FontSize="16"
                        Foreground="White" />
 
+            <TextBlock Name="TextBlock2"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="400"
+                       attached:Layout.Y="100"
+                       Text="Dashboard1"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="White" />
+
             <StackPanel Name="StackPanel1"
                         IsHitTestVisible="False"
                         Orientation="Horizontal"

@@ -257,6 +257,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - если выбрано несколько nested controls внутри одного `DesignEditorItem`, над каждым selected target рисуется собственный интерактивный `SelectionAdorner` с ручками
 - resize через ручки влияет только на тот nested control, на котором начато действие
 - drag любого selected nested control перемещает всю группу и сохраняет относительные расстояния между target'ами
+- group drag для nested controls рассчитывается по world-space delta и не зависит от промежуточного layout source target, поэтому остается стабильным при любом `ViewportZoom`
 - общий group `SelectionAdorner` в таком сценарии не показывается
 - если выбрано несколько `DesignEditorItem`, редактор использует один общий group `SelectionAdorner` для манипуляции контейнерами на поверхности редактора
 
@@ -288,6 +289,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
 - реализован group drag для multi-selection nested targets с zoom-stable смещением
+- group drag для nested controls переведен на accumulated world-space delta вместо чтения текущей layout-позиции source target
 - для multi-selection nested controls используется form-designer UX:
 - у каждого selected target свой интерактивный `SelectionAdorner`
 - group resize для nested controls отключен

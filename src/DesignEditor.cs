@@ -665,8 +665,8 @@ public class DesignEditor : SelectingItemsControl
     {
         public DesignEditorItem SourceContainer { get; set; } = null!;
         public Control SourceTarget { get; set; } = null!;
-        public Point SourceInitialPosition { get; set; }
         public IReadOnlyList<GroupDragTargetSnapshot> Targets { get; set; } = Array.Empty<GroupDragTargetSnapshot>();
+        public Vector AccumulatedDelta { get; set; }
     }
 
     private sealed class GroupDragTargetSnapshot
@@ -1331,8 +1331,8 @@ public class DesignEditor : SelectingItemsControl
             {
                 SourceContainer = sourceContainer,
                 SourceTarget = sourceTarget,
-                SourceInitialPosition = GetDesignPosition(sourceTarget),
-                Targets = targets
+                Targets = targets,
+                AccumulatedDelta = Vector.Zero
             };
         }
 
@@ -1350,11 +1350,10 @@ public class DesignEditor : SelectingItemsControl
             e.Source is DesignEditorItem sourceContainer &&
             ReferenceEquals(sourceContainer, _groupDragSession.SourceContainer))
         {
-            var sourcePosition = GetDesignPosition(_groupDragSession.SourceTarget);
-            var totalDelta = sourcePosition - _groupDragSession.SourceInitialPosition;
+            _groupDragSession.AccumulatedDelta += new Vector(e.HorizontalChange, e.VerticalChange);
 
             foreach (var snapshot in _groupDragSession.Targets)
-                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + totalDelta);
+                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + _groupDragSession.AccumulatedDelta);
 
             e.Handled = true;
             UpdateSelectionOverlayState();
