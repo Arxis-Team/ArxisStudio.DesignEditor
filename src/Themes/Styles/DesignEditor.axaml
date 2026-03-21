@@ -80,11 +80,11 @@
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
                             <controls:SelectionAdornerLayer Items="{TemplateBinding SecondarySelectionAdorners}"
-                                                            AdornerTheme="{TemplateBinding SecondarySelectionOutlineStyle}"
+                                                            AdornerTheme="{TemplateBinding SelectionOutlineStyle}"
                                                             ViewportZoom="{TemplateBinding ViewportZoom}"
                                                             ClipToBounds="False"
-                                                            IsHitTestVisible="False"
-                                                            IsVisible="{TemplateBinding HasMultipleSelection}" />
+                                                            IsHitTestVisible="True"
+                                                            IsVisible="{TemplateBinding HasMultipleNestedSelection}" />
 
                             <controls:SelectionAdorner Name="PART_SelectionAdorner"
                                                        Theme="{TemplateBinding SelectionOutlineStyle}"
@@ -120,7 +120,7 @@
                                                        RenderTransformOrigin="0,0"
                                                        Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                                        Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
-                                                       IsVisible="{TemplateBinding HasMultipleSelection}"
+                                                       IsVisible="{TemplateBinding HasMultipleContainerSelection}"
                                                        IsHitTestVisible="True">
                                 <controls:SelectionAdorner.Width>
                                     <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">

@@ -2,6 +2,8 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 
@@ -13,6 +15,33 @@ namespace ArxisStudio.Controls;
 /// </summary>
 public class SelectionAdornerLayer : Panel
 {
+    /// <summary>
+    /// Идентификатор routed event начала resize дочернего adorner'а.
+    /// </summary>
+    public static readonly RoutedEvent<SelectionAdornerResizeStartedEventArgs> AdornerResizeStartedEvent =
+        RoutedEvent.Register<SelectionAdornerResizeStartedEventArgs>(
+            nameof(AdornerResizeStarted),
+            RoutingStrategies.Bubble,
+            typeof(SelectionAdornerLayer));
+
+    /// <summary>
+    /// Идентификатор routed event шага resize дочернего adorner'а.
+    /// </summary>
+    public static readonly RoutedEvent<SelectionAdornerResizeDeltaEventArgs> AdornerResizeDeltaEvent =
+        RoutedEvent.Register<SelectionAdornerResizeDeltaEventArgs>(
+            nameof(AdornerResizeDelta),
+            RoutingStrategies.Bubble,
+            typeof(SelectionAdornerLayer));
+
+    /// <summary>
+    /// Идентификатор routed event завершения resize дочернего adorner'а.
+    /// </summary>
+    public static readonly RoutedEvent<SelectionAdornerResizeCompletedEventArgs> AdornerResizeCompletedEvent =
+        RoutedEvent.Register<SelectionAdornerResizeCompletedEventArgs>(
+            nameof(AdornerResizeCompleted),
+            RoutingStrategies.Bubble,
+            typeof(SelectionAdornerLayer));
+
     /// <summary>
     /// Идентификатор коллекции геометрии secondary/group adorner'ов.
     /// </summary>
@@ -72,6 +101,33 @@ public class SelectionAdornerLayer : Panel
         set => SetValue(ViewportZoomProperty, value);
     }
 
+    /// <summary>
+    /// Возникает при начале resize любого дочернего adorner'а.
+    /// </summary>
+    public event EventHandler<SelectionAdornerResizeStartedEventArgs> AdornerResizeStarted
+    {
+        add => AddHandler(AdornerResizeStartedEvent, value);
+        remove => RemoveHandler(AdornerResizeStartedEvent, value);
+    }
+
+    /// <summary>
+    /// Возникает при изменении размера любого дочернего adorner'а.
+    /// </summary>
+    public event EventHandler<SelectionAdornerResizeDeltaEventArgs> AdornerResizeDelta
+    {
+        add => AddHandler(AdornerResizeDeltaEvent, value);
+        remove => RemoveHandler(AdornerResizeDeltaEvent, value);
+    }
+
+    /// <summary>
+    /// Возникает после завершения resize любого дочернего adorner'а.
+    /// </summary>
+    public event EventHandler<SelectionAdornerResizeCompletedEventArgs> AdornerResizeCompleted
+    {
+        add => AddHandler(AdornerResizeCompletedEvent, value);
+        remove => RemoveHandler(AdornerResizeCompletedEvent, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         SyncChildren();
@@ -119,11 +175,15 @@ public class SelectionAdornerLayer : Panel
 
         while (Children.Count < items.Count)
         {
-            Children.Add(new SelectionAdorner
+            var adorner = new SelectionAdorner
             {
-                IsHitTestVisible = false,
                 RenderTransformOrigin = RelativePoint.TopLeft
-            });
+            };
+
+            adorner.ResizeStarted += OnChildResizeStarted;
+            adorner.ResizeDelta += OnChildResizeDelta;
+            adorner.ResizeCompleted += OnChildResizeCompleted;
+            Children.Add(adorner);
         }
 
         for (var i = 0; i < items.Count; i++)
@@ -131,8 +191,9 @@ public class SelectionAdornerLayer : Panel
             var child = (SelectionAdorner)Children[i];
             child.Theme = AdornerTheme;
             child.Role = items[i].Role;
-            child.ShowHandles = false;
-            child.IsInteractive = false;
+            child.ShowHandles = items[i].ShowHandles;
+            child.IsInteractive = items[i].IsInteractive;
+            child.IsHitTestVisible = items[i].ShowHandles && items[i].IsInteractive;
         }
 
         UpdateChildTransforms();
@@ -151,4 +212,147 @@ public class SelectionAdornerLayer : Panel
                 adorner.RenderTransform = inverseScale;
         }
     }
+
+    private void OnChildResizeStarted(object? sender, ResizeStartedEventArgs e)
+    {
+        if (sender is not SelectionAdorner adorner || TryGetAdornerInfo(adorner, out var info) == false)
+            return;
+
+        RaiseEvent(new SelectionAdornerResizeStartedEventArgs(info, e.Vector, e.Direction, AdornerResizeStartedEvent));
+        e.Handled = true;
+    }
+
+    private void OnChildResizeDelta(object? sender, ResizeDeltaEventArgs e)
+    {
+        if (sender is not SelectionAdorner adorner || TryGetAdornerInfo(adorner, out var info) == false)
+            return;
+
+        RaiseEvent(new SelectionAdornerResizeDeltaEventArgs(info, e.Delta, e.Direction, AdornerResizeDeltaEvent));
+        e.Handled = true;
+    }
+
+    private void OnChildResizeCompleted(object? sender, VectorEventArgs e)
+    {
+        if (sender is not SelectionAdorner adorner || TryGetAdornerInfo(adorner, out var info) == false)
+            return;
+
+        RaiseEvent(new SelectionAdornerResizeCompletedEventArgs(info, e.Vector, AdornerResizeCompletedEvent));
+        e.Handled = true;
+    }
+
+    private bool TryGetAdornerInfo(SelectionAdorner adorner, out SelectionAdornerInfo info)
+    {
+        var index = Children.IndexOf(adorner);
+        if (index < 0 || index >= Items.Count)
+        {
+            info = null!;
+            return false;
+        }
+
+        info = Items[index];
+        return true;
+    }
+}
+
+/// <summary>
+/// Базовый класс routed event args для resize событий дочернего adorner'а.
+/// </summary>
+public abstract class SelectionAdornerResizeEventArgs : RoutedEventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeEventArgs"/>.
+    /// </summary>
+    protected SelectionAdornerResizeEventArgs(SelectionAdornerInfo adornerInfo, RoutedEvent routedEvent)
+        : base(routedEvent)
+    {
+        AdornerInfo = adornerInfo;
+    }
+
+    /// <summary>
+    /// Получает описание adorner'а, инициировавшего событие.
+    /// </summary>
+    public SelectionAdornerInfo AdornerInfo { get; }
+}
+
+/// <summary>
+/// Аргументы начала resize дочернего adorner'а.
+/// </summary>
+public sealed class SelectionAdornerResizeStartedEventArgs : SelectionAdornerResizeEventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeStartedEventArgs"/>.
+    /// </summary>
+    public SelectionAdornerResizeStartedEventArgs(
+        SelectionAdornerInfo adornerInfo,
+        Vector vector,
+        ResizeDirection direction,
+        RoutedEvent routedEvent)
+        : base(adornerInfo, routedEvent)
+    {
+        Vector = vector;
+        Direction = direction;
+    }
+
+    /// <summary>
+    /// Получает стартовый вектор resize.
+    /// </summary>
+    public Vector Vector { get; }
+
+    /// <summary>
+    /// Получает направление активной ручки.
+    /// </summary>
+    public ResizeDirection Direction { get; }
+}
+
+/// <summary>
+/// Аргументы шага resize дочернего adorner'а.
+/// </summary>
+public sealed class SelectionAdornerResizeDeltaEventArgs : SelectionAdornerResizeEventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeDeltaEventArgs"/>.
+    /// </summary>
+    public SelectionAdornerResizeDeltaEventArgs(
+        SelectionAdornerInfo adornerInfo,
+        Vector delta,
+        ResizeDirection direction,
+        RoutedEvent routedEvent)
+        : base(adornerInfo, routedEvent)
+    {
+        Delta = delta;
+        Direction = direction;
+    }
+
+    /// <summary>
+    /// Получает вектор resize.
+    /// </summary>
+    public Vector Delta { get; }
+
+    /// <summary>
+    /// Получает направление активной ручки.
+    /// </summary>
+    public ResizeDirection Direction { get; }
+}
+
+/// <summary>
+/// Аргументы завершения resize дочернего adorner'а.
+/// </summary>
+public sealed class SelectionAdornerResizeCompletedEventArgs : SelectionAdornerResizeEventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeCompletedEventArgs"/>.
+    /// </summary>
+    public SelectionAdornerResizeCompletedEventArgs(
+        SelectionAdornerInfo adornerInfo,
+        Vector vector,
+        RoutedEvent routedEvent)
+        : base(adornerInfo, routedEvent)
+    {
+        Vector = vector;
+    }
+
+    /// <summary>
+    /// Получает итоговый вектор resize.
+    /// </summary>
+    public Vector Vector { get; }
 }

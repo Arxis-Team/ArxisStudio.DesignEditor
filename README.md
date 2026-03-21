@@ -254,11 +254,11 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 При multi-selection редактор использует профессиональную схему overlay:
 
-- над каждым выбранным nested control рисуется secondary outline без handles
-- поверх всей группы рисуется один group outline
-- handles располагаются только на общей group рамке
-- group resize применяется ко всем selected targets относительно общей рамки группы
-- group drag сохраняет относительные расстояния между selected targets (без разъезда на любом zoom)
+- если выбрано несколько nested controls внутри одного `DesignEditorItem`, над каждым selected target рисуется собственный интерактивный `SelectionAdorner` с ручками
+- resize через ручки влияет только на тот nested control, на котором начато действие
+- drag любого selected nested control перемещает всю группу и сохраняет относительные расстояния между target'ами
+- общий group `SelectionAdorner` в таком сценарии не показывается
+- если выбрано несколько `DesignEditorItem`, редактор использует один общий group `SelectionAdorner` для манипуляции контейнерами на поверхности редактора
 
 ## Пример использования `Layout`
 
@@ -287,9 +287,11 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - editor-level hit-testing вложенных контролов работает по `Layout`-геометрии и не зависит от runtime `IsHitTestVisible`
 - nested design target выбирается внутри visual tree `DataTemplate`/`UserControl`, а не только на уровне контейнера
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
-- реализован group resize для multi-selection через общую рамку группы
 - реализован group drag для multi-selection nested targets с zoom-stable смещением
-- реализованы secondary outlines для каждого selected target в multi-selection
+- для multi-selection nested controls используется form-designer UX:
+- у каждого selected target свой интерактивный `SelectionAdorner`
+- group resize для nested controls отключен
+- общий group adorner сохранен только для multi-selection `DesignEditorItem`
 - обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - runtime numeric policy вынесен в отдельный API `DesignEditorInteractionOptions`
@@ -307,8 +309,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 1. Расширить selection API событиями и командами высокого уровня.
 Ввести явные события изменения primary target и набора selected targets, чтобы интеграции не зависели от внутренних overlay-обновлений.
 
-2. Довести group interaction.
-После group resize нужно унифицировать group drag, ограничения и поведение primary target внутри multi-selection.
+2. Довести nested multi-selection interaction.
+Нужно унифицировать поведение primary target, ограничения resize и visual feedback для группы nested controls без возврата к графическому UX.
 
 3. Развить `PART_InteractionOverlayLayer`.
 Следующие кандидаты:

@@ -302,6 +302,18 @@ public class DesignEditor : SelectingItemsControl
     public static readonly DirectProperty<DesignEditor, bool> HasMultipleSelectionProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleSelection), o => o.HasMultipleSelection, (o, v) => o.HasMultipleSelection = v);
 
+    /// <summary>
+    /// Идентификатор свойства, указывающего на множественное выделение nested targets.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> HasMultipleNestedSelectionProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleNestedSelection), o => o.HasMultipleNestedSelection, (o, v) => o.HasMultipleNestedSelection = v);
+
+    /// <summary>
+    /// Идентификатор свойства, указывающего на множественное выделение контейнеров.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> HasMultipleContainerSelectionProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleContainerSelection), o => o.HasMultipleContainerSelection, (o, v) => o.HasMultipleContainerSelection = v);
+
     #endregion
 
     #region Wrappers
@@ -592,6 +604,26 @@ public class DesignEditor : SelectingItemsControl
         private set => SetAndRaise(HasMultipleSelectionProperty, ref _hasMultipleSelection, value);
     }
 
+    private bool _hasMultipleNestedSelection;
+    /// <summary>
+    /// Получает значение, указывающее, что выбрано несколько nested targets внутри одного контейнера.
+    /// </summary>
+    public bool HasMultipleNestedSelection
+    {
+        get => _hasMultipleNestedSelection;
+        private set => SetAndRaise(HasMultipleNestedSelectionProperty, ref _hasMultipleNestedSelection, value);
+    }
+
+    private bool _hasMultipleContainerSelection;
+    /// <summary>
+    /// Получает значение, указывающее, что выбрано несколько контейнеров <see cref="DesignEditorItem"/>.
+    /// </summary>
+    public bool HasMultipleContainerSelection
+    {
+        get => _hasMultipleContainerSelection;
+        private set => SetAndRaise(HasMultipleContainerSelectionProperty, ref _hasMultipleContainerSelection, value);
+    }
+
     #endregion
 
     #region Internal Helpers
@@ -601,6 +633,7 @@ public class DesignEditor : SelectingItemsControl
 
     private SelectionAdorner? _selectionAdorner;
     private SelectionAdorner? _groupSelectionAdorner;
+    private SelectionAdornerLayer? _secondarySelectionAdornerLayer;
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
     private DesignEditorItem? _marqueeSelectionOwner;
@@ -732,8 +765,16 @@ public class DesignEditor : SelectingItemsControl
             _groupSelectionAdorner.ResizeCompleted -= OnGroupSelectionResizeCompleted;
         }
 
+        if (_secondarySelectionAdornerLayer != null)
+        {
+            _secondarySelectionAdornerLayer.AdornerResizeStarted -= OnSecondarySelectionResizeStarted;
+            _secondarySelectionAdornerLayer.AdornerResizeDelta -= OnSecondarySelectionResizeDelta;
+            _secondarySelectionAdornerLayer.AdornerResizeCompleted -= OnSecondarySelectionResizeCompleted;
+        }
+
         _selectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_SelectionAdorner");
         _groupSelectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_GroupSelectionAdorner");
+        _secondarySelectionAdornerLayer = e.NameScope.Find<SelectionAdornerLayer>("PART_SecondarySelectionAdorners");
 
         if (_selectionAdorner != null)
         {
@@ -747,6 +788,13 @@ public class DesignEditor : SelectingItemsControl
             _groupSelectionAdorner.ResizeStarted += OnGroupSelectionResizeStarted;
             _groupSelectionAdorner.ResizeDelta += OnGroupSelectionResizeDelta;
             _groupSelectionAdorner.ResizeCompleted += OnGroupSelectionResizeCompleted;
+        }
+
+        if (_secondarySelectionAdornerLayer != null)
+        {
+            _secondarySelectionAdornerLayer.AdornerResizeStarted += OnSecondarySelectionResizeStarted;
+            _secondarySelectionAdornerLayer.AdornerResizeDelta += OnSecondarySelectionResizeDelta;
+            _secondarySelectionAdornerLayer.AdornerResizeCompleted += OnSecondarySelectionResizeCompleted;
         }
     }
 
@@ -979,7 +1027,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void CenterOnSelection()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _))
             CenterOn(bounds);
     }
 
@@ -991,7 +1039,7 @@ public class DesignEditor : SelectingItemsControl
     /// </remarks>
     public void FitSelectionToView()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _))
             FitToView(bounds);
     }
 
@@ -1000,13 +1048,17 @@ public class DesignEditor : SelectingItemsControl
         out int selectedCount,
         out DesignEditorItem? primaryItem,
         out Control? primaryControl,
-        out IReadOnlyList<SelectionAdornerInfo> secondaryAdorners)
+        out IReadOnlyList<SelectionAdornerInfo> secondaryAdorners,
+        out bool hasMultipleNestedSelection,
+        out bool hasMultipleContainerSelection)
     {
         bounds = default;
         selectedCount = 0;
         primaryItem = null;
         primaryControl = null;
         secondaryAdorners = Array.Empty<SelectionAdornerInfo>();
+        hasMultipleNestedSelection = false;
+        hasMultipleContainerSelection = false;
 
         var items = SelectedItems;
         if (items == null || items.Count == 0)
@@ -1014,6 +1066,8 @@ public class DesignEditor : SelectingItemsControl
 
         var perTargetBounds = new List<SelectionAdornerInfo>();
         var hasBounds = false;
+        var containerTargetCount = 0;
+        var nestedTargetCount = 0;
         double left = 0;
         double top = 0;
         double right = 0;
@@ -1036,8 +1090,15 @@ public class DesignEditor : SelectingItemsControl
                 selectedCount++;
                 primaryItem ??= container;
                 primaryControl ??= selectionTarget;
+                if (ReferenceEquals(selectionTarget, container))
+                    containerTargetCount++;
+                else
+                    nestedTargetCount++;
+
                 perTargetBounds.Add(new SelectionAdornerInfo
                 {
+                    Container = container,
+                    Target = selectionTarget,
                     Bounds = itemBounds,
                     Role = SelectionAdornerRole.Secondary
                 });
@@ -1063,19 +1124,40 @@ public class DesignEditor : SelectingItemsControl
             return false;
 
         bounds = new Rect(left, top, right - left, bottom - top);
-        secondaryAdorners = selectedCount > 1 ? perTargetBounds : Array.Empty<SelectionAdornerInfo>();
+        hasMultipleContainerSelection = selectedCount > 1 && containerTargetCount == selectedCount;
+        hasMultipleNestedSelection = selectedCount > 1 && nestedTargetCount == selectedCount;
+
+        if (hasMultipleNestedSelection)
+        {
+            foreach (var adorner in perTargetBounds)
+            {
+                adorner.ShowHandles = true;
+                adorner.IsInteractive = true;
+            }
+        }
+
+        secondaryAdorners = hasMultipleNestedSelection ? perTargetBounds : Array.Empty<SelectionAdornerInfo>();
         return true;
     }
 
     internal void UpdateSelectionOverlayState()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out var selectedCount, out var primaryItem, out var primaryControl, out var secondaryAdorners))
+        if (TryGetSelectedDesignBounds(
+                out var bounds,
+                out var selectedCount,
+                out var primaryItem,
+                out var primaryControl,
+                out var secondaryAdorners,
+                out var hasMultipleNestedSelection,
+                out var hasMultipleContainerSelection))
         {
             CleanupSelectionTargets();
             SelectionBounds = bounds;
             SecondarySelectionAdorners = secondaryAdorners;
             HasSingleSelection = selectedCount == 1;
             HasMultipleSelection = selectedCount > 1;
+            HasMultipleNestedSelection = hasMultipleNestedSelection;
+            HasMultipleContainerSelection = hasMultipleContainerSelection;
             _primarySelectionItem = primaryItem;
             _primarySelectionControl = primaryControl;
             SelectedDesignTargets = CreateSelectionTargetsSnapshot(primaryItem, primaryControl);
@@ -1089,6 +1171,8 @@ public class DesignEditor : SelectingItemsControl
         SecondarySelectionAdorners = Array.Empty<SelectionAdornerInfo>();
         HasSingleSelection = false;
         HasMultipleSelection = false;
+        HasMultipleNestedSelection = false;
+        HasMultipleContainerSelection = false;
         _primarySelectionItem = null;
         _primarySelectionControl = null;
         SelectedDesignTargets = Array.Empty<DesignSelectionTarget>();
@@ -1347,9 +1431,56 @@ public class DesignEditor : SelectingItemsControl
         e.Handled = true;
     }
 
+    private void OnSecondarySelectionResizeStarted(object? sender, SelectionAdornerResizeStartedEventArgs e)
+    {
+        var container = e.AdornerInfo.Container;
+        var target = e.AdornerInfo.Target;
+
+        if (container == null || target == null || !HasMultipleNestedSelection)
+            return;
+
+        container.PushState(new ItemResizingState(container, target, e.Direction));
+        container.OnResizeStarted(e.Vector);
+        e.Handled = true;
+    }
+
+    private void OnSecondarySelectionResizeDelta(object? sender, SelectionAdornerResizeDeltaEventArgs e)
+    {
+        var container = e.AdornerInfo.Container;
+        var target = e.AdornerInfo.Target;
+
+        if (container == null || target == null || container.CurrentState is not ItemResizingState)
+            return;
+
+        var worldDelta = NormalizeResizeDelta(e.Delta);
+        var normalizedArgs = new ResizeDeltaEventArgs(worldDelta, e.Direction, SelectionAdorner.ResizeDeltaEvent)
+        {
+            Source = e.Source
+        };
+
+        container.CurrentState.OnResizeDelta(normalizedArgs);
+        container.OnResizeDelta(new ResizeDeltaEventArgs(worldDelta, e.Direction, DesignEditorItem.ResizeDeltaEvent));
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
+    private void OnSecondarySelectionResizeCompleted(object? sender, SelectionAdornerResizeCompletedEventArgs e)
+    {
+        var container = e.AdornerInfo.Container;
+        var target = e.AdornerInfo.Target;
+
+        if (container == null || target == null || container.CurrentState is not ItemResizingState)
+            return;
+
+        container.PopState();
+        container.OnResizeCompleted(e.Vector);
+        UpdateSelectionOverlayState();
+        e.Handled = true;
+    }
+
     private void OnGroupSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
     {
-        if (!HasMultipleSelection || !TryCreateGroupResizeSession(e.Direction, out var session))
+        if (!HasMultipleContainerSelection || !TryCreateGroupResizeSession(e.Direction, out var session))
             return;
 
         _groupResizeSession = session;
@@ -1967,7 +2098,7 @@ public class DesignEditor : SelectingItemsControl
     {
         session = null;
 
-        if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _)
+        if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _, out _, out _)
             || selectedCount <= 1)
         {
             return false;
