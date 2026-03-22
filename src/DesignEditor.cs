@@ -1568,6 +1568,12 @@ public class DesignEditor : SelectingItemsControl
             return;
         }
 
+        if (ShouldBlockNestedGroupDrag(sourceContainer))
+        {
+            e.Handled = true;
+            return;
+        }
+
         var sourceTarget = ResolveInteractionTarget(sourceContainer);
         var sourceMovePolicy = GetMovePolicy(sourceTarget);
         if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
@@ -1626,6 +1632,12 @@ public class DesignEditor : SelectingItemsControl
         var source = e.Source as DesignEditorItem;
         if (source != null)
         {
+            if (ShouldBlockNestedGroupDrag(source))
+            {
+                e.Handled = true;
+                return;
+            }
+
             var sourceTarget = ResolveInteractionTarget(source);
             if (GetMovePolicy(sourceTarget) == ArxisStudio.Attached.MovePolicy.None)
             {
@@ -1988,6 +2000,23 @@ public class DesignEditor : SelectingItemsControl
     internal bool IsResizeAllowed(Control control, ResizeDirection direction)
     {
         return IsResizeAllowed(GetResizePolicy(control), direction);
+    }
+
+    internal bool ShouldBlockNestedGroupDrag(DesignEditorItem sourceContainer)
+    {
+        if (!HasMultipleNestedSelection || SelectedDesignTargets.Count <= 1)
+            return false;
+
+        foreach (var selectedTarget in SelectedDesignTargets)
+        {
+            if (!ReferenceEquals(selectedTarget.Container, sourceContainer))
+                continue;
+
+            if (GetMovePolicy(selectedTarget.Target) == ArxisStudio.Attached.MovePolicy.None)
+                return true;
+        }
+
+        return false;
     }
 
     private static Vector ApplyMovePolicy(Vector delta, ArxisStudio.Attached.MovePolicy policy)
