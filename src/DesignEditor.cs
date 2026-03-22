@@ -663,27 +663,12 @@ public class DesignEditor : SelectingItemsControl
     private DesignEditorItem? _marqueeSelectionOwner;
     private readonly Dictionary<DesignEditorItem, List<Control>> _selectionTargets = new();
     private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
-    private GroupResizeSession? _groupResizeSession;
+    private GroupResizeOperation? _groupResizeOperation;
     private GroupDragOperation? _groupDragOperation;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
     private readonly TranslateTransform _dpiTranslateTransform = new TranslateTransform();
-
-    private sealed class GroupResizeSession
-    {
-        public ResizeDirection Direction { get; set; }
-        public Rect InitialBounds { get; set; }
-        public IReadOnlyList<GroupResizeTargetSnapshot> Targets { get; set; } = Array.Empty<GroupResizeTargetSnapshot>();
-        public Vector AccumulatedDelta { get; set; }
-    }
-
-    private sealed class GroupResizeTargetSnapshot
-    {
-        public DesignEditorItem Container { get; set; } = null!;
-        public Control Target { get; set; } = null!;
-        public Rect InitialBounds { get; set; }
-    }
 
     #endregion
 
@@ -1737,40 +1722,22 @@ public class DesignEditor : SelectingItemsControl
 
     private void OnGroupSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
     {
-        if (!HasMultipleContainerSelection || !TryCreateGroupResizeSession(e.Direction, out var session))
+        if (!HasMultipleContainerSelection || !TryCreateGroupResizeOperation(e.Direction, out var operation))
             return;
 
-        _groupResizeSession = session;
+        _groupResizeOperation = operation;
         e.Handled = true;
     }
 
     private void OnGroupSelectionResizeDelta(object? sender, ResizeDeltaEventArgs e)
     {
-        if (_groupResizeSession == null)
+        if (_groupResizeOperation == null)
             return;
 
-        _groupResizeSession.AccumulatedDelta += NormalizeResizeDelta(e.Delta);
-        var nextBounds = CalculateResizedBounds(
-            _groupResizeSession.InitialBounds,
-            _groupResizeSession.Direction,
-            _groupResizeSession.AccumulatedDelta,
+        _groupResizeOperation.Update(
+            this,
+            NormalizeResizeDelta(e.Delta),
             Math.Max(0.0, InteractionOptions.ResizeMinSize));
-        var initialBounds = _groupResizeSession.InitialBounds;
-        var scaleX = initialBounds.Width > 0 ? nextBounds.Width / initialBounds.Width : 1.0;
-        var scaleY = initialBounds.Height > 0 ? nextBounds.Height / initialBounds.Height : 1.0;
-
-        foreach (var snapshot in _groupResizeSession.Targets)
-        {
-            var initialTargetBounds = snapshot.InitialBounds;
-            var newX = nextBounds.X + ((initialTargetBounds.X - initialBounds.X) * scaleX);
-            var newY = nextBounds.Y + ((initialTargetBounds.Y - initialBounds.Y) * scaleY);
-            var minSize = Math.Max(0.0, InteractionOptions.ResizeMinSize);
-            var newWidth = Math.Max(minSize, initialTargetBounds.Width * scaleX);
-            var newHeight = Math.Max(minSize, initialTargetBounds.Height * scaleY);
-
-            SetDesignSize(snapshot.Target, new Size(newWidth, newHeight));
-            SetDesignPosition(snapshot.Target, new Point(newX, newY));
-        }
 
         UpdateSelectionOverlayState();
         e.Handled = true;
@@ -1784,10 +1751,10 @@ public class DesignEditor : SelectingItemsControl
 
     private void OnGroupSelectionResizeCompleted(object? sender, VectorEventArgs e)
     {
-        if (_groupResizeSession == null)
+        if (_groupResizeOperation == null)
             return;
 
-        _groupResizeSession = null;
+        _groupResizeOperation = null;
         UpdateSelectionOverlayState();
         e.Handled = true;
     }
@@ -2462,9 +2429,9 @@ public class DesignEditor : SelectingItemsControl
         return bestMatch;
     }
 
-    private bool TryCreateGroupResizeSession(ResizeDirection direction, out GroupResizeSession? session)
+    private bool TryCreateGroupResizeOperation(ResizeDirection direction, out GroupResizeOperation? operation)
     {
-        session = null;
+        operation = null;
 
         if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _, out _, out _)
             || selectedCount <= 1)
@@ -2472,7 +2439,7 @@ public class DesignEditor : SelectingItemsControl
             return false;
         }
 
-        var targets = new List<GroupResizeTargetSnapshot>();
+        var targets = new List<GroupResizeTarget>();
         var items = SelectedItems;
         if (items == null)
             return false;
@@ -2496,85 +2463,15 @@ public class DesignEditor : SelectingItemsControl
 
                 SetDesignSize(target, GetDesignSize(target));
 
-                targets.Add(new GroupResizeTargetSnapshot
-                {
-                    Container = container,
-                    Target = target,
-                    InitialBounds = bounds
-                });
+                targets.Add(new GroupResizeTarget(target, bounds));
             }
         }
 
         if (targets.Count <= 1)
             return false;
 
-        session = new GroupResizeSession
-        {
-            Direction = direction,
-            InitialBounds = selectionBounds,
-            Targets = targets
-        };
+        operation = new GroupResizeOperation(direction, selectionBounds, targets);
 
         return true;
-    }
-
-    private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta, double minSize)
-    {
-        var newX = initialBounds.X;
-        var newY = initialBounds.Y;
-        var newWidth = initialBounds.Width;
-        var newHeight = initialBounds.Height;
-
-        switch (direction)
-        {
-            case ResizeDirection.Right:
-                newWidth += delta.X;
-                break;
-            case ResizeDirection.Bottom:
-                newHeight += delta.Y;
-                break;
-            case ResizeDirection.Left:
-                newWidth -= delta.X;
-                newX += delta.X;
-                break;
-            case ResizeDirection.Top:
-                newHeight -= delta.Y;
-                newY += delta.Y;
-                break;
-            case ResizeDirection.BottomRight:
-                newWidth += delta.X;
-                newHeight += delta.Y;
-                break;
-            case ResizeDirection.BottomLeft:
-                newWidth -= delta.X;
-                newX += delta.X;
-                newHeight += delta.Y;
-                break;
-            case ResizeDirection.TopRight:
-                newWidth += delta.X;
-                newHeight -= delta.Y;
-                newY += delta.Y;
-                break;
-            case ResizeDirection.TopLeft:
-                newWidth -= delta.X;
-                newX += delta.X;
-                newHeight -= delta.Y;
-                newY += delta.Y;
-                break;
-        }
-
-        var initialRight = initialBounds.Right;
-        var initialBottom = initialBounds.Bottom;
-
-        newWidth = Math.Max(minSize, newWidth);
-        newHeight = Math.Max(minSize, newHeight);
-
-        if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-            newX = initialRight - newWidth;
-
-        if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-            newY = initialBottom - newHeight;
-
-        return new Rect(newX, newY, newWidth, newHeight);
     }
 }
