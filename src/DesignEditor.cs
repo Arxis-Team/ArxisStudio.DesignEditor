@@ -1583,7 +1583,28 @@ public class DesignEditor : SelectingItemsControl
             return;
         }
 
-        var targets = new List<GroupDragTargetSnapshot>();
+        var targets = CreateGroupDragTargets(sourceContainer, sourceTarget);
+
+        if (targets.Count > 0)
+        {
+            _groupDragSession = new GroupDragSession
+            {
+                SourceContainer = sourceContainer,
+                SourceTarget = sourceTarget,
+                Targets = targets,
+                AccumulatedDelta = Vector.Zero
+            };
+        }
+
+        e.Handled = true;
+    }
+
+    private IReadOnlyList<GroupDragTargetSnapshot> CreateGroupDragTargets(DesignEditorItem sourceContainer, Control sourceTarget)
+    {
+        var result = new List<GroupDragTargetSnapshot>();
+        var items = SelectedItems;
+        if (items == null || items.Count == 0)
+            return result;
 
         foreach (var item in items)
         {
@@ -1601,7 +1622,7 @@ public class DesignEditor : SelectingItemsControl
                 if (GetMovePolicy(target) == ArxisStudio.Attached.MovePolicy.None)
                     continue;
 
-                targets.Add(new GroupDragTargetSnapshot
+                result.Add(new GroupDragTargetSnapshot
                 {
                     Target = target,
                     InitialPosition = GetDesignPosition(target)
@@ -1609,18 +1630,7 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
-        if (targets.Count > 0)
-        {
-            _groupDragSession = new GroupDragSession
-            {
-                SourceContainer = sourceContainer,
-                SourceTarget = sourceTarget,
-                Targets = targets,
-                AccumulatedDelta = Vector.Zero
-            };
-        }
-
-        e.Handled = true;
+        return result;
     }
 
     private void OnItemsDragDelta(DragDeltaEventArgs e)
@@ -2007,16 +2017,8 @@ public class DesignEditor : SelectingItemsControl
         if (!HasMultipleNestedSelection || SelectedDesignTargets.Count <= 1)
             return false;
 
-        foreach (var selectedTarget in SelectedDesignTargets)
-        {
-            if (!ReferenceEquals(selectedTarget.Container, sourceContainer))
-                continue;
-
-            if (GetMovePolicy(selectedTarget.Target) == ArxisStudio.Attached.MovePolicy.None)
-                return true;
-        }
-
-        return false;
+        return SelectedDesignTargets.Any(selectedTarget =>
+            GetMovePolicy(selectedTarget.Target) == ArxisStudio.Attached.MovePolicy.None);
     }
 
     private static Vector ApplyMovePolicy(Vector delta, ArxisStudio.Attached.MovePolicy policy)
