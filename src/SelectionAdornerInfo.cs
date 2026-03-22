@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using ArxisStudio.Attached;
 using ArxisStudio.Controls;
 
 namespace ArxisStudio;
@@ -38,4 +39,14 @@ public class SelectionAdornerInfo
     /// Получает или задает признак интерактивности adorner.
     /// </summary>
     public bool IsInteractive { get; set; }
+
+    /// <summary>
+    /// Получает или задает policy изменения размера target.
+    /// </summary>
+    public ResizePolicy ResizePolicy { get; set; } = ResizePolicy.All;
+
+    /// <summary>
+    /// Получает или задает policy перемещения target.
+    /// </summary>
+    public MovePolicy MovePolicy { get; set; } = MovePolicy.Both;
 }

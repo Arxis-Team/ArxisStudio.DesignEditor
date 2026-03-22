@@ -193,7 +193,11 @@ public class SelectionAdornerLayer : Panel
             child.Role = items[i].Role;
             child.ShowHandles = items[i].ShowHandles;
             child.IsInteractive = items[i].IsInteractive;
-            child.IsHitTestVisible = items[i].ShowHandles && items[i].IsInteractive;
+            child.ResizePolicy = items[i].ResizePolicy;
+            child.MovePolicy = items[i].MovePolicy;
+            child.IsHitTestVisible = items[i].ShowHandles &&
+                                     items[i].IsInteractive &&
+                                     items[i].ResizePolicy != ArxisStudio.Attached.ResizePolicy.None;
         }
 
         UpdateChildTransforms();

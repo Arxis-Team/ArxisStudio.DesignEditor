@@ -191,6 +191,7 @@ public class ItemDraggingState : DesignEditorItemState
     private readonly Point _initialPointerPosition;
     private Point _elementStartLocation;
     private Control _dragTarget = null!;
+    private Vector _previousAppliedDelta;
 
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemDraggingState"/>.
@@ -208,12 +209,16 @@ public class ItemDraggingState : DesignEditorItemState
         var editor = Container.FindAncestorOfType<DesignEditor>();
         _dragTarget = editor?.ResolveInteractionTarget(Container) ?? Container;
         _elementStartLocation = editor?.GetDesignPosition(_dragTarget) ?? Container.Location;
+        _previousAppliedDelta = Vector.Zero;
         Container.RaiseEvent(new DragStartedEventArgs(_initialPointerPosition.X, _initialPointerPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
     }
 
     public override void Exit()
     {
-        var total = _previousPointerPosition - _initialPointerPosition;
+        var editor = Container.FindAncestorOfType<DesignEditor>();
+        var total = editor != null
+            ? new Point(_previousAppliedDelta.X, _previousAppliedDelta.Y)
+            : _previousPointerPosition - _initialPointerPosition;
         Container.RaiseEvent(new DragCompletedEventArgs(total.X, total.Y, false) { RoutedEvent = DesignEditorItem.DragCompletedEvent });
     }
 
@@ -223,13 +228,15 @@ public class ItemDraggingState : DesignEditorItemState
         if (editor != null)
         {
             var currentPointerPosition = e.GetPosition(editor);
-            var totalDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_initialPointerPosition);
+            var rawTotalDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_initialPointerPosition);
+            var appliedTotalDelta = editor.ApplyMovePolicy(_dragTarget, rawTotalDelta);
 
-            double newX = Math.Round(_elementStartLocation.X + totalDelta.X);
-            double newY = Math.Round(_elementStartLocation.Y + totalDelta.Y);
+            double newX = Math.Round(_elementStartLocation.X + appliedTotalDelta.X);
+            double newY = Math.Round(_elementStartLocation.Y + appliedTotalDelta.Y);
             editor.SetDesignPosition(_dragTarget, new Point(newX, newY));
-            var frameDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_previousPointerPosition);
+            var frameDelta = appliedTotalDelta - _previousAppliedDelta;
             Container.RaiseEvent(new DragDeltaEventArgs(frameDelta.X, frameDelta.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
+            _previousAppliedDelta = appliedTotalDelta;
             _previousPointerPosition = currentPointerPosition;
             e.Handled = true;
             return;

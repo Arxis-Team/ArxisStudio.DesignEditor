@@ -5,6 +5,9 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using ArxisStudio.Attached;
+using ResizePolicyMode = ArxisStudio.Attached.ResizePolicy;
+using MovePolicyMode = ArxisStudio.Attached.MovePolicy;
 
 namespace ArxisStudio.Controls;
 
@@ -119,6 +122,18 @@ public class SelectionAdorner : TemplatedControl
         AvaloniaProperty.Register<SelectionAdorner, bool>(nameof(IsInteractive), true);
 
     /// <summary>
+    /// Идентификатор политики resize.
+    /// </summary>
+    public static readonly StyledProperty<ResizePolicyMode> ResizePolicyProperty =
+        AvaloniaProperty.Register<SelectionAdorner, ResizePolicyMode>(nameof(ResizePolicy), ResizePolicyMode.All);
+
+    /// <summary>
+    /// Идентификатор политики перемещения.
+    /// </summary>
+    public static readonly StyledProperty<MovePolicyMode> MovePolicyProperty =
+        AvaloniaProperty.Register<SelectionAdorner, MovePolicyMode>(nameof(MovePolicy), MovePolicyMode.Both);
+
+    /// <summary>
     /// Идентификатор свойства заливки рамки.
     /// </summary>
     public static readonly StyledProperty<IBrush?> FillProperty =
@@ -164,6 +179,7 @@ public class SelectionAdorner : TemplatedControl
     {
         ShowHandlesProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
         IsInteractiveProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
+        ResizePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
     }
 
     /// <summary>
@@ -200,6 +216,24 @@ public class SelectionAdorner : TemplatedControl
     {
         get => GetValue(IsInteractiveProperty);
         set => SetValue(IsInteractiveProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает policy изменения размера target.
+    /// </summary>
+    public ResizePolicyMode ResizePolicy
+    {
+        get => GetValue(ResizePolicyProperty);
+        set => SetValue(ResizePolicyProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает policy перемещения target.
+    /// </summary>
+    public MovePolicyMode MovePolicy
+    {
+        get => GetValue(MovePolicyProperty);
+        set => SetValue(MovePolicyProperty, value);
     }
 
     /// <summary>
@@ -289,15 +323,21 @@ public class SelectionAdorner : TemplatedControl
 
     private void UpdateThumbBindings()
     {
-        var shouldBind = ShowHandles && IsInteractive;
+        var shouldBind = ShowHandles && IsInteractive && ResizePolicy != ResizePolicyMode.None;
 
-        foreach (var thumb in _thumbDirections.Keys)
+        foreach (var pair in _thumbDirections)
         {
+            var thumb = pair.Key;
+            var direction = pair.Value;
+            var isDirectionAllowed = IsDirectionAllowed(direction);
+
             thumb.DragDelta -= OnThumbDragDelta;
             thumb.DragStarted -= OnThumbDragStarted;
             thumb.DragCompleted -= OnThumbDragCompleted;
+            thumb.IsVisible = ShowHandles && isDirectionAllowed;
+            thumb.IsHitTestVisible = shouldBind && isDirectionAllowed;
 
-            if (!shouldBind)
+            if (!shouldBind || !isDirectionAllowed)
                 continue;
 
             thumb.DragDelta += OnThumbDragDelta;
@@ -320,14 +360,22 @@ public class SelectionAdorner : TemplatedControl
 
     private void OnThumbDragDelta(object? sender, VectorEventArgs args)
     {
-        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+        if (sender is Thumb thumb &&
+            _thumbDirections.TryGetValue(thumb, out var direction) &&
+            IsDirectionAllowed(direction))
+        {
             RaiseEvent(new ResizeDeltaEventArgs(args.Vector, direction, ResizeDeltaEvent));
+        }
     }
 
     private void OnThumbDragStarted(object? sender, VectorEventArgs args)
     {
-        if (sender is Thumb thumb && _thumbDirections.TryGetValue(thumb, out var direction))
+        if (sender is Thumb thumb &&
+            _thumbDirections.TryGetValue(thumb, out var direction) &&
+            IsDirectionAllowed(direction))
+        {
             RaiseEvent(new ResizeStartedEventArgs(args.Vector, direction, ResizeStartedEvent));
+        }
     }
 
     private void OnThumbDragCompleted(object? sender, VectorEventArgs args)
@@ -337,5 +385,21 @@ public class SelectionAdorner : TemplatedControl
             RoutedEvent = ResizeCompletedEvent,
             Vector = args.Vector
         });
+    }
+
+    private bool IsDirectionAllowed(ResizeDirection direction)
+    {
+        return direction switch
+        {
+            ResizeDirection.Left => ResizePolicy.HasFlag(ResizePolicyMode.Left),
+            ResizeDirection.Top => ResizePolicy.HasFlag(ResizePolicyMode.Top),
+            ResizeDirection.Right => ResizePolicy.HasFlag(ResizePolicyMode.Right),
+            ResizeDirection.Bottom => ResizePolicy.HasFlag(ResizePolicyMode.Bottom),
+            ResizeDirection.TopLeft => ResizePolicy.HasFlag(ResizePolicyMode.Top) && ResizePolicy.HasFlag(ResizePolicyMode.Left),
+            ResizeDirection.TopRight => ResizePolicy.HasFlag(ResizePolicyMode.Top) && ResizePolicy.HasFlag(ResizePolicyMode.Right),
+            ResizeDirection.BottomLeft => ResizePolicy.HasFlag(ResizePolicyMode.Bottom) && ResizePolicy.HasFlag(ResizePolicyMode.Left),
+            ResizeDirection.BottomRight => ResizePolicy.HasFlag(ResizePolicyMode.Bottom) && ResizePolicy.HasFlag(ResizePolicyMode.Right),
+            _ => false
+        };
     }
 }

@@ -89,6 +89,19 @@
 - `SelectedDesignTargets` — снимок всех выбранных targets
 - `SelectedDesignTargetsCount` — количество выбранных targets
 
+### `DesignInteraction`
+
+`ArxisStudio.Attached.DesignInteraction` предоставляет attached-политики редактирования для designer targets:
+
+- `DesignInteraction.ResizePolicy` — какие стороны/направления разрешены для resize (`None`, `Left`, `Top`, `Right`, `Bottom`, `Horizontal`, `Vertical`, `All`)
+- `DesignInteraction.MovePolicy` — по каким осям разрешено перемещение (`None`, `X`, `Y`, `Both`)
+
+Политики применяются как к одиночному target, так и к group interaction:
+
+- если направление запрещено `ResizePolicy`, соответствующие handles неактивны и resize не выполняется
+- если `MovePolicy` ограничивает оси, drag сохраняет только разрешенные компоненты delta
+- если `MovePolicy = None`, target не перемещается
+
 ### `DesignEditorItem`
 
 Контейнер элемента редактора, который создается автоматически для каждого item'а. Добавляет:
@@ -211,6 +224,7 @@ Additive selection управляется отдельно через `InputGest
 - `Shift + Click` по nested control из другого `DesignEditorItem` не объединяет группы между контейнерами и ничего не меняет в текущем owner
 - обычный `Click` по уже выбранному nested control в группе не схлопывает группу и делает этот control primary target
 - обычный `Click` по nested control вне текущей группы выполняет exclusive selection этого target внутри текущего owner
+- drag/resize выбранных targets учитывают `DesignInteraction.MovePolicy` и `DesignInteraction.ResizePolicy`
 
 Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
 
@@ -280,6 +294,17 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 `Layout.DesignX` / `Layout.DesignY` поддерживаются автоматически и дают геометрию элемента в координатах `DesignEditor`.
 
+Пример ограничения редактирования nested target:
+
+```xml
+<TextBlock attached:Layout.X="200"
+           attached:Layout.Y="100"
+           attached:Layout.IsTracked="True"
+           attached:DesignInteraction.MovePolicy="X"
+           attached:DesignInteraction.ResizePolicy="Horizontal"
+           Text="Dashboard" />
+```
+
 ## Что уже сделано
 
 - `DesignEditor` переведен на layered-архитектуру с `ItemsLayer`, `SelectionOverlayLayer` и `InteractionOverlayLayer`
@@ -300,6 +325,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - runtime numeric policy вынесен в отдельный API `DesignEditorInteractionOptions`
 - selection target API вынесен в явный публичный контракт `DesignSelectionTarget`
+- editing policy API вынесен в attached-контракт `DesignInteraction.ResizePolicy` / `DesignInteraction.MovePolicy`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`
 - additive selection настраивается через `InputGestures.AdditiveSelectionModifiers`
 - cross-container additive nested selection работает как `no-op` (owner не меняется)

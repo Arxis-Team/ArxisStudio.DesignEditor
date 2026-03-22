@@ -11,6 +11,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DesignLayout = ArxisStudio.Attached.Layout;
+using DesignInteraction = ArxisStudio.Attached.DesignInteraction;
 using ArxisStudio.Controls;
 using ArxisStudio.States;
 
@@ -796,6 +797,8 @@ public class DesignEditor : SelectingItemsControl
             _secondarySelectionAdornerLayer.AdornerResizeDelta += OnSecondarySelectionResizeDelta;
             _secondarySelectionAdornerLayer.AdornerResizeCompleted += OnSecondarySelectionResizeCompleted;
         }
+
+        UpdateSelectionAdornerPolicies();
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -1100,7 +1103,9 @@ public class DesignEditor : SelectingItemsControl
                     Container = container,
                     Target = selectionTarget,
                     Bounds = itemBounds,
-                    Role = SelectionAdornerRole.Secondary
+                    Role = SelectionAdornerRole.Secondary,
+                    ResizePolicy = GetResizePolicy(selectionTarget),
+                    MovePolicy = GetMovePolicy(selectionTarget)
                 });
 
                 if (!hasBounds)
@@ -1162,6 +1167,7 @@ public class DesignEditor : SelectingItemsControl
             _primarySelectionControl = primaryControl;
             SelectedDesignTargets = CreateSelectionTargetsSnapshot(primaryItem, primaryControl);
             PrimarySelectionTarget = SelectedDesignTargets.Count > 0 ? SelectedDesignTargets[0] : null;
+            UpdateSelectionAdornerPolicies();
             return;
         }
 
@@ -1177,6 +1183,7 @@ public class DesignEditor : SelectingItemsControl
         _primarySelectionControl = null;
         SelectedDesignTargets = Array.Empty<DesignSelectionTarget>();
         PrimarySelectionTarget = null;
+        UpdateSelectionAdornerPolicies();
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
@@ -1248,6 +1255,42 @@ public class DesignEditor : SelectingItemsControl
         UpdateSelectionOverlayState();
     }
 
+    private void UpdateSelectionAdornerPolicies()
+    {
+        var primaryResizePolicy = _primarySelectionControl != null
+            ? GetResizePolicy(_primarySelectionControl)
+            : ArxisStudio.Attached.ResizePolicy.None;
+        var primaryMovePolicy = _primarySelectionControl != null
+            ? GetMovePolicy(_primarySelectionControl)
+            : ArxisStudio.Attached.MovePolicy.None;
+
+        if (_selectionAdorner != null)
+        {
+            _selectionAdorner.ResizePolicy = primaryResizePolicy;
+            _selectionAdorner.MovePolicy = primaryMovePolicy;
+        }
+
+        var groupResizePolicy = ArxisStudio.Attached.ResizePolicy.None;
+        var groupMovePolicy = ArxisStudio.Attached.MovePolicy.None;
+        if (HasMultipleContainerSelection && SelectedDesignTargets.Count > 1)
+        {
+            groupResizePolicy = ArxisStudio.Attached.ResizePolicy.All;
+            groupMovePolicy = ArxisStudio.Attached.MovePolicy.Both;
+
+            foreach (var selectedTarget in SelectedDesignTargets)
+            {
+                groupResizePolicy &= GetResizePolicy(selectedTarget.Target);
+                groupMovePolicy &= GetMovePolicy(selectedTarget.Target);
+            }
+        }
+
+        if (_groupSelectionAdorner != null)
+        {
+            _groupSelectionAdorner.ResizePolicy = groupResizePolicy;
+            _groupSelectionAdorner.MovePolicy = groupMovePolicy;
+        }
+    }
+
     // --- Input Handling ---
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -1301,6 +1344,7 @@ public class DesignEditor : SelectingItemsControl
         }
 
         var sourceTarget = ResolveInteractionTarget(sourceContainer);
+        var sourceMovePolicy = GetMovePolicy(sourceTarget);
         var targets = new List<GroupDragTargetSnapshot>();
 
         foreach (var item in items)
@@ -1315,6 +1359,8 @@ public class DesignEditor : SelectingItemsControl
             foreach (var target in ResolveSelectionTargets(container))
             {
                 if (ReferenceEquals(container, sourceContainer) && ReferenceEquals(target, sourceTarget))
+                    continue;
+                if (GetMovePolicy(target) == ArxisStudio.Attached.MovePolicy.None)
                     continue;
 
                 targets.Add(new GroupDragTargetSnapshot
@@ -1335,6 +1381,10 @@ public class DesignEditor : SelectingItemsControl
                 AccumulatedDelta = Vector.Zero
             };
         }
+        else if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
+        {
+            _groupDragSession = null;
+        }
 
         e.Handled = true;
     }
@@ -1353,7 +1403,10 @@ public class DesignEditor : SelectingItemsControl
             _groupDragSession.AccumulatedDelta += new Vector(e.HorizontalChange, e.VerticalChange);
 
             foreach (var snapshot in _groupDragSession.Targets)
-                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + _groupDragSession.AccumulatedDelta);
+            {
+                var filteredDelta = ApplyMovePolicy(snapshot.Target, _groupDragSession.AccumulatedDelta);
+                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + filteredDelta);
+            }
 
             e.Handled = true;
             UpdateSelectionOverlayState();
@@ -1374,7 +1427,8 @@ public class DesignEditor : SelectingItemsControl
 
             var target = ResolveInteractionTarget(container);
             var position = GetDesignPosition(target);
-            SetDesignPosition(target, position + delta);
+            var filteredDelta = ApplyMovePolicy(target, delta);
+            SetDesignPosition(target, position + filteredDelta);
         }
         e.Handled = true;
         UpdateSelectionOverlayState();
@@ -1397,6 +1451,9 @@ public class DesignEditor : SelectingItemsControl
         if (_primarySelectionItem == null || _primarySelectionControl == null || !HasSingleSelection)
             return;
 
+        if (!IsResizeAllowed(_primarySelectionControl, e.Direction))
+            return;
+
         _primarySelectionItem.PushState(new ItemResizingState(_primarySelectionItem, _primarySelectionControl, e.Direction));
         _primarySelectionItem.OnResizeStarted(e.Vector);
         e.Handled = true;
@@ -1405,6 +1462,8 @@ public class DesignEditor : SelectingItemsControl
     private void OnSelectionResizeDelta(object? sender, ResizeDeltaEventArgs e)
     {
         if (_primarySelectionItem == null || _primarySelectionControl == null || _primarySelectionItem.CurrentState is not ItemResizingState)
+            return;
+        if (!IsResizeAllowed(_primarySelectionControl, e.Direction))
             return;
 
         var worldDelta = NormalizeResizeDelta(e.Delta);
@@ -1437,6 +1496,8 @@ public class DesignEditor : SelectingItemsControl
 
         if (container == null || target == null || !HasMultipleNestedSelection)
             return;
+        if (!IsResizeAllowed(target, e.Direction))
+            return;
 
         container.PushState(new ItemResizingState(container, target, e.Direction));
         container.OnResizeStarted(e.Vector);
@@ -1449,6 +1510,8 @@ public class DesignEditor : SelectingItemsControl
         var target = e.AdornerInfo.Target;
 
         if (container == null || target == null || container.CurrentState is not ItemResizingState)
+            return;
+        if (!IsResizeAllowed(target, e.Direction))
             return;
 
         var worldDelta = NormalizeResizeDelta(e.Delta);
@@ -1668,6 +1731,53 @@ public class DesignEditor : SelectingItemsControl
     {
         control.Width = size.Width;
         control.Height = size.Height;
+    }
+
+    internal ArxisStudio.Attached.ResizePolicy GetResizePolicy(Control control)
+    {
+        return DesignInteraction.GetResizePolicy(control);
+    }
+
+    internal ArxisStudio.Attached.MovePolicy GetMovePolicy(Control control)
+    {
+        return DesignInteraction.GetMovePolicy(control);
+    }
+
+    internal Vector ApplyMovePolicy(Control control, Vector delta)
+    {
+        return ApplyMovePolicy(delta, GetMovePolicy(control));
+    }
+
+    internal bool IsResizeAllowed(Control control, ResizeDirection direction)
+    {
+        return IsResizeAllowed(GetResizePolicy(control), direction);
+    }
+
+    private static Vector ApplyMovePolicy(Vector delta, ArxisStudio.Attached.MovePolicy policy)
+    {
+        var x = policy.HasFlag(ArxisStudio.Attached.MovePolicy.X) ? delta.X : 0d;
+        var y = policy.HasFlag(ArxisStudio.Attached.MovePolicy.Y) ? delta.Y : 0d;
+        return new Vector(x, y);
+    }
+
+    private static bool IsResizeAllowed(ArxisStudio.Attached.ResizePolicy policy, ResizeDirection direction)
+    {
+        return direction switch
+        {
+            ResizeDirection.Left => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.Top => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top),
+            ResizeDirection.Right => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            ResizeDirection.Bottom => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom),
+            ResizeDirection.TopLeft => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top) &&
+                                       policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.TopRight => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top) &&
+                                        policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            ResizeDirection.BottomLeft => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom) &&
+                                          policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.BottomRight => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom) &&
+                                           policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            _ => false
+        };
     }
 
     private bool TryGetDesignBounds(DesignEditorItem item, out Rect bounds)
@@ -2143,6 +2253,9 @@ public class DesignEditor : SelectingItemsControl
 
             foreach (var target in ResolveSelectionTargets(container))
             {
+                if (!IsResizeAllowed(target, direction))
+                    return false;
+
                 if (!TryGetDesignBounds(target, out var bounds))
                     continue;
 
