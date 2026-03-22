@@ -5,6 +5,7 @@ using Avalonia.Controls;
 namespace ArxisStudio;
 
 internal sealed class GroupDragOperation
+    : IInteractionOperation
 {
     private readonly IReadOnlyList<GroupDragTarget> _targets;
     private Vector _accumulatedDelta;
@@ -67,6 +68,10 @@ internal sealed class GroupDragOperation
             var filteredDelta = editor.ApplyMovePolicy(snapshot.Target, _accumulatedDelta);
             editor.SetDesignPosition(snapshot.Target, snapshot.InitialPosition + filteredDelta);
         }
+    }
+
+    public void Complete(DesignEditor editor)
+    {
     }
 }
 

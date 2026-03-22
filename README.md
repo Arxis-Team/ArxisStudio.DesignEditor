@@ -366,6 +366,23 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - `CenterOnItem(...)` и `FitToView(DesignEditorItem)` используют геометрию реального контрола, если он помечен designer-данными
 - демо обновлено и показывает `Center`, `Fit`, `Center Sel`, `Fit Sel`, а также текущий `Target`
 
+## Актуальные изменения поведения (зафиксировано)
+
+- `RightClick` по `NestedTarget` сначала обновляет текущий `selection target` под курсором, и только после этого открывается контекстное меню.
+- Для `nested` multi-selection:
+- `Shift + Click` по уже выбранному nested target снимает его из группы.
+- обычный `Click` по уже выбранному nested target в группе не схлопывает группу и делает этот target primary.
+- Для `DesignInteraction`:
+- `MovePolicy = None` блокирует перемещение target.
+- `ResizePolicy = None` блокирует resize target.
+- Если target полностью заблокирован (`MovePolicy = None` и `ResizePolicy = None`), `SelectionAdorner` показывает locked-визуал (серая рамка/ручки) и handles становятся неинтерактивными.
+- Для mixed nested group (часть target locked, часть unlocked):
+- групповое перемещение блокируется полностью, независимо от того, с какого nested target начат drag.
+- Внутренняя архитектура interaction runtime обновлена:
+- групповой drag выделен в `GroupDragOperation`.
+- групповой resize выделен в `GroupResizeOperation`.
+- правила взаимодействия для nested group централизованы через snapshot `SelectionInteractionCapabilities`.
+
 ## Roadmap
 
 Следующий этап развития редактора:
@@ -418,6 +435,7 @@ dotnet run --project samples/DesignEditor.Demo
 Также в верхней панели отображается текущий primary design target и количество выбранных targets.
 Конфигурация interaction policy в демо задается через `DesignEditor.InputGestures` и `DesignEditor.InteractionOptions`.
 Демо также подключает `DesignEditorDemoContextActionsProvider` и показывает editor-level контекстное меню для `Surface`, `Container`, `NestedTarget` и `Selection`.
+В демо-контекстном меню используется термин `UI-элемент` (вместо `узел`), а для `NestedTarget` доступно действие `Блокировать/Разблокировать`.
 
 ## Сборка
 

@@ -1587,7 +1587,7 @@ public class DesignEditor : SelectingItemsControl
             e.Source is DesignEditorItem sourceContainer &&
             _groupDragOperation.CanHandle(sourceContainer))
         {
-            _groupDragOperation.Update(this, new Vector(e.HorizontalChange, e.VerticalChange));
+            UpdateInteractionOperation(_groupDragOperation, new Vector(e.HorizontalChange, e.VerticalChange));
 
             e.Handled = true;
             UpdateSelectionOverlayState();
@@ -1616,7 +1616,7 @@ public class DesignEditor : SelectingItemsControl
 
     private void OnItemsDragCompleted(DragCompletedEventArgs e)
     {
-        _groupDragOperation = null;
+        CompleteInteractionOperation(ref _groupDragOperation);
         e.Handled = true;
     }
 
@@ -1734,10 +1734,7 @@ public class DesignEditor : SelectingItemsControl
         if (_groupResizeOperation == null)
             return;
 
-        _groupResizeOperation.Update(
-            this,
-            NormalizeResizeDelta(e.Delta),
-            Math.Max(0.0, InteractionOptions.ResizeMinSize));
+        UpdateInteractionOperation(_groupResizeOperation, NormalizeResizeDelta(e.Delta));
 
         UpdateSelectionOverlayState();
         e.Handled = true;
@@ -1754,7 +1751,7 @@ public class DesignEditor : SelectingItemsControl
         if (_groupResizeOperation == null)
             return;
 
-        _groupResizeOperation = null;
+        CompleteInteractionOperation(ref _groupResizeOperation);
         UpdateSelectionOverlayState();
         e.Handled = true;
     }
@@ -2470,8 +2467,24 @@ public class DesignEditor : SelectingItemsControl
         if (targets.Count <= 1)
             return false;
 
-        operation = new GroupResizeOperation(direction, selectionBounds, targets);
+        operation = new GroupResizeOperation(
+            direction,
+            selectionBounds,
+            targets,
+            Math.Max(0.0, InteractionOptions.ResizeMinSize));
 
         return true;
+    }
+
+    private void UpdateInteractionOperation(IInteractionOperation operation, Vector worldDelta)
+    {
+        operation.Update(this, worldDelta);
+    }
+
+    private void CompleteInteractionOperation<TOperation>(ref TOperation? operation)
+        where TOperation : class, IInteractionOperation
+    {
+        operation?.Complete(this);
+        operation = null;
     }
 }
