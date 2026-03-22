@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Collections;
+using Avalonia.Controls;
 using Avalonia.Controls.Metadata;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -85,6 +86,7 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 /// <summary>
 /// Представляет editor adorner для отрисовки границ выделения и опциональных resize handles.
 /// </summary>
+[PseudoClasses(":locked")]
 [TemplatePart("PART_TopLeft", typeof(Thumb))]
 [TemplatePart("PART_Top", typeof(Thumb))]
 [TemplatePart("PART_TopRight", typeof(Thumb))]
@@ -96,6 +98,9 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 public class SelectionAdorner : TemplatedControl
 {
     private readonly Dictionary<Thumb, ResizeDirection> _thumbDirections = new();
+    private static readonly IBrush LockedAdornerBrush = new SolidColorBrush(Color.Parse("#9CA3AF"));
+    private static readonly IBrush LockedHandleFillBrush = new SolidColorBrush(Color.Parse("#E5E7EB"));
+    private static readonly AvaloniaList<double> LockedStrokeDashArray = new() { 4, 2 };
 
     /// <summary>
     /// Идентификатор свойства кисти рамки и ручек.
@@ -177,9 +182,10 @@ public class SelectionAdorner : TemplatedControl
 
     static SelectionAdorner()
     {
-        ShowHandlesProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
-        IsInteractiveProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
-        ResizePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.UpdateThumbBindings());
+        ShowHandlesProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
+        IsInteractiveProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
+        ResizePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
+        MovePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
     }
 
     /// <summary>
@@ -312,7 +318,28 @@ public class SelectionAdorner : TemplatedControl
         BindThumb(e, "PART_Bottom", ResizeDirection.Bottom);
         BindThumb(e, "PART_BottomLeft", ResizeDirection.BottomLeft);
         BindThumb(e, "PART_Left", ResizeDirection.Left);
+        RefreshVisualState();
+    }
+
+    private void RefreshVisualState()
+    {
+        var isLocked = ResizePolicy == ResizePolicyMode.None && MovePolicy == MovePolicyMode.None;
+        PseudoClasses.Set(":locked", isLocked);
+        ApplyLockedVisualState(isLocked);
         UpdateThumbBindings();
+    }
+
+    private void ApplyLockedVisualState(bool isLocked)
+    {
+        if (isLocked)
+        {
+            SetValue(AdornerBrushProperty, LockedAdornerBrush);
+            SetValue(StrokeDashArrayProperty, new AvaloniaList<double>(LockedStrokeDashArray));
+            return;
+        }
+
+        ClearValue(AdornerBrushProperty);
+        ClearValue(StrokeDashArrayProperty);
     }
 
     private void BindThumb(TemplateAppliedEventArgs e, string name, ResizeDirection direction)
@@ -323,19 +350,22 @@ public class SelectionAdorner : TemplatedControl
 
     private void UpdateThumbBindings()
     {
-        var shouldBind = ShowHandles && IsInteractive && ResizePolicy != ResizePolicyMode.None;
+        var isLocked = ResizePolicy == ResizePolicyMode.None && MovePolicy == MovePolicyMode.None;
+        var shouldBind = ShowHandles && IsInteractive && !isLocked && ResizePolicy != ResizePolicyMode.None;
 
         foreach (var pair in _thumbDirections)
         {
             var thumb = pair.Key;
             var direction = pair.Value;
             var isDirectionAllowed = IsDirectionAllowed(direction);
+            var shouldShowThumb = ShowHandles && (isLocked || isDirectionAllowed);
 
             thumb.DragDelta -= OnThumbDragDelta;
             thumb.DragStarted -= OnThumbDragStarted;
             thumb.DragCompleted -= OnThumbDragCompleted;
-            thumb.IsVisible = ShowHandles && isDirectionAllowed;
+            thumb.IsVisible = shouldShowThumb;
             thumb.IsHitTestVisible = shouldBind && isDirectionAllowed;
+            UpdateThumbVisualState(thumb, isLocked);
 
             if (!shouldBind || !isDirectionAllowed)
                 continue;
@@ -344,6 +374,19 @@ public class SelectionAdorner : TemplatedControl
             thumb.DragStarted += OnThumbDragStarted;
             thumb.DragCompleted += OnThumbDragCompleted;
         }
+    }
+
+    private static void UpdateThumbVisualState(Thumb thumb, bool isLocked)
+    {
+        if (isLocked)
+        {
+            thumb.SetValue(TemplatedControl.BackgroundProperty, LockedHandleFillBrush);
+            thumb.SetValue(TemplatedControl.BorderBrushProperty, LockedAdornerBrush);
+            return;
+        }
+
+        thumb.ClearValue(TemplatedControl.BackgroundProperty);
+        thumb.ClearValue(TemplatedControl.BorderBrushProperty);
     }
 
     private void UnbindThumbs()

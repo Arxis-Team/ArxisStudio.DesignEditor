@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -15,6 +16,8 @@ namespace ArxisStudio.Controls;
 /// </summary>
 public class SelectionAdornerLayer : Panel
 {
+    private readonly Dictionary<Control, SelectionAdorner> _adornersByTarget = new();
+
     /// <summary>
     /// Идентификатор routed event начала resize дочернего adorner'а.
     /// </summary>
@@ -169,40 +172,79 @@ public class SelectionAdornerLayer : Panel
     private void SyncChildren()
     {
         var items = Items ?? Array.Empty<SelectionAdornerInfo>();
-
-        while (Children.Count > items.Count)
-            Children.RemoveAt(Children.Count - 1);
-
-        while (Children.Count < items.Count)
-        {
-            var adorner = new SelectionAdorner
-            {
-                RenderTransformOrigin = RelativePoint.TopLeft
-            };
-
-            adorner.ResizeStarted += OnChildResizeStarted;
-            adorner.ResizeDelta += OnChildResizeDelta;
-            adorner.ResizeCompleted += OnChildResizeCompleted;
-            Children.Add(adorner);
-        }
+        var desiredChildren = new List<SelectionAdorner>(items.Count);
+        var usedTargets = new HashSet<Control>();
 
         for (var i = 0; i < items.Count; i++)
         {
-            var child = (SelectionAdorner)Children[i];
+            var info = items[i];
+            SelectionAdorner child;
+
+            if (info.Target != null)
+            {
+                usedTargets.Add(info.Target);
+                if (!_adornersByTarget.TryGetValue(info.Target, out child!))
+                {
+                    child = CreateChildAdorner();
+                    _adornersByTarget[info.Target] = child;
+                }
+            }
+            else
+            {
+                child = CreateChildAdorner();
+            }
+
             child.Theme = AdornerTheme;
-            child.Role = items[i].Role;
-            child.ShowHandles = items[i].ShowHandles;
-            child.IsInteractive = items[i].IsInteractive;
-            child.ResizePolicy = items[i].ResizePolicy;
-            child.MovePolicy = items[i].MovePolicy;
-            child.IsHitTestVisible = items[i].ShowHandles &&
-                                     items[i].IsInteractive &&
-                                     items[i].ResizePolicy != ArxisStudio.Attached.ResizePolicy.None;
+            child.Role = info.Role;
+            child.ShowHandles = info.ShowHandles;
+            child.IsInteractive = info.IsInteractive;
+            child.ResizePolicy = info.ResizePolicy;
+            child.MovePolicy = info.MovePolicy;
+            child.IsHitTestVisible = info.ShowHandles &&
+                                     info.IsInteractive &&
+                                     info.ResizePolicy != ArxisStudio.Attached.ResizePolicy.None;
+            desiredChildren.Add(child);
+        }
+
+        var staleTargets = new List<Control>();
+        foreach (var pair in _adornersByTarget)
+        {
+            if (usedTargets.Contains(pair.Key))
+                continue;
+
+            var child = pair.Value;
+            child.ResizeStarted -= OnChildResizeStarted;
+            child.ResizeDelta -= OnChildResizeDelta;
+            child.ResizeCompleted -= OnChildResizeCompleted;
+            staleTargets.Add(pair.Key);
+        }
+
+        foreach (var target in staleTargets)
+            _adornersByTarget.Remove(target);
+
+        if (Children.Count != desiredChildren.Count || !Children.SequenceEqual(desiredChildren))
+        {
+            Children.Clear();
+            foreach (var child in desiredChildren)
+                Children.Add(child);
         }
 
         UpdateChildTransforms();
         InvalidateMeasure();
         InvalidateArrange();
+    }
+
+    private SelectionAdorner CreateChildAdorner()
+    {
+        var adorner = new SelectionAdorner
+        {
+            RenderTransformOrigin = RelativePoint.TopLeft
+        };
+
+        adorner.ResizeStarted += OnChildResizeStarted;
+        adorner.ResizeDelta += OnChildResizeDelta;
+        adorner.ResizeCompleted += OnChildResizeCompleted;
+        return adorner;
     }
 
     private void UpdateChildTransforms()

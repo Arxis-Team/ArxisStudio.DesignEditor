@@ -4,12 +4,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using ArxisStudio;
+using ArxisStudio.Attached;
+using Avalonia.Controls;
 using DesignEditor.Demo.ViewModels;
 
 namespace DesignEditor.Demo.Context;
 
 public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContextActionProvider
 {
+    private sealed class InteractionPolicySnapshot
+    {
+        public ResizePolicy ResizePolicy { get; init; }
+        public MovePolicy MovePolicy { get; init; }
+    }
+
+    private static readonly Dictionary<Control, InteractionPolicySnapshot> LockedTargets = new();
+
     public ValueTask<IReadOnlyList<DesignEditorContextAction>> GetActionsAsync(
         global::ArxisStudio.DesignEditor editor,
         DesignEditorContextRequest request,
@@ -68,7 +78,10 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
         global::ArxisStudio.DesignEditor editor,
         DesignEditorContextRequest request)
     {
-        var hasTarget = request.Target != null;
+        var nestedTarget = request.Target?.Target;
+        var hasTarget = nestedTarget != null;
+        var isLocked = nestedTarget != null && IsTargetLocked(nestedTarget);
+
         return new[]
         {
             Action(
@@ -82,6 +95,12 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
                 () => FitTarget(editor, request),
                 isEnabled: hasTarget),
             Separator("nested.sep1"),
+            Action(
+                "nested.toggle-lock",
+                isLocked ? "Разблокировать" : "Блокировать",
+                () => ToggleNestedLock(request),
+                isEnabled: hasTarget),
+            Separator("nested.sep2"),
             Action(
                 "nested.delete-owner",
                 "Удалить родительский элемент",
@@ -128,6 +147,55 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
     {
         if (request.Target?.Container is { } container)
             editor.FitToView(container);
+    }
+
+    private static void ToggleNestedLock(DesignEditorContextRequest request)
+    {
+        if (request.Target?.Target is not Control target)
+            return;
+
+        if (IsTargetLocked(target))
+        {
+            UnlockTarget(target);
+            return;
+        }
+
+        LockTarget(target);
+    }
+
+    private static bool IsTargetLocked(Control target)
+    {
+        return DesignInteraction.GetResizePolicy(target) == ResizePolicy.None &&
+               DesignInteraction.GetMovePolicy(target) == MovePolicy.None;
+    }
+
+    private static void LockTarget(Control target)
+    {
+        if (!LockedTargets.ContainsKey(target))
+        {
+            LockedTargets[target] = new InteractionPolicySnapshot
+            {
+                ResizePolicy = DesignInteraction.GetResizePolicy(target),
+                MovePolicy = DesignInteraction.GetMovePolicy(target)
+            };
+        }
+
+        DesignInteraction.SetResizePolicy(target, ResizePolicy.None);
+        DesignInteraction.SetMovePolicy(target, MovePolicy.None);
+    }
+
+    private static void UnlockTarget(Control target)
+    {
+        if (LockedTargets.TryGetValue(target, out var snapshot))
+        {
+            DesignInteraction.SetResizePolicy(target, snapshot.ResizePolicy);
+            DesignInteraction.SetMovePolicy(target, snapshot.MovePolicy);
+            LockedTargets.Remove(target);
+            return;
+        }
+
+        DesignInteraction.SetResizePolicy(target, ResizePolicy.All);
+        DesignInteraction.SetMovePolicy(target, MovePolicy.Both);
     }
 
     private static DesignEditorContextAction Action(

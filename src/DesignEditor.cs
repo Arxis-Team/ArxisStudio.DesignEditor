@@ -730,6 +730,16 @@ public class DesignEditor : SelectingItemsControl
             if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
                 editor.UpdateSelectionOverlayState();
         });
+        DesignInteraction.ResizePolicyProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
+                editor.UpdateSelectionOverlayState();
+        });
+        DesignInteraction.MovePolicyProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
+                editor.UpdateSelectionOverlayState();
+        });
         BoundsProperty.Changed.AddClassHandler<Control>((control, _) =>
         {
             if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
@@ -1560,6 +1570,13 @@ public class DesignEditor : SelectingItemsControl
 
         var sourceTarget = ResolveInteractionTarget(sourceContainer);
         var sourceMovePolicy = GetMovePolicy(sourceTarget);
+        if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
+        {
+            _groupDragSession = null;
+            e.Handled = true;
+            return;
+        }
+
         var targets = new List<GroupDragTargetSnapshot>();
 
         foreach (var item in items)
@@ -1596,10 +1613,6 @@ public class DesignEditor : SelectingItemsControl
                 AccumulatedDelta = Vector.Zero
             };
         }
-        else if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
-        {
-            _groupDragSession = null;
-        }
 
         e.Handled = true;
     }
@@ -1610,6 +1623,16 @@ public class DesignEditor : SelectingItemsControl
 
         var items = SelectedItems;
         if (items == null || items.Count == 0) return;
+        var source = e.Source as DesignEditorItem;
+        if (source != null)
+        {
+            var sourceTarget = ResolveInteractionTarget(source);
+            if (GetMovePolicy(sourceTarget) == ArxisStudio.Attached.MovePolicy.None)
+            {
+                e.Handled = true;
+                return;
+            }
+        }
 
         if (_groupDragSession != null &&
             e.Source is DesignEditorItem sourceContainer &&
@@ -1629,7 +1652,6 @@ public class DesignEditor : SelectingItemsControl
         }
 
         var delta = new Vector(e.HorizontalChange, e.VerticalChange);
-        var source = e.Source as DesignEditorItem;
 
         foreach (var item in items)
         {
@@ -2063,7 +2085,7 @@ public class DesignEditor : SelectingItemsControl
             if (editor._selectionTargets.TryGetValue(item, out var explicitTargets) &&
                 explicitTargets.Count > 0)
             {
-                for (var i = explicitTargets.Count - 1; i >= 0; i--)
+                for (var i = 0; i < explicitTargets.Count; i++)
                 {
                     var explicitTarget = explicitTargets[i];
                     if (IsOwnedByContainer(explicitTarget, item))
