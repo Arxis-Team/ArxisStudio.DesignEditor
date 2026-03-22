@@ -206,9 +206,11 @@ Additive selection управляется отдельно через `InputGest
 - `Ctrl + Click` — exclusive container selection
 - `Ctrl + Shift + Click` — additive container selection
 - `Ctrl + Shift + marquee` — additive групповое выделение контейнеров
-- `Shift + Click` по уже выбранному nested control не снимает выделение и сохраняет текущий target
+- `Shift + Click` по уже выбранному nested control в группе снимает его из группы selection targets
 - `Shift + Click` по другому nested control добавляет его в группу выделения
 - `Shift + Click` по nested control из другого `DesignEditorItem` не объединяет группы между контейнерами и ничего не меняет в текущем owner
+- обычный `Click` по уже выбранному nested control в группе не схлопывает группу и делает этот control primary target
+- обычный `Click` по nested control вне текущей группы выполняет exclusive selection этого target внутри текущего owner
 
 Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
 
@@ -256,7 +258,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 - если выбрано несколько nested controls внутри одного `DesignEditorItem`, над каждым selected target рисуется собственный интерактивный `SelectionAdorner` с ручками
 - resize через ручки влияет только на тот nested control, на котором начато действие
-- drag любого selected nested control перемещает всю группу и сохраняет относительные расстояния между target'ами
+- drag любого selected nested control перемещает всю группу без дополнительных модификаторов и сохраняет относительные расстояния между target'ами
 - group drag для nested controls рассчитывается по world-space delta и не зависит от промежуточного layout source target, поэтому остается стабильным при любом `ViewportZoom`
 - общий group `SelectionAdorner` в таком сценарии не показывается
 - если выбрано несколько `DesignEditorItem`, редактор использует один общий group `SelectionAdorner` для манипуляции контейнерами на поверхности редактора

@@ -1573,8 +1573,15 @@ public class DesignEditor : SelectingItemsControl
         {
             if (_selectionTargets.TryGetValue(container, out var existingTargets) && existingTargets.Count > 0)
             {
-                if (!existingTargets.Contains(target))
+                if (existingTargets.Contains(target))
+                {
+                    if (existingTargets.Count > 1)
+                        existingTargets.Remove(target);
+                }
+                else
+                {
                     existingTargets.Add(target);
+                }
             }
             else
             {
@@ -1583,7 +1590,24 @@ public class DesignEditor : SelectingItemsControl
         }
         else
         {
-            _selectionTargets[container] = new List<Control> { target };
+            if (_selectionTargets.TryGetValue(container, out var existingTargets) &&
+                existingTargets.Count > 1 &&
+                existingTargets.Contains(target))
+            {
+                // Обычный клик по уже выбранному nested target внутри группы
+                // не должен схлопывать multi-selection. Переносим target в начало,
+                // чтобы он стал primary selection target.
+                var index = existingTargets.IndexOf(target);
+                if (index > 0)
+                {
+                    existingTargets.RemoveAt(index);
+                    existingTargets.Insert(0, target);
+                }
+            }
+            else
+            {
+                _selectionTargets[container] = new List<Control> { target };
+            }
         }
 
         UpdateSelectionOverlayState();
