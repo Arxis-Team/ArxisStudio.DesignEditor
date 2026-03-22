@@ -664,7 +664,7 @@ public class DesignEditor : SelectingItemsControl
     private readonly Dictionary<DesignEditorItem, List<Control>> _selectionTargets = new();
     private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
     private GroupResizeSession? _groupResizeSession;
-    private GroupDragSession? _groupDragSession;
+    private GroupDragOperation? _groupDragOperation;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
@@ -685,19 +685,6 @@ public class DesignEditor : SelectingItemsControl
         public Rect InitialBounds { get; set; }
     }
 
-    private sealed class GroupDragSession
-    {
-        public DesignEditorItem SourceContainer { get; set; } = null!;
-        public Control SourceTarget { get; set; } = null!;
-        public IReadOnlyList<GroupDragTargetSnapshot> Targets { get; set; } = Array.Empty<GroupDragTargetSnapshot>();
-        public Vector AccumulatedDelta { get; set; }
-    }
-
-    private sealed class GroupDragTargetSnapshot
-    {
-        public Control Target { get; set; } = null!;
-        public Point InitialPosition { get; set; }
-    }
     #endregion
 
     static DesignEditor()
@@ -1552,7 +1539,7 @@ public class DesignEditor : SelectingItemsControl
 
     private void OnItemsDragStarted(DragStartedEventArgs e)
     {
-        _groupDragSession = null;
+        _groupDragOperation = null;
 
         if (IsSelecting || CurrentState is EditorPanningState)
         {
@@ -1579,59 +1566,13 @@ public class DesignEditor : SelectingItemsControl
         var sourceMovePolicy = GetMovePolicy(sourceTarget);
         if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
         {
-            _groupDragSession = null;
             e.Handled = true;
             return;
         }
 
-        var targets = CreateGroupDragTargets(sourceContainer, sourceTarget);
-
-        if (targets.Count > 0)
-        {
-            _groupDragSession = new GroupDragSession
-            {
-                SourceContainer = sourceContainer,
-                SourceTarget = sourceTarget,
-                Targets = targets,
-                AccumulatedDelta = Vector.Zero
-            };
-        }
+        _groupDragOperation = GroupDragOperation.TryCreate(this, sourceContainer, sourceTarget);
 
         e.Handled = true;
-    }
-
-    private IReadOnlyList<GroupDragTargetSnapshot> CreateGroupDragTargets(DesignEditorItem sourceContainer, Control sourceTarget)
-    {
-        var result = new List<GroupDragTargetSnapshot>();
-        var items = SelectedItems;
-        if (items == null || items.Count == 0)
-            return result;
-
-        foreach (var item in items)
-        {
-            var container = ContainerFromItem(item) as DesignEditorItem;
-            if (container == null && item is DesignEditorItem directItem)
-                container = directItem;
-
-            if (container == null || !container.IsDraggable)
-                continue;
-
-            foreach (var target in ResolveSelectionTargets(container))
-            {
-                if (ReferenceEquals(container, sourceContainer) && ReferenceEquals(target, sourceTarget))
-                    continue;
-                if (GetMovePolicy(target) == ArxisStudio.Attached.MovePolicy.None)
-                    continue;
-
-                result.Add(new GroupDragTargetSnapshot
-                {
-                    Target = target,
-                    InitialPosition = GetDesignPosition(target)
-                });
-            }
-        }
-
-        return result;
     }
 
     private void OnItemsDragDelta(DragDeltaEventArgs e)
@@ -1657,17 +1598,11 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
-        if (_groupDragSession != null &&
+        if (_groupDragOperation != null &&
             e.Source is DesignEditorItem sourceContainer &&
-            ReferenceEquals(sourceContainer, _groupDragSession.SourceContainer))
+            _groupDragOperation.CanHandle(sourceContainer))
         {
-            _groupDragSession.AccumulatedDelta += new Vector(e.HorizontalChange, e.VerticalChange);
-
-            foreach (var snapshot in _groupDragSession.Targets)
-            {
-                var filteredDelta = ApplyMovePolicy(snapshot.Target, _groupDragSession.AccumulatedDelta);
-                SetDesignPosition(snapshot.Target, snapshot.InitialPosition + filteredDelta);
-            }
+            _groupDragOperation.Update(this, new Vector(e.HorizontalChange, e.VerticalChange));
 
             e.Handled = true;
             UpdateSelectionOverlayState();
@@ -1696,7 +1631,7 @@ public class DesignEditor : SelectingItemsControl
 
     private void OnItemsDragCompleted(DragCompletedEventArgs e)
     {
-        _groupDragSession = null;
+        _groupDragOperation = null;
         e.Handled = true;
     }
 
@@ -2327,7 +2262,7 @@ public class DesignEditor : SelectingItemsControl
         _containerSelectionTargets.RemoveWhere(container => !selectedContainers.Contains(container));
     }
 
-    private IReadOnlyList<Control> ResolveSelectionTargets(DesignEditorItem item)
+    internal IReadOnlyList<Control> ResolveSelectionTargets(DesignEditorItem item)
     {
         if (_containerSelectionTargets.Contains(item))
             return new[] { (Control)item };
