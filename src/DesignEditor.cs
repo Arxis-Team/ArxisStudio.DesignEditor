@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -624,6 +627,26 @@ public class DesignEditor : SelectingItemsControl
         get => _hasMultipleContainerSelection;
         private set => SetAndRaise(HasMultipleContainerSelectionProperty, ref _hasMultipleContainerSelection, value);
     }
+
+    /// <summary>
+    /// Получает коллекцию провайдеров действий контекстного меню.
+    /// </summary>
+    public IList<IDesignEditorContextActionProvider> ContextActionProviders { get; } = new List<IDesignEditorContextActionProvider>();
+
+    /// <summary>
+    /// Возникает перед показом контекстного меню.
+    /// </summary>
+    public event EventHandler<DesignEditorContextRequestingEventArgs>? ContextMenuRequesting;
+
+    /// <summary>
+    /// Возникает после разрешения контекста и списка действий.
+    /// </summary>
+    public event EventHandler<DesignEditorContextRequestedEventArgs>? ContextMenuResolved;
+
+    /// <summary>
+    /// Получает или задает presenter контекстных действий.
+    /// </summary>
+    public IDesignEditorContextPresenter ContextPresenter { get; set; } = new ContextMenuContextPresenter();
 
     #endregion
 
@@ -1291,12 +1314,166 @@ public class DesignEditor : SelectingItemsControl
         }
     }
 
+    /// <summary>
+    /// Запрашивает контекстное меню программно.
+    /// </summary>
+    /// <param name="source">Источник запроса.</param>
+    /// <param name="viewportPoint">Точка в координатах DesignEditor.</param>
+    /// <param name="modifiers">Модификаторы ввода.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    public Task RequestContextAsync(
+        DesignEditorContextSource source,
+        Point viewportPoint,
+        KeyModifiers modifiers = KeyModifiers.None,
+        CancellationToken cancellationToken = default)
+    {
+        var request = BuildContextRequest(source, viewportPoint, modifiers);
+        return HandleContextRequestAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Запрашивает контекстное меню программно в позиции последнего ввода.
+    /// </summary>
+    public Task RequestContextAsync(CancellationToken cancellationToken = default)
+    {
+        var request = BuildContextRequest(DesignEditorContextSource.Programmatic, _lastMousePosition, LastInputModifiers);
+        return HandleContextRequestAsync(request, cancellationToken);
+    }
+
+    private async Task HandleContextRequestAsync(DesignEditorContextRequest request, CancellationToken cancellationToken)
+    {
+        var resolvedActions = await ResolveContextActionsAsync(request, cancellationToken);
+        var requestingArgs = new DesignEditorContextRequestingEventArgs(request)
+        {
+            Actions = resolvedActions
+        };
+
+        ContextMenuRequesting?.Invoke(this, requestingArgs);
+        if (requestingArgs.Cancel)
+            return;
+
+        var actions = requestingArgs.Actions ?? Array.Empty<DesignEditorContextAction>();
+        var handled = requestingArgs.Handled;
+        if (!handled && actions.Count > 0)
+            handled = ContextPresenter.TryShow(this, request, actions);
+
+        ContextMenuResolved?.Invoke(this, new DesignEditorContextRequestedEventArgs(request, actions, handled));
+    }
+
+    private async Task<IReadOnlyList<DesignEditorContextAction>> ResolveContextActionsAsync(
+        DesignEditorContextRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (ContextActionProviders.Count == 0)
+            return Array.Empty<DesignEditorContextAction>();
+
+        var result = new List<DesignEditorContextAction>();
+        foreach (var provider in ContextActionProviders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var actions = await provider.GetActionsAsync(this, request, cancellationToken);
+            if (actions == null || actions.Count == 0)
+                continue;
+
+            foreach (var action in actions)
+            {
+                if (action.IsVisible)
+                    result.Add(action);
+            }
+        }
+
+        return result
+            .OrderBy(static a => a.Group, StringComparer.Ordinal)
+            .ThenBy(static a => a.Order)
+            .ToArray();
+    }
+
+    private DesignEditorContextRequest BuildContextRequest(
+        DesignEditorContextSource source,
+        Point viewportPoint,
+        KeyModifiers modifiers)
+    {
+        var worldPoint = GetWorldPosition(viewportPoint);
+        var hasHitTarget = TryResolveContextTarget(worldPoint, out var hitTarget);
+        var selection = SelectedDesignTargets;
+        var scope = DesignEditorContextScope.Surface;
+        var topLevel = TopLevel.GetTopLevel(this);
+
+        if (selection.Count > 1 &&
+            hitTarget != null &&
+            selection.Any(selected => ReferenceEquals(selected.Target, hitTarget.Target)))
+        {
+            scope = DesignEditorContextScope.Selection;
+        }
+        else if (hasHitTarget && hitTarget != null)
+        {
+            scope = hitTarget.Scope == DesignSelectionScope.Container
+                ? DesignEditorContextScope.Container
+                : DesignEditorContextScope.NestedTarget;
+        }
+
+        return new DesignEditorContextRequest
+        {
+            Scope = scope,
+            Target = hitTarget,
+            Selection = selection,
+            WorldPoint = worldPoint,
+            ViewportPoint = viewportPoint,
+            ScreenPoint = topLevel?.PointToScreen(viewportPoint) ?? default,
+            Modifiers = modifiers,
+            Source = source
+        };
+    }
+
+    private bool TryResolveContextTarget(Point worldPoint, out DesignSelectionTarget? target)
+    {
+        target = null;
+        var container = FindContainerAtWorldPoint(worldPoint);
+        if (container == null)
+            return false;
+
+        Control? bestMatch = null;
+        Rect bestBounds = default;
+        var bestDepth = -1;
+
+        foreach (var control in EnumerateSelectionCandidates(container))
+        {
+            if (!HasDesignerLayoutMetadata(control))
+                continue;
+
+            if (!TryGetDesignBounds(control, out var bounds) || !bounds.Contains(worldPoint))
+                continue;
+
+            var depth = GetVisualDepth(control, container);
+            if (bestMatch == null ||
+                depth > bestDepth ||
+                (depth == bestDepth && bounds.Width * bounds.Height < bestBounds.Width * bestBounds.Height))
+            {
+                bestMatch = control;
+                bestBounds = bounds;
+                bestDepth = depth;
+            }
+        }
+
+        var resolvedTarget = (Control?)bestMatch ?? container;
+        target = new DesignSelectionTarget(container, resolvedTarget);
+        return true;
+    }
+
     // --- Input Handling ---
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         _lastMousePosition = e.GetPosition(this);
         LastInputModifiers = e.KeyModifiers;
+
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            RetargetSelectionForContext(_lastMousePosition, e.KeyModifiers);
+            RequestContextSafe(DesignEditorContextSource.Pointer, _lastMousePosition, e.KeyModifiers);
+            e.Handled = true;
+            return;
+        }
 
         CurrentState.OnPointerPressed(e);
 
@@ -1321,6 +1498,44 @@ public class DesignEditor : SelectingItemsControl
         if (e.Handled) return;
         CurrentState.OnPointerWheelChanged(e);
         e.Handled = true;
+    }
+
+    private void RequestContextSafe(DesignEditorContextSource source, Point viewportPoint, KeyModifiers modifiers)
+    {
+        _ = RequestContextAsync(source, viewportPoint, modifiers).ContinueWith(
+            static task => _ = task.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+    }
+
+    private void RetargetSelectionForContext(Point viewportPoint, KeyModifiers modifiers)
+    {
+        var worldPoint = GetWorldPosition(viewportPoint);
+        if (!TryResolveContextTarget(worldPoint, out var hitTarget) || hitTarget == null)
+            return;
+
+        var target = hitTarget.Target;
+        var container = hitTarget.Container;
+        if (target == null)
+            return;
+
+        var isTargetInSelection = SelectedDesignTargets.Any(selected =>
+            ReferenceEquals(selected.Target, target));
+
+        if (!isTargetInSelection)
+        {
+            var index = IndexFromContainer(container);
+            if (index >= 0)
+            {
+                Selection.Clear();
+                Selection.Select(index);
+            }
+        }
+
+        // Context invocation must not use additive toggle semantics (e.g. Shift+RMB).
+        var normalizedModifiers = modifiers & ~InputGestures.AdditiveSelectionModifiers;
+        UpdateSelectionTargetFromPoint(container, viewportPoint, normalizedModifiers);
     }
 
     // --- Drag & Drop ---

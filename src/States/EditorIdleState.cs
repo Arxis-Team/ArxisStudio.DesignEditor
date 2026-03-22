@@ -15,6 +15,7 @@ public class EditorIdleState : EditorState
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorIdleState(DesignEditor editor) : base(editor) { }
 
+    /// <inheritdoc />
     public override void OnPointerPressed(PointerPressedEventArgs e)
     {
         var props = e.GetCurrentPoint(Editor).Properties;
@@ -36,6 +37,7 @@ public class EditorIdleState : EditorState
         }
     }
 
+    /// <inheritdoc />
     public override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         // Зум работает всегда, даже в Idle

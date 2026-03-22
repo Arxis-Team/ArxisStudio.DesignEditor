@@ -110,6 +110,32 @@
 - единый контракт ограничений для одиночного выбора, nested multi-selection и групповых операций
 - снижение риска случайного редактирования критичных узлов в сложных формах
 
+### `DesignEditor Context API`
+
+`DesignEditor` теперь предоставляет editor-level API для контекстных действий, не привязанный к конкретному UI:
+
+- `DesignEditorContextRequest` — снимок контекста (`Scope`, `Target`, `Selection`, `WorldPoint`, `ViewportPoint`, `ScreenPoint`, `Modifiers`, `Source`)
+- `DesignEditorContextScope` — область вызова (`Surface`, `Container`, `NestedTarget`, `Selection`)
+- `DesignEditorContextAction` — описание действия (header, command, icon, separator, submenu)
+- `IDesignEditorContextActionProvider` — провайдер действий, который строит меню по текущему request
+- `IDesignEditorContextPresenter` — абстракция presenter-слоя (отрисовка действий)
+- `ContextMenuContextPresenter` — встроенный presenter по умолчанию (Avalonia `ContextMenu`)
+- `DesignEditor.ContextActionProviders` — коллекция подключенных провайдеров
+- `DesignEditor.ContextPresenter` — текущий presenter контекстных действий
+- `DesignEditor.ContextMenuRequesting` — pre-show событие (можно отменить открытие или полностью переопределить показ через `Handled`)
+- `DesignEditor.ContextMenuResolved` — post-resolution событие для логирования/аналитики
+- `DesignEditor.RequestContextAsync(...)` — программный вызов контекстного меню
+
+Текущий встроенный presenter использует `ContextMenu` (Avalonia). Контракт `Request/Action/Provider` остаётся UI-agnostic, поэтому на следующем этапе можно добавить `MenuFlyout`/`ContextFlyout` без изменения доменного API.
+
+Базовые правила scope-резолва:
+
+- right-click по пустому пространству `DesignSurface` => `Surface`
+- right-click по `DesignEditorItem` (container target) => `Container`
+- right-click по nested target => `NestedTarget`
+- right-click по выбранному элементу в multi-selection => `Selection`
+- right-click по nested target сначала переводит этот target в активный selection target (без additive-toggle), после чего открывает контекстное меню
+
 ### `DesignEditorItem`
 
 Контейнер элемента редактора, который создается автоматически для каждого item'а. Добавляет:
@@ -367,10 +393,13 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 5. Очистить публичную поверхность библиотеки.
 Скрыть internal state machine и overlay implementation details, оставив стабильный API редактора, viewport navigation, gestures и design target interaction.
 
-6. Подготовить интеграцию с `ArxisStudio.Markup`.
+6. Завершить Context API presenter-слой.
+Добавить альтернативные presenter'ы `MenuFlyout`/`ContextFlyout`, не меняя контракты `DesignEditorContextRequest`, `DesignEditorContextAction` и `IDesignEditorContextActionProvider`.
+
+7. Подготовить интеграцию с `ArxisStudio.Markup`.
 Подключить `$design`-метаданные как источник designer-only координат и editor flags, не меняя core-архитектуру `DesignEditor`.
 
-7. Расширить `DesignEditorInteractionOptions` и определить финальный публичный контракт runtime-настроек.
+8. Расширить `DesignEditorInteractionOptions` и определить финальный публичный контракт runtime-настроек.
 Решение на следующий этап:
 - оставить только options-объект
 - или добавить плоские свойства-алиасы на `DesignEditor`
@@ -388,6 +417,7 @@ dotnet run --project samples/DesignEditor.Demo
 Также добавлены кнопки `Center Sel` и `Fit Sel` для навигации по текущему выделению.
 Также в верхней панели отображается текущий primary design target и количество выбранных targets.
 Конфигурация interaction policy в демо задается через `DesignEditor.InputGestures` и `DesignEditor.InteractionOptions`.
+Демо также подключает `DesignEditorDemoContextActionsProvider` и показывает editor-level контекстное меню для `Surface`, `Container`, `NestedTarget` и `Selection`.
 
 ## Сборка
 

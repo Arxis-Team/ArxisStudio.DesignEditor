@@ -17,6 +17,7 @@ public class EditorPanningState : EditorState
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorPanningState(DesignEditor editor) : base(editor) { }
 
+    /// <inheritdoc />
     public override void Enter(EditorState? from)
     {
         // Захватываем начальные координаты
@@ -31,11 +32,13 @@ public class EditorPanningState : EditorState
         // В данном контексте полагаемся на обработку PointerMoved.
     }
 
+    /// <inheritdoc />
     public override void Exit()
     {
         Editor.Cursor = Cursor.Default;
     }
 
+    /// <inheritdoc />
     public override void OnPointerMoved(PointerEventArgs e)
     {
         var currentMousePos = e.GetPosition(Editor);
@@ -47,12 +50,14 @@ public class EditorPanningState : EditorState
         Editor.ViewportLocation = _startViewportLocation + (diffScreen / Editor.ViewportZoom);
     }
 
+    /// <inheritdoc />
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         // Возвращаемся в Idle при отпускании кнопки
         Editor.PopState();
     }
 
+    /// <inheritdoc />
     public override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         // Разрешаем зум даже во время панорамирования (как в Google Maps)

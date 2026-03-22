@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using ArxisStudio;
+using DesignEditor.Demo.Context;
 using DesignEditor.Demo.ViewModels;
 
 namespace DesignEditor.Demo.Views;
@@ -9,6 +10,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is { } editor)
+            editor.ContextActionProviders.Add(new DesignEditorDemoContextActionsProvider());
     }
 
     private void CenterActiveItem_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

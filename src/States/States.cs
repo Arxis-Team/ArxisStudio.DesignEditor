@@ -80,12 +80,14 @@ public class ItemIdleState : DesignEditorItemState
     /// <param name="container">Контейнер, которому принадлежит состояние.</param>
     public ItemIdleState(DesignEditorItem container) : base(container) { }
 
+    /// <inheritdoc />
     public override void ReEnter(DesignEditorItemState from)
     {
         _isPressed = false;
         _shouldSkipSelectionToggle = false;
     }
 
+    /// <inheritdoc />
     public override void OnPointerPressed(PointerPressedEventArgs e)
     {
         var props = e.GetCurrentPoint(Container).Properties;
@@ -106,6 +108,7 @@ public class ItemIdleState : DesignEditorItemState
         }
     }
 
+    /// <inheritdoc />
     public override void OnPointerMoved(PointerEventArgs e)
     {
         if (!_isPressed || !Container.IsDraggable) return;
@@ -126,6 +129,7 @@ public class ItemIdleState : DesignEditorItemState
             Container.PushState(new ItemDraggingState(Container, _startPoint));
     }
 
+    /// <inheritdoc />
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         if (_isPressed)
@@ -204,6 +208,7 @@ public class ItemDraggingState : DesignEditorItemState
         _previousPointerPosition = initialPointerPosition;
     }
 
+    /// <inheritdoc />
     public override void Enter(DesignEditorItemState from)
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
@@ -213,6 +218,7 @@ public class ItemDraggingState : DesignEditorItemState
         Container.RaiseEvent(new DragStartedEventArgs(_initialPointerPosition.X, _initialPointerPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
     }
 
+    /// <inheritdoc />
     public override void Exit()
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
@@ -222,6 +228,7 @@ public class ItemDraggingState : DesignEditorItemState
         Container.RaiseEvent(new DragCompletedEventArgs(total.X, total.Y, false) { RoutedEvent = DesignEditorItem.DragCompletedEvent });
     }
 
+    /// <inheritdoc />
     public override void OnPointerMoved(PointerEventArgs e)
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
@@ -257,6 +264,7 @@ public class ItemDraggingState : DesignEditorItemState
         e.Handled = true;
     }
 
+    /// <inheritdoc />
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         Container.PopState();
@@ -287,6 +295,7 @@ public class ItemResizingState : DesignEditorItemState
         _direction = direction;
     }
 
+    /// <inheritdoc />
     public override void Enter(DesignEditorItemState from)
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
@@ -301,6 +310,7 @@ public class ItemResizingState : DesignEditorItemState
         _initialSize = size;
     }
 
+    /// <inheritdoc />
     public override void OnResizeDelta(ResizeDeltaEventArgs e)
     {
         _accumulatedDelta += e.Delta;

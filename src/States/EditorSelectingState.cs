@@ -17,6 +17,7 @@ public class EditorSelectingState : EditorState
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
     public EditorSelectingState(DesignEditor editor) : base(editor) { }
 
+    /// <inheritdoc />
     public override void Enter(EditorState? from)
     {
         // 1. Включаем режим отрисовки рамки в Editor
@@ -37,12 +38,14 @@ public class EditorSelectingState : EditorState
         Editor.SelectedArea = new Rect(_startLocationWorld, new Size(0, 0));
     }
 
+    /// <inheritdoc />
     public override void Exit()
     {
         Editor.IsSelecting = false;
         Editor.SelectedArea = new Rect(0, 0, 0, 0);
     }
 
+    /// <inheritdoc />
     public override void OnPointerMoved(PointerEventArgs e)
     {
         Point currentMousePosWorld = Editor.GetWorldPosition(e.GetPosition(Editor));
@@ -55,6 +58,7 @@ public class EditorSelectingState : EditorState
         Editor.SelectedArea = new Rect(x, y, w, h);
     }
 
+    /// <inheritdoc />
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         // Применяем выделение
