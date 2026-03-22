@@ -1568,7 +1568,8 @@ public class DesignEditor : SelectingItemsControl
             return;
         }
 
-        if (ShouldBlockNestedGroupDrag(sourceContainer))
+        var selectionCapabilities = GetSelectionInteractionCapabilities();
+        if (ShouldBlockNestedGroupDrag(selectionCapabilities))
         {
             e.Handled = true;
             return;
@@ -1642,7 +1643,7 @@ public class DesignEditor : SelectingItemsControl
         var source = e.Source as DesignEditorItem;
         if (source != null)
         {
-            if (ShouldBlockNestedGroupDrag(source))
+            if (ShouldBlockNestedGroupDrag(GetSelectionInteractionCapabilities()))
             {
                 e.Handled = true;
                 return;
@@ -2012,13 +2013,44 @@ public class DesignEditor : SelectingItemsControl
         return IsResizeAllowed(GetResizePolicy(control), direction);
     }
 
-    internal bool ShouldBlockNestedGroupDrag(DesignEditorItem sourceContainer)
+    private SelectionInteractionCapabilities GetSelectionInteractionCapabilities()
     {
-        if (!HasMultipleNestedSelection || SelectedDesignTargets.Count <= 1)
+        var selectedTargets = SelectedDesignTargets;
+        var selectedTargetCount = selectedTargets.Count;
+        var isNestedGroupSelection = HasMultipleNestedSelection && selectedTargetCount > 1;
+        var hasAnyMoveLockedTarget = false;
+        var hasAnyMoveEnabledTarget = false;
+
+        for (var i = 0; i < selectedTargetCount; i++)
+        {
+            var movePolicy = GetMovePolicy(selectedTargets[i].Target);
+            if (movePolicy == ArxisStudio.Attached.MovePolicy.None)
+                hasAnyMoveLockedTarget = true;
+            else
+                hasAnyMoveEnabledTarget = true;
+
+            if (hasAnyMoveLockedTarget && hasAnyMoveEnabledTarget)
+                break;
+        }
+
+        return new SelectionInteractionCapabilities(
+            selectedTargetCount,
+            isNestedGroupSelection,
+            hasAnyMoveLockedTarget,
+            hasAnyMoveEnabledTarget);
+    }
+
+    internal bool ShouldBlockNestedGroupDrag(SelectionInteractionCapabilities capabilities)
+    {
+        if (!capabilities.IsNestedGroupSelection)
             return false;
 
-        return SelectedDesignTargets.Any(selectedTarget =>
-            GetMovePolicy(selectedTarget.Target) == ArxisStudio.Attached.MovePolicy.None);
+        return capabilities.HasAnyMoveLockedTarget;
+    }
+
+    internal bool ShouldBlockNestedGroupDrag()
+    {
+        return ShouldBlockNestedGroupDrag(GetSelectionInteractionCapabilities());
     }
 
     private static Vector ApplyMovePolicy(Vector delta, ArxisStudio.Attached.MovePolicy policy)

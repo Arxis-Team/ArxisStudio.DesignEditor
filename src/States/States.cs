@@ -127,7 +127,7 @@ public class ItemIdleState : DesignEditorItemState
         var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
         if (Vector.Distance(_startPoint, currentPoint) > dragStartThreshold)
         {
-            if (editor != null && editor.ShouldBlockNestedGroupDrag(Container))
+            if (editor != null && editor.ShouldBlockNestedGroupDrag())
             {
                 e.Handled = true;
                 return;
