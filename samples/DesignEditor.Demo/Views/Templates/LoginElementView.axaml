@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:attached1="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
-             x:Class="DesignEditor.Demo.Views.Templates.LoginNodeView">
+             x:Class="DesignEditor.Demo.Views.Templates.LoginElementView">
 
     <Border Background="#202020"
             BorderBrush="#383838"

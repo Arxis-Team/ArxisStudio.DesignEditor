@@ -3,7 +3,7 @@
              xmlns:attached="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
              xmlns:controls="clr-namespace:ArxisStudio.Controls;assembly=ArxisStudio.DesignEditor"
              Background="DimGray"
-             x:Class="DesignEditor.Demo.Views.Templates.DashboardNodeView">
+             x:Class="DesignEditor.Demo.Views.Templates.DashboardElementView">
 
     <Border Background="#202020"
             BorderBrush="#383838"

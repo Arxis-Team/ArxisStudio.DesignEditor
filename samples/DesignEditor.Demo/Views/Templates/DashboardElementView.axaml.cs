@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace DesignEditor.Demo.Views.Templates;
 
-public partial class DashboardNodeView : UserControl
+public partial class DashboardElementView : UserControl
 {
-    public DashboardNodeView()
+    public DashboardElementView()
     {
         InitializeComponent();
     }

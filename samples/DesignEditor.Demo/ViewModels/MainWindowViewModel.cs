@@ -7,16 +7,16 @@ namespace DesignEditor.Demo.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    public ObservableCollection<DesignItemViewModel> Nodes { get; } = new();
+    public ObservableCollection<DesignItemViewModel> Elements { get; } = new();
 
     // Коллекция выделенных элементов (Avalonia биндит сюда object)
     [ObservableProperty]
-    private ObservableCollection<object> _selectedNodes = new();
+    private ObservableCollection<object> _selectedElements = new();
 
     // НОВОЕ: Активный элемент (первый из выделенных) для отображения в панели свойств
-    // Вычисляемое свойство, которое обновляется при изменении SelectedNodes
-    public DesignItemViewModel? ActiveItem => SelectedNodes.FirstOrDefault() as DesignItemViewModel;
-    public bool HasSelection => SelectedNodes.Count > 0;
+    // Вычисляемое свойство, которое обновляется при изменении SelectedElements
+    public DesignItemViewModel? ActiveItem => SelectedElements.FirstOrDefault() as DesignItemViewModel;
+    public bool HasSelection => SelectedElements.Count > 0;
 
     [ObservableProperty]
     private double _zoom = 1.0;
@@ -46,11 +46,11 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         // Заполняем демо-данными
-        Nodes.Add(new LoginNodeViewModel(400, 300));
-        Nodes.Add(new DashboardNodeViewModel(800, 300));
+        Elements.Add(new LoginElementViewModel(400, 300));
+        Elements.Add(new DashboardElementViewModel(800, 300));
 
         // ВАЖНО: Подписываемся на изменение выделения, чтобы обновлять UI (ActiveItem)
-        SelectedNodes.CollectionChanged += (s, e) =>
+        SelectedElements.CollectionChanged += (s, e) =>
         {
             OnPropertyChanged(nameof(ActiveItem));
             OnPropertyChanged(nameof(HasSelection));

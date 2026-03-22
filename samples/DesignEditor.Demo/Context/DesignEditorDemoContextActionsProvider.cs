@@ -41,8 +41,8 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
     {
         return new[]
         {
-            Action("surface.add-login", "Добавить Login-узел", () => AddNode(editor, new LoginNodeViewModel(500, 300))),
-            Action("surface.add-dashboard", "Добавить Dashboard-узел", () => AddNode(editor, new DashboardNodeViewModel(900, 300))),
+            Action("surface.add-login", "Добавить Login UI-элемент", () => AddElement(editor, new LoginElementViewModel(500, 300))),
+            Action("surface.add-dashboard", "Добавить Dashboard UI-элемент", () => AddElement(editor, new DashboardElementViewModel(900, 300))),
             Separator("surface.sep1"),
             Action("surface.reset-zoom", "Сбросить масштаб", () => editor.ViewportZoom = 1.0),
         };
@@ -120,12 +120,12 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
         };
     }
 
-    private static void AddNode(global::ArxisStudio.DesignEditor editor, DesignItemViewModel node)
+    private static void AddElement(global::ArxisStudio.DesignEditor editor, DesignItemViewModel element)
     {
         if (editor.DataContext is not MainWindowViewModel viewModel)
             return;
 
-        viewModel.Nodes.Add(node);
+        viewModel.Elements.Add(element);
     }
 
     private static void DeleteTarget(global::ArxisStudio.DesignEditor editor, DesignEditorContextRequest request)
@@ -133,8 +133,8 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
         if (editor.DataContext is not MainWindowViewModel viewModel || request.Target == null)
             return;
 
-        if (request.Target.Container.DataContext is DesignItemViewModel node)
-            viewModel.Nodes.Remove(node);
+        if (request.Target.Container.DataContext is DesignItemViewModel element)
+            viewModel.Elements.Remove(element);
     }
 
     private static void CenterTarget(global::ArxisStudio.DesignEditor editor, DesignEditorContextRequest request)

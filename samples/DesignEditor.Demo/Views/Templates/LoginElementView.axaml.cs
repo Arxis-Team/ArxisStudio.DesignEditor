@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace DesignEditor.Demo.Views.Templates;
 
-public partial class LoginNodeView : UserControl
+public partial class LoginElementView : UserControl
 {
-    public LoginNodeView()
+    public LoginElementView()
     {
         InitializeComponent();
     }
