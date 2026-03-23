@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:attached="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
+             xmlns:controls="clr-namespace:ArxisStudio.Controls;assembly=ArxisStudio.DesignEditor"
+             Background="DimGray"
+             x:Class="DesignEditor.Demo.Views.Templates.DashboardElementView">
+
+    <Border Background="#202020"
+            BorderBrush="#383838"
+            BorderThickness="1">
+        <controls:AbsolutePanel>
+            <TextBlock Name="TextBlock1"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="100"
+                       attached:Layout.Y="100"
+                       Text="Dashboard"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="White" />
+
+            <Calendar IsHitTestVisible="False" attached:Layout.X="300" attached:Layout.Y="100">
+
+            </Calendar>
+
+            <TextBlock Name="TextBlock2"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="400"
+                       attached:Layout.Y="100"
+                       Text="Dashboard1"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="White" />
+
+            <TextBox Name="TextBox1"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="400"
+                       attached:Layout.Y="200"
+                       MinWidth="100"
+                       MinHeight="40"
+                       Width="100"
+                       Height="40"
+                       Text="TextBox1"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="White" />
+
+            <StackPanel Name="StackPanel1"
+                        IsHitTestVisible="False"
+                        Orientation="Horizontal"
+                        attached:Layout.IsTracked="True"
+                        Spacing="5"
+                        Margin="0,10,0,0"
+                        Opacity="0.5">
+                <TextBlock Text="DesignX:" Foreground="#CCC" />
+                <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignX), StringFormat='{}{0:0}'}"
+                           Foreground="White" />
+                <TextBlock Text="DesignY:" Foreground="#CCC" />
+                <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.DesignY), StringFormat='{}{0:0}'}"
+                           Foreground="White" />
+                <TextBlock Text="X:" Foreground="#CCC" />
+                <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.X), StringFormat='{}{0:0}'}"
+                           Foreground="White" />
+                <TextBlock Text="Y:" Foreground="#CCC" />
+                <TextBlock Text="{Binding ElementName=TextBlock1, Path=(attached:Layout.Y), StringFormat='{}{0:0}'}"
+                           Foreground="White" />
+            </StackPanel>
+        </controls:AbsolutePanel>
+    </Border>
+</UserControl>

@@ -1,24 +1,22 @@
 ﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:ArxisStudio"
+                    xmlns:controls="clr-namespace:ArxisStudio.Controls"
                     xmlns:helpers="clr-namespace:ArxisStudio.Helpers">
 
     <helpers:UnscaleTransformConverter x:Key="UnscaleTransformConverter" />
     <helpers:ScaleDoubleConverter x:Key="ScaleDoubleConverter" />
 
+    <!-- Временная marquee-рамка для area-selection в PART_InteractionOverlayLayer. -->
     <ControlTheme x:Key="SelectionRectangleStyle" TargetType="Rectangle">
-        <Setter Property="Stroke" Value="#1E90FF" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Fill">
-            <Setter.Value>
-                <SolidColorBrush Opacity="0.1" Color="#1E90FF" />
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Stroke" Value="{DynamicResource DesignEditor.MarqueeStrokeBrush}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.MarqueeFillBrush}" />
         <Setter Property="IsHitTestVisible" Value="False"/>
     </ControlTheme>
 
     <ControlTheme x:Key="{x:Type local:DesignEditor}" TargetType="local:DesignEditor">
-        <Setter Property="Background" Value="#1E1E1E" />
+        <Setter Property="Background" Value="{DynamicResource DesignEditor.BackgroundBrush}" />
         <Setter Property="ClipToBounds" Value="True" />
         <Setter Property="SelectionRectangleStyle" Value="{StaticResource SelectionRectangleStyle}" />
         <Setter Property="Template">
@@ -27,41 +25,109 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}">
 
-                    <Canvas Name="PART_ViewportCanvas"
-                            RenderTransform="{TemplateBinding ViewportTransform}"
-                            RenderTransformOrigin="0,0">
+                    <Grid>
+                        <!-- Реальное содержимое редактора и item containers. -->
+                        <Canvas Name="PART_ItemsLayer"
+                                RenderTransform="{TemplateBinding ViewportTransform}"
+                                RenderTransformOrigin="0,0">
 
-                        <ItemsPresenter Name="PART_ItemsPresenter">
-                            <ItemsPresenter.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <local:DesignPanel Extent="{Binding ItemsExtent, Mode=OneWayToSource, RelativeSource={RelativeSource AncestorType=local:DesignEditor}}" />
-                                </ItemsPanelTemplate>
-                            </ItemsPresenter.ItemsPanel>
-                        </ItemsPresenter>
+                            <ItemsPresenter Name="PART_ItemsPresenter">
+                                <ItemsPresenter.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <controls:DesignSurface Extent="{Binding ItemsExtent, Mode=OneWayToSource, RelativeSource={RelativeSource AncestorType=local:DesignEditor}}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsPresenter.ItemsPanel>
+                            </ItemsPresenter>
+                        </Canvas>
 
-                        <Rectangle Theme="{TemplateBinding SelectionRectangleStyle}"
-                                   RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
-                                   RenderTransformOrigin="0,0"
-                                   Canvas.Top="{Binding SelectedArea.Y, RelativeSource={RelativeSource TemplatedParent}}"
-                                   Canvas.Left="{Binding SelectedArea.X, RelativeSource={RelativeSource TemplatedParent}}"
-                                   IsVisible="{TemplateBinding IsSelecting}">
-                            <Rectangle.Width>
-                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
-                                    <Binding Path="SelectedArea.Width" RelativeSource="{RelativeSource TemplatedParent}" />
-                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
-                                </MultiBinding>
-                            </Rectangle.Width>
-                            <Rectangle.Height>
-                                <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
-                                    <Binding Path="SelectedArea.Height" RelativeSource="{RelativeSource TemplatedParent}" />
-                                    <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
-                                </MultiBinding>
-                            </Rectangle.Height>
-                        </Rectangle>
-                    </Canvas>
+                        <!-- Постоянные selection overlays: primary/group adorners и secondary outlines. -->
+                        <Canvas Name="PART_SelectionOverlayLayer"
+                                IsHitTestVisible="True"
+                                RenderTransform="{TemplateBinding ViewportTransform}"
+                                RenderTransformOrigin="0,0">
+                            <controls:SelectionAdornerLayer Items="{TemplateBinding SecondarySelectionAdorners}"
+                                                            ViewportZoom="{TemplateBinding ViewportZoom}"
+                                                            ClipToBounds="False"
+                                                            IsHitTestVisible="True"
+                                                            IsVisible="{TemplateBinding HasMultipleNestedSelection}" />
+
+                            <controls:SelectionAdorner Name="PART_SelectionAdorner"
+                                                       Role="Primary"
+                                                       ShowHandles="True"
+                                                       IsInteractive="True"
+                                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                       RenderTransformOrigin="0,0"
+                                                       Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       IsVisible="{TemplateBinding HasSingleSelection}"
+                                                       IsHitTestVisible="True">
+                                <controls:SelectionAdorner.Width>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectionBounds.Width" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </controls:SelectionAdorner.Width>
+                                <controls:SelectionAdorner.Height>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectionBounds.Height" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </controls:SelectionAdorner.Height>
+                            </controls:SelectionAdorner>
+
+                            <controls:SelectionAdorner Name="PART_GroupSelectionAdorner"
+                                                       Role="Group"
+                                                       ShowHandles="True"
+                                                       IsInteractive="True"
+                                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                       RenderTransformOrigin="0,0"
+                                                       Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       IsVisible="{TemplateBinding HasMultipleContainerSelection}"
+                                                       IsHitTestVisible="True">
+                                <controls:SelectionAdorner.Width>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectionBounds.Width" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </controls:SelectionAdorner.Width>
+                                <controls:SelectionAdorner.Height>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectionBounds.Height" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </controls:SelectionAdorner.Height>
+                            </controls:SelectionAdorner>
+                        </Canvas>
+
+                        <!-- Временные overlays во время interaction: marquee, guides, previews. -->
+                        <Canvas Name="PART_InteractionOverlayLayer"
+                                IsHitTestVisible="False"
+                                RenderTransform="{TemplateBinding ViewportTransform}"
+                                RenderTransformOrigin="0,0">
+                            <Rectangle Theme="{TemplateBinding SelectionRectangleStyle}"
+                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                       RenderTransformOrigin="0,0"
+                                       Canvas.Top="{Binding SelectedArea.Y, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Canvas.Left="{Binding SelectedArea.X, RelativeSource={RelativeSource TemplatedParent}}"
+                                       IsVisible="{TemplateBinding IsSelecting}">
+                                <Rectangle.Width>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectedArea.Width" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </Rectangle.Width>
+                                <Rectangle.Height>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="SelectedArea.Height" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </Rectangle.Height>
+                            </Rectangle>
+                        </Canvas>
+                    </Grid>
                 </Border>
             </ControlTemplate>
         </Setter>
     </ControlTheme>
-
 </ResourceDictionary>

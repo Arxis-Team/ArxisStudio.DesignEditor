@@ -11,13 +11,13 @@
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://DesignEditor.Demo/Styles/DesignEditorStyles.axaml" />
     </Application.Styles>
 
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditor.axaml" />
-                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditorItem.axaml" />
+                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/ArxisStudioDesignEditorTheme.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
 

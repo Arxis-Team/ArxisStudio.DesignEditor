@@ -1,75 +1,59 @@
 ﻿using System.Collections.ObjectModel;
-using Avalonia;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input; // ВАЖНО: Для RelayCommand
+using CommunityToolkit.Mvvm.Input;
 
 namespace DesignEditor.Demo.ViewModels;
 
-// Базовый класс для любого элемента на холсте
-public partial class DesignItemViewModel : ObservableObject
-{
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Location))]
-    private double _x;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Location))]
-    private double _y;
-
-    // Свойство для быстрого биндинга к IDesignEditorItem.Location
-    public Point Location
-    {
-        get => new Point(X, Y);
-        set
-        {
-            X = value.X;
-            Y = value.Y;
-        }
-    }
-
-    protected DesignItemViewModel(double x, double y)
-    {
-        X = x;
-        Y = y;
-    }
-}
-
-// Модели
-public class LoginNodeViewModel : DesignItemViewModel
-{
-    public LoginNodeViewModel(double x, double y) : base(x, y) { }
-}
-
-public class DashboardNodeViewModel : DesignItemViewModel
-{
-    public DashboardNodeViewModel(double x, double y) : base(x, y) { }
-}
-
 public partial class MainWindowViewModel : ObservableObject
 {
-    public ObservableCollection<DesignItemViewModel> Nodes { get; } = new();
+    public ObservableCollection<DesignItemViewModel> Elements { get; } = new();
 
-    // СПИСОК ВЫДЕЛЕННЫХ (Avalonia работает с object, поэтому IList или ObservableCollection<object>)
+    // Коллекция выделенных элементов (Avalonia биндит сюда object)
     [ObservableProperty]
-    private ObservableCollection<object> _selectedNodes = new();
+    private ObservableCollection<object> _selectedElements = new();
 
-    // --- ZOOM ---
+    // НОВОЕ: Активный элемент (первый из выделенных) для отображения в панели свойств
+    // Вычисляемое свойство, которое обновляется при изменении SelectedElements
+    public DesignItemViewModel? ActiveItem => SelectedElements.FirstOrDefault() as DesignItemViewModel;
+    public bool HasSelection => SelectedElements.Count > 0;
+
     [ObservableProperty]
     private double _zoom = 1.0;
 
-    // --- RESET COMMAND ---
-    // CommunityToolkit сгенерирует свойство "ResetZoomCommand"
+    partial void OnIsGestureHelpExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsGestureHelpCollapsed));
+    }
+
+    [ObservableProperty]
+    private bool _isGestureHelpExpanded = true;
+
+    public bool IsGestureHelpCollapsed => !IsGestureHelpExpanded;
+
     [RelayCommand]
     public void ResetZoom()
     {
         Zoom = 1.0;
     }
 
+    [RelayCommand]
+    public void ToggleGestureHelp()
+    {
+        IsGestureHelpExpanded = !IsGestureHelpExpanded;
+    }
+
     public MainWindowViewModel()
     {
-        Nodes.Add(new LoginNodeViewModel(400, 300));
-        Nodes.Add(new DashboardNodeViewModel(800, 300));
-        Nodes.Add(new LoginNodeViewModel(100, 100));
-        Nodes.Add(new DashboardNodeViewModel(100, 450));
+        // Заполняем демо-данными
+        Elements.Add(new LoginElementViewModel(400, 300));
+        Elements.Add(new DashboardElementViewModel(800, 300));
+
+        // ВАЖНО: Подписываемся на изменение выделения, чтобы обновлять UI (ActiveItem)
+        SelectedElements.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(ActiveItem));
+            OnPropertyChanged(nameof(HasSelection));
+        };
     }
 }

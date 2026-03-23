@@ -1,56 +1,72 @@
 ﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="clr-namespace:ArxisStudio">
+                    xmlns:arxisStudio="clr-namespace:ArxisStudio">
 
-    <SolidColorBrush x:Key="DesignEditorItem.HighlightColor" Color="DodgerBlue" Opacity="0.2" />
-
-    <DrawingBrush x:Key="DesignEditorItem.HighlightBrush" DestinationRect="0 0 10 10" TileMode="Tile">
-        <DrawingBrush.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Brush="{StaticResource DesignEditorItem.HighlightColor}">
-                    <GeometryDrawing.Geometry>
-                        <GeometryGroup>
-                            <RectangleGeometry Rect="0 0 5 5" />
-                            <RectangleGeometry Rect="5 5 5 5" />
-                        </GeometryGroup>
-                    </GeometryDrawing.Geometry>
-                </GeometryDrawing>
-            </DrawingGroup>
-        </DrawingBrush.Drawing>
-    </DrawingBrush>
-
-    <ControlTheme x:Key="{x:Type local:DesignEditorItem}" TargetType="local:DesignEditorItem">
+    <!--
+        DesignEditorItem больше не рисует selection frame.
+        Его тема отвечает только за content host, hover feedback и toolbar host.
+    -->
+    <ControlTheme x:Key="{x:Type arxisStudio:DesignEditorItem}" TargetType="arxisStudio:DesignEditorItem">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="DodgerBlue" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="SelectedBorderThickness" Value="2" />
-        <Setter Property="SelectedBrush" Value="Orange" />
-        <Setter Property="CornerRadius" Value="3" />
+
+        <Setter Property="BorderBrush" Value="{DynamicResource DesignEditorItem.BorderBrush}" />
+
+        <Setter Property="BorderThickness" Value="{DynamicResource DesignEditorItem.BorderThickness}" />
+
+        <Setter Property="CornerRadius" Value="{DynamicResource DesignEditorItem.CornerRadius}" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="ClipToBounds" Value="False" />
+
+        <Setter Property="UseLayoutRounding" Value="True" />
 
         <Setter Property="Template">
             <ControlTemplate>
-                <Border Name="PART_Border"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}"
-                        Padding="{TemplateBinding Padding}">
-                    <ContentPresenter Name="PART_ContentPresenter"
-                                      Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}" />
-                </Border>
+                <Grid ClipToBounds="False" Background="Transparent">
+
+                    <Border Name="PART_Border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </Border>
+
+                    <Border Name="PART_HoverBorder"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+
+                    <StackPanel Name="PART_Toolbar"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Margin="0,-28,0,0"
+                                Spacing="2"
+                                Opacity="0"
+                                IsHitTestVisible="False">
+                    </StackPanel>
+
+                </Grid>
             </ControlTemplate>
         </Setter>
 
         <Style Selector="^:selected">
-            <Setter Property="BorderBrush" Value="{Binding SelectedBrush, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="BorderThickness" Value="{Binding SelectedBorderThickness, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="Margin" Value="{Binding SelectedMargin, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="ZIndex" Value="1" />
+            <Setter Property="ZIndex" Value="99" />
+
+            <Style Selector="^ /template/ StackPanel#PART_Toolbar">
+                <Setter Property="Opacity" Value="1"/>
+                <Setter Property="IsHitTestVisible" Value="True"/>
+            </Style>
+        </Style>
+
+        <Style Selector="^:pointerover:not(:selected) /template/ Border#PART_HoverBorder">
+             <Setter Property="Opacity" Value="1"/>
         </Style>
 
     </ControlTheme>
-
 </ResourceDictionary>
-

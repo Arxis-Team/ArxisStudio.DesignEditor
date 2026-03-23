@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:attached1="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
+             x:Class="DesignEditor.Demo.Views.Templates.LoginElementView">
+
+    <Border Background="#202020"
+            BorderBrush="#383838"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="30"
+            attached1:Layout.IsTracked="True">
+        <StackPanel Spacing="20" attached1:Layout.IsTracked="True">
+            <TextBlock IsHitTestVisible="False"
+                       attached1:Layout.IsTracked="True"
+                       Text="Login Form"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+            <StackPanel Spacing="12" attached1:Layout.IsTracked="True">
+                <TextBox IsHitTestVisible="False"
+                         attached1:Layout.IsTracked="True"
+                         Watermark="Email"
+                         CornerRadius="6"
+                         Background="#2D2D2D"
+                         Foreground="White" />
+                <Button IsHitTestVisible="False"
+                        attached1:Layout.IsTracked="True"
+                        Content="Sign In"
+                        HorizontalAlignment="Stretch"
+                        Background="#4C97FF"
+                        Foreground="White" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
