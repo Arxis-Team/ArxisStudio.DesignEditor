@@ -6,7 +6,6 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.Styling;
 
 namespace ArxisStudio.Controls;
 
@@ -54,12 +53,6 @@ public class SelectionAdornerLayer : Panel
             Array.Empty<SelectionAdornerInfo>());
 
     /// <summary>
-    /// Идентификатор темы, применяемой к создаваемым <see cref="SelectionAdorner"/>.
-    /// </summary>
-    public static readonly StyledProperty<ControlTheme?> AdornerThemeProperty =
-        AvaloniaProperty.Register<SelectionAdornerLayer, ControlTheme?>(nameof(AdornerTheme));
-
-    /// <summary>
     /// Идентификатор текущего zoom viewport.
     /// </summary>
     public static readonly StyledProperty<double> ViewportZoomProperty =
@@ -68,7 +61,6 @@ public class SelectionAdornerLayer : Panel
     static SelectionAdornerLayer()
     {
         ItemsProperty.Changed.AddClassHandler<SelectionAdornerLayer>((layer, _) => layer.SyncChildren());
-        AdornerThemeProperty.Changed.AddClassHandler<SelectionAdornerLayer>((layer, _) => layer.SyncChildren());
         ViewportZoomProperty.Changed.AddClassHandler<SelectionAdornerLayer>((layer, _) =>
         {
             layer.UpdateChildTransforms();
@@ -84,15 +76,6 @@ public class SelectionAdornerLayer : Panel
     {
         get => GetValue(ItemsProperty);
         set => SetValue(ItemsProperty, value);
-    }
-
-    /// <summary>
-    /// Получает или задает тему для дочерних <see cref="SelectionAdorner"/>.
-    /// </summary>
-    public ControlTheme? AdornerTheme
-    {
-        get => GetValue(AdornerThemeProperty);
-        set => SetValue(AdornerThemeProperty, value);
     }
 
     /// <summary>
@@ -204,7 +187,6 @@ public class SelectionAdornerLayer : Panel
                 child = CreateChildAdorner();
             }
 
-            child.Theme = AdornerTheme;
             child.Role = info.Role;
             child.ShowHandles = info.ShowHandles;
             child.IsInteractive = info.IsInteractive;

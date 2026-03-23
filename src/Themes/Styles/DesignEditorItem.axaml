@@ -2,6 +2,10 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:arxisStudio="clr-namespace:ArxisStudio">
 
+    <!--
+        DesignEditorItem больше не рисует selection frame.
+        Его тема отвечает только за content host, hover feedback и toolbar host.
+    -->
     <ControlTheme x:Key="{x:Type arxisStudio:DesignEditorItem}" TargetType="arxisStudio:DesignEditorItem">
         <Setter Property="Background" Value="Transparent" />
 

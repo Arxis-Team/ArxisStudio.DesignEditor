@@ -175,24 +175,6 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SelectionRectangleStyle));
 
     /// <summary>
-    /// Идентификатор темы рамки одиночного выделения.
-    /// </summary>
-    public static readonly StyledProperty<ControlTheme> SelectionOutlineStyleProperty =
-        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SelectionOutlineStyle));
-
-    /// <summary>
-    /// Идентификатор темы рамки группового выделения.
-    /// </summary>
-    public static readonly StyledProperty<ControlTheme> GroupSelectionOutlineStyleProperty =
-        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(GroupSelectionOutlineStyle));
-
-    /// <summary>
-    /// Идентификатор темы secondary outline для multi-selection.
-    /// </summary>
-    public static readonly StyledProperty<ControlTheme> SecondarySelectionOutlineStyleProperty =
-        AvaloniaProperty.Register<DesignEditor, ControlTheme>(nameof(SecondarySelectionOutlineStyle));
-
-    /// <summary>
     /// Идентификатор объекта с настройками input gestures редактора.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, DesignEditorInputGestures> InputGesturesProperty =
@@ -390,33 +372,6 @@ public class DesignEditor : SelectingItemsControl
     {
         get => GetValue(SelectionRectangleStyleProperty);
         set => SetValue(SelectionRectangleStyleProperty, value);
-    }
-
-    /// <summary>
-    /// Получает или задает тему рамки одиночного выделения.
-    /// </summary>
-    public ControlTheme SelectionOutlineStyle
-    {
-        get => GetValue(SelectionOutlineStyleProperty);
-        set => SetValue(SelectionOutlineStyleProperty, value);
-    }
-
-    /// <summary>
-    /// Получает или задает тему рамки группового выделения.
-    /// </summary>
-    public ControlTheme GroupSelectionOutlineStyle
-    {
-        get => GetValue(GroupSelectionOutlineStyleProperty);
-        set => SetValue(GroupSelectionOutlineStyleProperty, value);
-    }
-
-    /// <summary>
-    /// Получает или задает тему secondary outline для каждого target в multi-selection.
-    /// </summary>
-    public ControlTheme SecondarySelectionOutlineStyle
-    {
-        get => GetValue(SecondarySelectionOutlineStyleProperty);
-        set => SetValue(SecondarySelectionOutlineStyleProperty, value);
     }
 
     private DesignEditorInputGestures _inputGestures = new DesignEditorInputGestures();

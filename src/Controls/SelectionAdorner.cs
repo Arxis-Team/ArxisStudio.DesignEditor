@@ -134,7 +134,7 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 /// <summary>
 /// Представляет editor adorner для отрисовки границ выделения и опциональных resize handles.
 /// </summary>
-[PseudoClasses(":locked")]
+[PseudoClasses(":locked", ":primary", ":secondary", ":group")]
 [TemplatePart("PART_TopLeft", typeof(Thumb))]
 [TemplatePart("PART_Top", typeof(Thumb))]
 [TemplatePart("PART_TopRight", typeof(Thumb))]
@@ -231,6 +231,7 @@ public class SelectionAdorner : TemplatedControl
         IsInteractiveProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
         ResizePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
         MovePolicyProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
+        RoleProperty.Changed.AddClassHandler<SelectionAdorner>((adorner, _) => adorner.RefreshVisualState());
     }
 
     /// <summary>
@@ -374,6 +375,9 @@ public class SelectionAdorner : TemplatedControl
     {
         var isLocked = ResizePolicy == ResizePolicyMode.None && MovePolicy == MovePolicyMode.None;
         PseudoClasses.Set(":locked", isLocked);
+        PseudoClasses.Set(":primary", Role == SelectionAdornerRole.Primary);
+        PseudoClasses.Set(":secondary", Role == SelectionAdornerRole.Secondary);
+        PseudoClasses.Set(":group", Role == SelectionAdornerRole.Group);
         UpdateThumbBindings();
     }
 

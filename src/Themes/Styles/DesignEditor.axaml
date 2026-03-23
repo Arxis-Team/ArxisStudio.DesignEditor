@@ -7,6 +7,7 @@
     <helpers:UnscaleTransformConverter x:Key="UnscaleTransformConverter" />
     <helpers:ScaleDoubleConverter x:Key="ScaleDoubleConverter" />
 
+    <!-- Временная marquee-рамка для area-selection в PART_InteractionOverlayLayer. -->
     <ControlTheme x:Key="SelectionRectangleStyle" TargetType="Rectangle">
         <Setter Property="Stroke" Value="{DynamicResource DesignEditor.MarqueeStrokeBrush}" />
         <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
@@ -14,47 +15,10 @@
         <Setter Property="IsHitTestVisible" Value="False"/>
     </ControlTheme>
 
-    <ControlTheme x:Key="SelectionOutlineStyle"
-                  TargetType="controls:SelectionAdorner"
-                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryBrush}" />
-        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryFill}" />
-        <Setter Property="ShowHandles" Value="True" />
-        <Setter Property="IsInteractive" Value="True" />
-        <Setter Property="IsHitTestVisible" Value="False" />
-    </ControlTheme>
-
-    <ControlTheme x:Key="GroupSelectionOutlineStyle"
-                  TargetType="controls:SelectionAdorner"
-                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupBrush}" />
-        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
-        <Setter Property="StrokeDashArray" Value="4,2" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupFill}" />
-        <Setter Property="ShowHandles" Value="False" />
-        <Setter Property="IsInteractive" Value="False" />
-        <Setter Property="IsHitTestVisible" Value="False" />
-    </ControlTheme>
-
-    <ControlTheme x:Key="SecondarySelectionOutlineStyle"
-                  TargetType="controls:SelectionAdorner"
-                  BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryBrush}" />
-        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryFill}" />
-        <Setter Property="ShowHandles" Value="False" />
-        <Setter Property="IsInteractive" Value="False" />
-        <Setter Property="IsHitTestVisible" Value="False" />
-    </ControlTheme>
-
     <ControlTheme x:Key="{x:Type local:DesignEditor}" TargetType="local:DesignEditor">
         <Setter Property="Background" Value="{DynamicResource DesignEditor.BackgroundBrush}" />
         <Setter Property="ClipToBounds" Value="True" />
         <Setter Property="SelectionRectangleStyle" Value="{StaticResource SelectionRectangleStyle}" />
-        <Setter Property="SelectionOutlineStyle" Value="{StaticResource SelectionOutlineStyle}" />
-        <Setter Property="GroupSelectionOutlineStyle" Value="{StaticResource GroupSelectionOutlineStyle}" />
-        <Setter Property="SecondarySelectionOutlineStyle" Value="{StaticResource SecondarySelectionOutlineStyle}" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
@@ -62,6 +26,7 @@
                         BorderThickness="{TemplateBinding BorderThickness}">
 
                     <Grid>
+                        <!-- Реальное содержимое редактора и item containers. -->
                         <Canvas Name="PART_ItemsLayer"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
@@ -75,19 +40,18 @@
                             </ItemsPresenter>
                         </Canvas>
 
+                        <!-- Постоянные selection overlays: primary/group adorners и secondary outlines. -->
                         <Canvas Name="PART_SelectionOverlayLayer"
                                 IsHitTestVisible="True"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
                             <controls:SelectionAdornerLayer Items="{TemplateBinding SecondarySelectionAdorners}"
-                                                            AdornerTheme="{TemplateBinding SelectionOutlineStyle}"
                                                             ViewportZoom="{TemplateBinding ViewportZoom}"
                                                             ClipToBounds="False"
                                                             IsHitTestVisible="True"
                                                             IsVisible="{TemplateBinding HasMultipleNestedSelection}" />
 
                             <controls:SelectionAdorner Name="PART_SelectionAdorner"
-                                                       Theme="{TemplateBinding SelectionOutlineStyle}"
                                                        Role="Primary"
                                                        ShowHandles="True"
                                                        IsInteractive="True"
@@ -112,7 +76,6 @@
                             </controls:SelectionAdorner>
 
                             <controls:SelectionAdorner Name="PART_GroupSelectionAdorner"
-                                                       Theme="{TemplateBinding GroupSelectionOutlineStyle}"
                                                        Role="Group"
                                                        ShowHandles="True"
                                                        IsInteractive="True"
@@ -137,6 +100,7 @@
                             </controls:SelectionAdorner>
                         </Canvas>
 
+                        <!-- Временные overlays во время interaction: marquee, guides, previews. -->
                         <Canvas Name="PART_InteractionOverlayLayer"
                                 IsHitTestVisible="False"
                                 RenderTransform="{TemplateBinding ViewportTransform}"

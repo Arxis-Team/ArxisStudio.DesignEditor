@@ -2,6 +2,11 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="clr-namespace:ArxisStudio.Controls">
 
+    <!--
+        Базовая тема SelectionAdorner.
+        Внешний вид конкретного overlay определяется ролью adorner'а
+        (:primary/:secondary/:group) и lightweight resources.
+    -->
     <ControlTheme x:Key="{x:Type controls:SelectionAdorner}" TargetType="controls:SelectionAdorner">
         <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.Brush}" />
         <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
@@ -10,6 +15,22 @@
         <Setter Property="ShowHandles" Value="True" />
         <Setter Property="IsInteractive" Value="True" />
         <Setter Property="ClipToBounds" Value="False" />
+
+        <Style Selector="^:primary">
+            <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryBrush}" />
+            <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryFill}" />
+        </Style>
+
+        <Style Selector="^:secondary">
+            <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryBrush}" />
+            <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryFill}" />
+        </Style>
+
+        <Style Selector="^:group">
+            <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupBrush}" />
+            <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupFill}" />
+            <Setter Property="StrokeDashArray" Value="4,2" />
+        </Style>
 
         <Style Selector="^:locked">
             <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.LockedBrush}" />
@@ -29,6 +50,7 @@
                           ColumnDefinitions="Auto,*,Auto"
                           IsVisible="{TemplateBinding ShowHandles}"
                           IsHitTestVisible="{TemplateBinding IsInteractive}">
+                        <!-- Handles являются частью визуальной структуры adorner'а. -->
                         <Grid.Styles>
                             <Style Selector="Thumb">
                                 <Setter Property="Width" Value="{Binding HandleSize, RelativeSource={RelativeSource TemplatedParent}}" />

@@ -201,6 +201,7 @@
 - `DesignEditor.SelectionAdorner.Locked*`
 
 Это позволяет менять внешний вид `Primary`, `Secondary`, `Group`, `Locked`, `PointerOver` и `Pressed` состояний без копирования `ControlTheme`.
+`DesignEditor` больше не держит три отдельные theme-обертки для selection overlays: роли задаются через `SelectionAdorner.Role`, а внешний вид определяется базовой темой `SelectionAdorner` и соответствующими ресурсами.
 
 ### 3. Привяжите редактор к вашей коллекции элементов
 

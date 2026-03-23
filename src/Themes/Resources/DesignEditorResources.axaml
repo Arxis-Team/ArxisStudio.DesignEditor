@@ -1,8 +1,14 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <!--
+        Variant-aware palette библиотеки.
+        Здесь лежат lightweight styling resources, которые можно переопределять
+        без копирования ControlTheme конкретных контролов.
+    -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+            <!-- Базовая палитра редактора для светлой темы. -->
             <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#F5F7FA" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
@@ -28,6 +34,7 @@
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Dark">
+            <!-- Базовая палитра редактора для темной темы. -->
             <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#1E1E1E" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
@@ -53,6 +60,7 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
+    <!-- Инвариантные геометрические ресурсы, не зависящие от ThemeVariant. -->
     <x:Double x:Key="DesignEditor.Selection.StrokeThickness">1</x:Double>
     <x:Double x:Key="DesignEditor.SelectionAdorner.HandleSize">8</x:Double>
 
