@@ -3,16 +3,16 @@
                     xmlns:controls="clr-namespace:ArxisStudio.Controls">
 
     <ControlTheme x:Key="{x:Type controls:SelectionAdorner}" TargetType="controls:SelectionAdorner">
-        <Setter Property="AdornerBrush" Value="DodgerBlue" />
-        <Setter Property="Fill" Value="Transparent" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="HandleSize" Value="8" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.Brush}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
+        <Setter Property="HandleSize" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleSize}" />
         <Setter Property="ShowHandles" Value="True" />
         <Setter Property="IsInteractive" Value="True" />
         <Setter Property="ClipToBounds" Value="False" />
 
         <Style Selector="^:locked">
-            <Setter Property="AdornerBrush" Value="#9CA3AF" />
+            <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.LockedBrush}" />
             <Setter Property="StrokeDashArray" Value="4,2" />
         </Style>
 
@@ -33,7 +33,7 @@
                             <Style Selector="Thumb">
                                 <Setter Property="Width" Value="{Binding HandleSize, RelativeSource={RelativeSource TemplatedParent}}" />
                                 <Setter Property="Height" Value="{Binding HandleSize, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Setter Property="Background" Value="White" />
+                                <Setter Property="Background" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleBackground}" />
                                 <Setter Property="BorderBrush" Value="{Binding AdornerBrush, RelativeSource={RelativeSource TemplatedParent}}" />
                                 <Setter Property="BorderThickness" Value="1" />
                                 <Setter Property="ClipToBounds" Value="False"/>
@@ -49,8 +49,8 @@
                                 </Setter>
                             </Style>
                             <Style Selector="Thumb.locked">
-                                <Setter Property="Background" Value="#E5E7EB" />
-                                <Setter Property="BorderBrush" Value="#9CA3AF" />
+                                <Setter Property="Background" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleLockedBackground}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleLockedBorderBrush}" />
                             </Style>
                             <Style Selector="Thumb:pointerover, Thumb:pressed">
                                 <Setter Property="Background" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>

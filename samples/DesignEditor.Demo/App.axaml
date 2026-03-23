@@ -17,9 +17,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditor.axaml" />
-                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditorItem.axaml" />
-                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/SelectionAdorner.axaml" />
+                <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/ArxisStudioDesignEditorTheme.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
 

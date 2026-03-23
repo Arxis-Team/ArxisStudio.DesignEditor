@@ -8,18 +8,18 @@
     <helpers:ScaleDoubleConverter x:Key="ScaleDoubleConverter" />
 
     <ControlTheme x:Key="SelectionRectangleStyle" TargetType="Rectangle">
-        <Setter Property="Stroke" Value="#1E90FF" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Fill" Value="#1A1E90FF" />
+        <Setter Property="Stroke" Value="{DynamicResource DesignEditor.MarqueeStrokeBrush}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.MarqueeFillBrush}" />
         <Setter Property="IsHitTestVisible" Value="False"/>
     </ControlTheme>
 
     <ControlTheme x:Key="SelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="#0099FF" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Fill" Value="Transparent" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.PrimaryBrush}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
         <Setter Property="ShowHandles" Value="True" />
         <Setter Property="IsInteractive" Value="True" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -28,10 +28,10 @@
     <ControlTheme x:Key="GroupSelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="#00C2FF" />
-        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.GroupBrush}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
         <Setter Property="StrokeDashArray" Value="4,2" />
-        <Setter Property="Fill" Value="#0A00C2FF" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.Selection.GroupFillBrush}" />
         <Setter Property="ShowHandles" Value="False" />
         <Setter Property="IsInteractive" Value="False" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -40,16 +40,16 @@
     <ControlTheme x:Key="SecondarySelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="#5FA8FF" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Fill" Value="Transparent" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.SecondaryBrush}" />
+        <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
         <Setter Property="ShowHandles" Value="False" />
         <Setter Property="IsInteractive" Value="False" />
         <Setter Property="IsHitTestVisible" Value="False" />
     </ControlTheme>
 
     <ControlTheme x:Key="{x:Type local:DesignEditor}" TargetType="local:DesignEditor">
-        <Setter Property="Background" Value="#1E1E1E" />
+        <Setter Property="Background" Value="{DynamicResource DesignEditor.BackgroundBrush}" />
         <Setter Property="ClipToBounds" Value="True" />
         <Setter Property="SelectionRectangleStyle" Value="{StaticResource SelectionRectangleStyle}" />
         <Setter Property="SelectionOutlineStyle" Value="{StaticResource SelectionOutlineStyle}" />

@@ -2,19 +2,17 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:arxisStudio="clr-namespace:ArxisStudio">
 
-    <SolidColorBrush x:Key="DesignEditorItem.HighlightColor" Color="DodgerBlue" Opacity="0.2" />
-
     <ControlTheme x:Key="{x:Type arxisStudio:DesignEditorItem}" TargetType="arxisStudio:DesignEditorItem">
         <Setter Property="Background" Value="Transparent" />
 
-        <Setter Property="BorderBrush" Value="DodgerBlue" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DesignEditorItem.BorderBrush}" />
 
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderThickness" Value="{DynamicResource DesignEditorItem.BorderThickness}" />
 
-        <Setter Property="SelectedBorderThickness" Value="1" />
-        <Setter Property="SelectedBrush" Value="#0099FF" />
+        <Setter Property="SelectedBorderThickness" Value="{DynamicResource DesignEditorItem.SelectedBorderThickness}" />
+        <Setter Property="SelectedBrush" Value="{DynamicResource DesignEditorItem.SelectedBrush}" />
 
-        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="CornerRadius" Value="{DynamicResource DesignEditorItem.CornerRadius}" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="ClipToBounds" Value="False" />
 
