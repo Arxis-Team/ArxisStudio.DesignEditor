@@ -17,8 +17,45 @@ namespace ArxisStudio.Controls;
 /// </summary>
 public enum ResizeDirection
 {
-    Top, Bottom, Left, Right,
-    TopLeft, TopRight, BottomLeft, BottomRight
+    /// <summary>
+    /// Изменение размера по верхней стороне.
+    /// </summary>
+    Top,
+
+    /// <summary>
+    /// Изменение размера по нижней стороне.
+    /// </summary>
+    Bottom,
+
+    /// <summary>
+    /// Изменение размера по левой стороне.
+    /// </summary>
+    Left,
+
+    /// <summary>
+    /// Изменение размера по правой стороне.
+    /// </summary>
+    Right,
+
+    /// <summary>
+    /// Изменение размера по верхнему левому углу.
+    /// </summary>
+    TopLeft,
+
+    /// <summary>
+    /// Изменение размера по верхнему правому углу.
+    /// </summary>
+    TopRight,
+
+    /// <summary>
+    /// Изменение размера по нижнему левому углу.
+    /// </summary>
+    BottomLeft,
+
+    /// <summary>
+    /// Изменение размера по нижнему правому углу.
+    /// </summary>
+    BottomRight
 }
 
 /// <summary>
@@ -26,8 +63,19 @@ public enum ResizeDirection
 /// </summary>
 public enum SelectionAdornerRole
 {
+    /// <summary>
+    /// Основной adorner активного target.
+    /// </summary>
     Primary,
+
+    /// <summary>
+    /// Вторичный adorner дополнительного выбранного target.
+    /// </summary>
     Secondary,
+
+    /// <summary>
+    /// Групповой adorner, описывающий границы selection bounds.
+    /// </summary>
     Group
 }
 
@@ -98,9 +146,6 @@ public class ResizeStartedEventArgs : RoutedEventArgs
 public class SelectionAdorner : TemplatedControl
 {
     private readonly Dictionary<Thumb, ResizeDirection> _thumbDirections = new();
-    private static readonly IBrush LockedAdornerBrush = new SolidColorBrush(Color.Parse("#9CA3AF"));
-    private static readonly IBrush LockedHandleFillBrush = new SolidColorBrush(Color.Parse("#E5E7EB"));
-    private static readonly AvaloniaList<double> LockedStrokeDashArray = new() { 4, 2 };
 
     /// <summary>
     /// Идентификатор свойства кисти рамки и ручек.
@@ -305,6 +350,10 @@ public class SelectionAdorner : TemplatedControl
         remove => RemoveHandler(ResizeCompletedEvent, value);
     }
 
+    /// <summary>
+    /// Применяет шаблон контрола и связывает найденные resize handles с их направлениями.
+    /// </summary>
+    /// <param name="e">Аргументы применения шаблона.</param>
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
@@ -325,21 +374,7 @@ public class SelectionAdorner : TemplatedControl
     {
         var isLocked = ResizePolicy == ResizePolicyMode.None && MovePolicy == MovePolicyMode.None;
         PseudoClasses.Set(":locked", isLocked);
-        ApplyLockedVisualState(isLocked);
         UpdateThumbBindings();
-    }
-
-    private void ApplyLockedVisualState(bool isLocked)
-    {
-        if (isLocked)
-        {
-            SetValue(AdornerBrushProperty, LockedAdornerBrush);
-            SetValue(StrokeDashArrayProperty, new AvaloniaList<double>(LockedStrokeDashArray));
-            return;
-        }
-
-        ClearValue(AdornerBrushProperty);
-        ClearValue(StrokeDashArrayProperty);
     }
 
     private void BindThumb(TemplateAppliedEventArgs e, string name, ResizeDirection direction)
@@ -365,7 +400,7 @@ public class SelectionAdorner : TemplatedControl
             thumb.DragCompleted -= OnThumbDragCompleted;
             thumb.IsVisible = shouldShowThumb;
             thumb.IsHitTestVisible = shouldBind && isDirectionAllowed;
-            UpdateThumbVisualState(thumb, isLocked);
+            thumb.Classes.Set("locked", isLocked);
 
             if (!shouldBind || !isDirectionAllowed)
                 continue;
@@ -374,19 +409,6 @@ public class SelectionAdorner : TemplatedControl
             thumb.DragStarted += OnThumbDragStarted;
             thumb.DragCompleted += OnThumbDragCompleted;
         }
-    }
-
-    private static void UpdateThumbVisualState(Thumb thumb, bool isLocked)
-    {
-        if (isLocked)
-        {
-            thumb.SetValue(TemplatedControl.BackgroundProperty, LockedHandleFillBrush);
-            thumb.SetValue(TemplatedControl.BorderBrushProperty, LockedAdornerBrush);
-            return;
-        }
-
-        thumb.ClearValue(TemplatedControl.BackgroundProperty);
-        thumb.ClearValue(TemplatedControl.BorderBrushProperty);
     }
 
     private void UnbindThumbs()

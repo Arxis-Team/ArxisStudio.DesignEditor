@@ -97,7 +97,7 @@
             <arxisStudio:DesignEditor.InteractionOptions>
                 <arxisStudio:DesignEditorInteractionOptions ZoomStep="1.1"
                                                            DragStartThreshold="3"
-                                                           ResizeMinSize="10" />
+                                                           ResizeMinSize="20" />
             </arxisStudio:DesignEditor.InteractionOptions>
 
             <arxisStudio:DesignEditor.DataTemplates>

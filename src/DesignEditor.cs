@@ -743,16 +743,34 @@ public class DesignEditor : SelectingItemsControl
         UpdateSelectionOverlayState();
     }
 
+    /// <summary>
+    /// Определяет необходимость создания контейнера <see cref="DesignEditorItem"/> для элемента коллекции.
+    /// </summary>
+    /// <param name="item">Элемент источника данных.</param>
+    /// <param name="index">Индекс элемента.</param>
+    /// <param name="recycleKey">Ключ повторного использования контейнера.</param>
+    /// <returns><see langword="true"/>, если для элемента требуется контейнер.</returns>
     protected override bool NeedsContainerOverride(object? item, int index, out object? recycleKey)
     {
         return NeedsContainer<DesignEditorItem>(item, out recycleKey);
     }
 
+    /// <summary>
+    /// Создает контейнер визуального элемента редактора.
+    /// </summary>
+    /// <param name="item">Элемент источника данных.</param>
+    /// <param name="index">Индекс элемента.</param>
+    /// <param name="recycleKey">Ключ повторного использования контейнера.</param>
+    /// <returns>Новый экземпляр <see cref="DesignEditorItem"/>.</returns>
     protected override Control CreateContainerForItemOverride(object? item, int index, object? recycleKey)
     {
         return new DesignEditorItem();
     }
 
+    /// <summary>
+    /// Применяет шаблон редактора и подключает overlay-элементы к обработчикам взаимодействия.
+    /// </summary>
+    /// <param name="e">Аргументы применения шаблона.</param>
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
@@ -806,6 +824,10 @@ public class DesignEditor : SelectingItemsControl
         UpdateSelectionAdornerPolicies();
     }
 
+    /// <summary>
+    /// Подключает обработчики, зависящие от visual tree, после присоединения редактора к дереву.
+    /// </summary>
+    /// <param name="e">Аргументы присоединения к visual tree.</param>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
@@ -813,6 +835,10 @@ public class DesignEditor : SelectingItemsControl
         UpdateTransforms();
     }
 
+    /// <summary>
+    /// Освобождает обработчики, зависящие от visual tree, перед отсоединением редактора.
+    /// </summary>
+    /// <param name="e">Аргументы отсоединения от visual tree.</param>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
@@ -1444,6 +1470,10 @@ public class DesignEditor : SelectingItemsControl
 
     // --- Input Handling ---
 
+    /// <summary>
+    /// Обрабатывает нажатие указателя и маршрутизирует его в active state редактора.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         _lastMousePosition = e.GetPosition(this);
@@ -1462,6 +1492,10 @@ public class DesignEditor : SelectingItemsControl
         if (!e.Handled) base.OnPointerPressed(e);
     }
 
+    /// <summary>
+    /// Обрабатывает перемещение указателя и обновляет последнюю известную позицию курсора.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         _lastMousePosition = e.GetPosition(this);
@@ -1469,12 +1503,20 @@ public class DesignEditor : SelectingItemsControl
         base.OnPointerMoved(e);
     }
 
+    /// <summary>
+    /// Обрабатывает отпускание указателя и завершает текущее interaction-состояние при необходимости.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         CurrentState.OnPointerReleased(e);
         base.OnPointerReleased(e);
     }
 
+    /// <summary>
+    /// Обрабатывает колесо мыши и делегирует управление активному состоянию редактора.
+    /// </summary>
+    /// <param name="e">Аргументы колесика мыши.</param>
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         if (e.Handled) return;

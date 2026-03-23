@@ -233,6 +233,10 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         _states.Push(new ItemIdleState(this));
     }
 
+    /// <summary>
+    /// Реагирует на изменение свойств контейнера и синхронизирует editor-specific state.
+    /// </summary>
+    /// <param name="change">Аргументы изменения свойства.</param>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -333,9 +337,28 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
 
     #endregion
 
+    /// <summary>
+    /// Передает событие нажатия указателя в текущее состояние контейнера.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerPressed(PointerPressedEventArgs e) { base.OnPointerPressed(e); if (!e.Handled) CurrentState.OnPointerPressed(e); }
+
+    /// <summary>
+    /// Передает событие перемещения указателя в текущее состояние контейнера.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerMoved(PointerEventArgs e) { base.OnPointerMoved(e); CurrentState.OnPointerMoved(e); }
+
+    /// <summary>
+    /// Передает событие отпускания указателя в текущее состояние контейнера.
+    /// </summary>
+    /// <param name="e">Аргументы указателя.</param>
     protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); CurrentState.OnPointerReleased(e); }
+
+    /// <summary>
+    /// Сбрасывает вложенные состояния, если контейнер теряет захват указателя.
+    /// </summary>
+    /// <param name="e">Аргументы потери захвата указателя.</param>
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); while (_states.Count > 1) PopState(); }
 
     internal void OnDragStarted(DragStartedEventArgs e) => RaiseEvent(e);

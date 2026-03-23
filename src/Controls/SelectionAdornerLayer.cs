@@ -131,6 +131,11 @@ public class SelectionAdornerLayer : Panel
         remove => RemoveHandler(AdornerResizeCompletedEvent, value);
     }
 
+    /// <summary>
+    /// Измеряет требуемый размер overlay-слоя по геометрии всех дочерних adorner'ов.
+    /// </summary>
+    /// <param name="availableSize">Доступный размер, предоставленный системой layout.</param>
+    /// <returns>Фактический размер слоя, необходимый для размещения всех adorner'ов.</returns>
     protected override Size MeasureOverride(Size availableSize)
     {
         SyncChildren();
@@ -152,6 +157,11 @@ public class SelectionAdornerLayer : Panel
         return new Size(maxRight, maxBottom);
     }
 
+    /// <summary>
+    /// Размещает дочерние adorner'ы в координатах редактора с учетом текущего масштаба viewport.
+    /// </summary>
+    /// <param name="finalSize">Итоговый размер, выделенный слою системой layout.</param>
+    /// <returns>Фактический использованный размер слоя.</returns>
     protected override Size ArrangeOverride(Size finalSize)
     {
         SyncChildren();

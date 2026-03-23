@@ -11,6 +11,11 @@
         <Setter Property="IsInteractive" Value="True" />
         <Setter Property="ClipToBounds" Value="False" />
 
+        <Style Selector="^:locked">
+            <Setter Property="AdornerBrush" Value="#9CA3AF" />
+            <Setter Property="StrokeDashArray" Value="4,2" />
+        </Style>
+
         <Setter Property="Template">
             <ControlTemplate>
                 <Grid ClipToBounds="False">
@@ -43,7 +48,11 @@
                                     </ControlTemplate>
                                 </Setter>
                             </Style>
-                            <Style Selector="Thumb:pointerover /template/ Border, Thumb:pressed /template/ Border">
+                            <Style Selector="Thumb.locked">
+                                <Setter Property="Background" Value="#E5E7EB" />
+                                <Setter Property="BorderBrush" Value="#9CA3AF" />
+                            </Style>
+                            <Style Selector="Thumb:pointerover, Thumb:pressed">
                                 <Setter Property="Background" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
                             </Style>
                         </Grid.Styles>

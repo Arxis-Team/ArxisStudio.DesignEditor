@@ -296,6 +296,7 @@ public class ItemResizingState : DesignEditorItemState
     /// Инициализирует новый экземпляр <see cref="ItemResizingState"/>.
     /// </summary>
     /// <param name="container">Контейнер, размер которого изменяется.</param>
+    /// <param name="target">Visual target, к которому применяется изменение размера.</param>
     /// <param name="direction">Направление активной ручки изменения размера.</param>
     public ItemResizingState(DesignEditorItem container, Control target, ResizeDirection direction) : base(container)
     {

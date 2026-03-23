@@ -28,6 +28,16 @@
                        FontSize="16"
                        Foreground="White" />
 
+            <TextBox Name="TextBox1"
+                       IsHitTestVisible="False"
+                       attached:Layout.X="400"
+                       attached:Layout.Y="200"
+                       attached:DesignInteraction.ResizePolicy="Horizontal"
+                       Text="TextBox1"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="White" />
+
             <StackPanel Name="StackPanel1"
                         IsHitTestVisible="False"
                         Orientation="Horizontal"
