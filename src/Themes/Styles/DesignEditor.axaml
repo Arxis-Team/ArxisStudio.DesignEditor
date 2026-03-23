@@ -17,9 +17,9 @@
     <ControlTheme x:Key="SelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.PrimaryBrush}" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryBrush}" />
         <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.PrimaryFill}" />
         <Setter Property="ShowHandles" Value="True" />
         <Setter Property="IsInteractive" Value="True" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -28,10 +28,10 @@
     <ControlTheme x:Key="GroupSelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.GroupBrush}" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupBrush}" />
         <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
         <Setter Property="StrokeDashArray" Value="4,2" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.Selection.GroupFillBrush}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.GroupFill}" />
         <Setter Property="ShowHandles" Value="False" />
         <Setter Property="IsInteractive" Value="False" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -40,9 +40,9 @@
     <ControlTheme x:Key="SecondarySelectionOutlineStyle"
                   TargetType="controls:SelectionAdorner"
                   BasedOn="{StaticResource {x:Type controls:SelectionAdorner}}">
-        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.Selection.SecondaryBrush}" />
+        <Setter Property="AdornerBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryBrush}" />
         <Setter Property="StrokeThickness" Value="{DynamicResource DesignEditor.Selection.StrokeThickness}" />
-        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.Fill}" />
+        <Setter Property="Fill" Value="{DynamicResource DesignEditor.SelectionAdorner.SecondaryFill}" />
         <Setter Property="ShowHandles" Value="False" />
         <Setter Property="IsInteractive" Value="False" />
         <Setter Property="IsHitTestVisible" Value="False" />

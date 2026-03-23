@@ -5,7 +5,6 @@ using Avalonia.Controls.Mixins;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using ArxisStudio.States;
 using ArxisStudio.Controls;
 using ArxisStudio.Attached;
@@ -88,57 +87,6 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
         get => GetValue(IsDraggableProperty);
         set => SetValue(IsDraggableProperty, value);
     }
-
-    #endregion
-
-    #region Visual Properties
-
-    /// <summary>
-    /// Идентификатор кисти рамки выделенного элемента.
-    /// </summary>
-    public static readonly StyledProperty<IBrush> SelectedBrushProperty =
-        AvaloniaProperty.Register<DesignEditorItem, IBrush>(nameof(SelectedBrush), Brushes.Orange);
-
-    /// <summary>
-    /// Получает или задает кисть рамки выделения.
-    /// </summary>
-    public IBrush SelectedBrush
-    {
-        get => GetValue(SelectedBrushProperty);
-        set => SetValue(SelectedBrushProperty, value);
-    }
-
-    /// <summary>
-    /// Идентификатор толщины рамки выделенного элемента.
-    /// </summary>
-    public static readonly StyledProperty<Thickness> SelectedBorderThicknessProperty =
-        AvaloniaProperty.Register<DesignEditorItem, Thickness>(nameof(SelectedBorderThickness), new Thickness(2));
-
-    /// <summary>
-    /// Получает или задает толщину рамки выделения.
-    /// </summary>
-    public Thickness SelectedBorderThickness
-    {
-        get => GetValue(SelectedBorderThicknessProperty);
-        set => SetValue(SelectedBorderThicknessProperty, value);
-    }
-
-    /// <summary>
-    /// Идентификатор вычисляемого отступа, компенсирующего увеличение рамки выделения.
-    /// </summary>
-    public static readonly DirectProperty<DesignEditorItem, Thickness> SelectedMarginProperty =
-        AvaloniaProperty.RegisterDirect<DesignEditorItem, Thickness>(
-            nameof(SelectedMargin),
-            o => o.SelectedMargin);
-
-    /// <summary>
-    /// Получает отрицательный отступ, компенсирующий увеличение рамки выделения.
-    /// </summary>
-    public Thickness SelectedMargin => new Thickness(
-        -SelectedBorderThickness.Left,
-        -SelectedBorderThickness.Top,
-        -SelectedBorderThickness.Right,
-        -SelectedBorderThickness.Bottom);
 
     #endregion
 
@@ -241,13 +189,7 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
     {
         base.OnPropertyChanged(change);
 
-        // ВАЖНО: Мы больше не следим за BorderThickness, чтобы избежать цикла.
-        // Пересчитываем SelectedMargin только если меняется настройка SelectedBorderThickness.
-        if (change.Property == SelectedBorderThicknessProperty)
-        {
-            RaisePropertyChanged(SelectedMarginProperty, default, SelectedMargin);
-        }
-        else if (change.Property == IsSelectedProperty)
+        if (change.Property == IsSelectedProperty)
         {
             UpdatePseudoClasses();
         }

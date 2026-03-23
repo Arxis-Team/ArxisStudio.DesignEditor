@@ -146,6 +146,7 @@
 - визуальные состояния `:selected`, `:dragging`, `:resizing`
 
 Начиная с текущей версии `DesignEditorItem` больше не рисует selection frame и resize handles внутри собственного шаблона. Эти editor overlays вынесены на уровень `DesignEditor`.
+Внешний вид selection overlays настраивается через ресурсы и темы `SelectionAdorner`, а не через item-level свойства контейнера.
 
 ### `Layout`
 
@@ -177,13 +178,29 @@
 <Application.Resources>
     <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditor.axaml" />
-            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/DesignEditorItem.axaml" />
-            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/Styles/SelectionAdorner.axaml" />
+            <ResourceInclude Source="avares://ArxisStudio.DesignEditor/Themes/ArxisStudioDesignEditorTheme.axaml" />
         </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
 </Application.Resources>
 ```
+
+Структура тем библиотеки теперь разделена на слои:
+
+- `Themes/ArxisStudioDesignEditorTheme.axaml` — единая точка входа темы библиотеки
+- `Themes/Resources/DesignEditorResources.axaml` — lightweight styling resources
+- `Themes/Styles/*.axaml` — `ControlTheme` конкретных контролов
+
+Это позволяет кастомизировать цвета, толщины, размеры ручек и другие визуальные параметры через ресурсы без копирования шаблонов контролов.
+Основные кисти библиотеки теперь определяются через `ThemeDictionaries`, поэтому `Light` и `Dark` варианты могут отличаться без дублирования `ControlTheme`.
+Дополнительно `SelectionAdorner` использует lightweight resource keys по ролям и состояниям:
+
+- `DesignEditor.SelectionAdorner.Primary*`
+- `DesignEditor.SelectionAdorner.Secondary*`
+- `DesignEditor.SelectionAdorner.Group*`
+- `DesignEditor.SelectionAdorner.Handle*`
+- `DesignEditor.SelectionAdorner.Locked*`
+
+Это позволяет менять внешний вид `Primary`, `Secondary`, `Group`, `Locked`, `PointerOver` и `Pressed` состояний без копирования `ControlTheme`.
 
 ### 3. Привяжите редактор к вашей коллекции элементов
 
@@ -358,6 +375,9 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - обычное marquee-selection ограничено одним owner `DesignEditorItem`
 - input-policy вынесен в публичный API `DesignEditorInputGestures`
 - runtime numeric policy вынесен в отдельный API `DesignEditorInteractionOptions`
+- визуальная тема библиотеки переведена на resource-driven architecture с единым theme entry point
+- palette библиотеки стала variant-aware через `ThemeDictionaries` (`Light` / `Dark`)
+- устаревшие item-level selection style properties убраны из `DesignEditorItem`
 - selection target API вынесен в явный публичный контракт `DesignSelectionTarget`
 - editing policy API вынесен в attached-контракт `DesignInteraction.ResizePolicy` / `DesignInteraction.MovePolicy`
 - контейнерный режим взаимодействия настраивается через `InputGestures.ContainerInteractionModifiers`

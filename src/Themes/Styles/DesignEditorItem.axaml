@@ -9,9 +9,6 @@
 
         <Setter Property="BorderThickness" Value="{DynamicResource DesignEditorItem.BorderThickness}" />
 
-        <Setter Property="SelectedBorderThickness" Value="{DynamicResource DesignEditorItem.SelectedBorderThickness}" />
-        <Setter Property="SelectedBrush" Value="{DynamicResource DesignEditorItem.SelectedBrush}" />
-
         <Setter Property="CornerRadius" Value="{DynamicResource DesignEditorItem.CornerRadius}" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="ClipToBounds" Value="False" />

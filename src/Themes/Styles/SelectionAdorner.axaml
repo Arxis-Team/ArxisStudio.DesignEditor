@@ -52,8 +52,11 @@
                                 <Setter Property="Background" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleLockedBackground}" />
                                 <Setter Property="BorderBrush" Value="{DynamicResource DesignEditor.SelectionAdorner.HandleLockedBorderBrush}" />
                             </Style>
-                            <Style Selector="Thumb:pointerover, Thumb:pressed">
-                                <Setter Property="Background" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Style Selector="Thumb:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource DesignEditor.SelectionAdorner.HandlePointerOverBackground}"/>
+                            </Style>
+                            <Style Selector="Thumb:pressed">
+                                <Setter Property="Background" Value="{DynamicResource DesignEditor.SelectionAdorner.HandlePressedBackground}"/>
                             </Style>
                         </Grid.Styles>
 

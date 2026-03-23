@@ -1,32 +1,62 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#1E1E1E" />
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#F5F7FA" />
+            <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
 
-    <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#1E90FF" />
-    <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.GroupBrush" Color="#0A84D0" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.GroupFill" Color="#140A84D0" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.SecondaryBrush" Color="#5A9BD8" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.SecondaryFill" Color="Transparent" />
 
-    <SolidColorBrush x:Key="DesignEditor.Selection.PrimaryBrush" Color="#0099FF" />
-    <SolidColorBrush x:Key="DesignEditor.Selection.GroupBrush" Color="#00C2FF" />
-    <SolidColorBrush x:Key="DesignEditor.Selection.GroupFillBrush" Color="#0A00C2FF" />
-    <SolidColorBrush x:Key="DesignEditor.Selection.SecondaryBrush" Color="#5FA8FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Brush" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Fill" Color="Transparent" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.LockedBrush" Color="#8A8F98" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleBackground" Color="White" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBackground" Color="#F1F3F5" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBorderBrush" Color="#8A8F98" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandlePointerOverBackground" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandlePressedBackground" Color="#0B5A9C" />
 
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Brush" Color="DodgerBlue" />
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Fill" Color="Transparent" />
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.LockedBrush" Color="#9CA3AF" />
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleBackground" Color="White" />
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBackground" Color="#E5E7EB" />
-    <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBorderBrush" Color="#9CA3AF" />
+            <SolidColorBrush x:Key="DesignEditorItem.BorderBrush" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditorItem.HighlightBrush" Color="#0F6CBD" Opacity="0.16" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#1E1E1E" />
+            <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#1E90FF" />
+            <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
+
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0099FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.GroupBrush" Color="#00C2FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.GroupFill" Color="#0A00C2FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.SecondaryBrush" Color="#5FA8FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.SecondaryFill" Color="Transparent" />
+
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Brush" Color="DodgerBlue" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.Fill" Color="Transparent" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.LockedBrush" Color="#9CA3AF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleBackground" Color="White" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBackground" Color="#E5E7EB" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandleLockedBorderBrush" Color="#9CA3AF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandlePointerOverBackground" Color="#0099FF" />
+            <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.HandlePressedBackground" Color="#007ACC" />
+
+            <SolidColorBrush x:Key="DesignEditorItem.BorderBrush" Color="DodgerBlue" />
+            <SolidColorBrush x:Key="DesignEditorItem.HighlightBrush" Color="DodgerBlue" Opacity="0.2" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
 
     <x:Double x:Key="DesignEditor.Selection.StrokeThickness">1</x:Double>
     <x:Double x:Key="DesignEditor.SelectionAdorner.HandleSize">8</x:Double>
 
     <Thickness x:Key="DesignEditorItem.BorderThickness">0</Thickness>
-    <Thickness x:Key="DesignEditorItem.SelectedBorderThickness">1</Thickness>
     <CornerRadius x:Key="DesignEditorItem.CornerRadius">0</CornerRadius>
-
-    <SolidColorBrush x:Key="DesignEditorItem.BorderBrush" Color="DodgerBlue" />
-    <SolidColorBrush x:Key="DesignEditorItem.SelectedBrush" Color="#0099FF" />
-    <SolidColorBrush x:Key="DesignEditorItem.HighlightBrush" Color="DodgerBlue" Opacity="0.2" />
 
 </ResourceDictionary>
