@@ -35,10 +35,12 @@ internal sealed class GroupResizeOperation
         {
             var target = _targets[i];
             var initialTargetBounds = target.InitialBounds;
+            var minWidth = Math.Max(_minSize, target.Target.MinWidth);
+            var minHeight = Math.Max(_minSize, target.Target.MinHeight);
             var newX = nextBounds.X + ((initialTargetBounds.X - _initialBounds.X) * scaleX);
             var newY = nextBounds.Y + ((initialTargetBounds.Y - _initialBounds.Y) * scaleY);
-            var newWidth = Math.Max(_minSize, initialTargetBounds.Width * scaleX);
-            var newHeight = Math.Max(_minSize, initialTargetBounds.Height * scaleY);
+            var newWidth = Math.Max(minWidth, initialTargetBounds.Width * scaleX);
+            var newHeight = Math.Max(minHeight, initialTargetBounds.Height * scaleY);
 
             editor.SetDesignSize(target.Target, new Size(newWidth, newHeight));
             editor.SetDesignPosition(target.Target, new Point(newX, newY));

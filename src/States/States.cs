@@ -329,7 +329,9 @@ public class ItemResizingState : DesignEditorItemState
         double newX = _initialLocation.X;
         double newY = _initialLocation.Y;
         var editor = Container.FindAncestorOfType<DesignEditor>();
-        double minSize = Math.Max(0.0, editor?.InteractionOptions.ResizeMinSize ?? 10.0);
+        double editorMinSize = Math.Max(0.0, editor?.InteractionOptions.ResizeMinSize ?? 10.0);
+        double minWidth = Math.Max(editorMinSize, _target.MinWidth);
+        double minHeight = Math.Max(editorMinSize, _target.MinHeight);
         double initialRight = _initialLocation.X + _initialSize.Width;
         double initialBottom = _initialLocation.Y + _initialSize.Height;
 
@@ -348,8 +350,8 @@ public class ItemResizingState : DesignEditorItemState
             case ResizeDirection.TopLeft: newW -= dx; newX += dx; newH -= dy; newY += dy; break;
         }
 
-        newW = Math.Max(minSize, newW);
-        newH = Math.Max(minSize, newH);
+        newW = Math.Max(minWidth, newW);
+        newH = Math.Max(minHeight, newH);
 
         if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
             newX = initialRight - newW;

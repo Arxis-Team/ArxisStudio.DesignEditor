@@ -121,8 +121,6 @@ public class SelectionAdornerLayer : Panel
     /// <returns>Фактический размер слоя, необходимый для размещения всех adorner'ов.</returns>
     protected override Size MeasureOverride(Size availableSize)
     {
-        SyncChildren();
-
         var zoom = Math.Max(0.0001, ViewportZoom);
         double maxRight = 0;
         double maxBottom = 0;
@@ -147,8 +145,6 @@ public class SelectionAdornerLayer : Panel
     /// <returns>Фактический использованный размер слоя.</returns>
     protected override Size ArrangeOverride(Size finalSize)
     {
-        SyncChildren();
-
         var zoom = Math.Max(0.0001, ViewportZoom);
         for (var i = 0; i < Children.Count && i < Items.Count; i++)
         {

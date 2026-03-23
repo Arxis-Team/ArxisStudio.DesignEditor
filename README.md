@@ -328,6 +328,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - group drag для nested controls рассчитывается по world-space delta и не зависит от промежуточного layout source target, поэтому остается стабильным при любом `ViewportZoom`
 - общий group `SelectionAdorner` в таком сценарии не показывается
 - если выбрано несколько `DesignEditorItem`, редактор использует один общий group `SelectionAdorner` для манипуляции контейнерами на поверхности редактора
+- secondary `SelectionAdorner` для additive nested selection перестраиваются вне `Measure/Arrange`, поэтому `Shift + Click` больше не зависит от случайного повторного layout-прохода и сразу отображает overlays даже для перекрывающихся nested controls
 
 ## Пример использования `Layout`
 
@@ -369,6 +370,7 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - drag и resize переводятся на выбранный designer target, а `DesignEditorItem` остается host-контейнером и fallback
 - реализован group drag для multi-selection nested targets с zoom-stable смещением
 - group drag для nested controls переведен на accumulated world-space delta вместо чтения текущей layout-позиции source target
+- `SelectionAdornerLayer` больше не изменяет visual tree во время `Measure`/`Arrange`, что устраняет пропадающие secondary overlays при `Shift + Click`
 - для multi-selection nested controls используется form-designer UX:
 - у каждого selected target свой интерактивный `SelectionAdorner`
 - group resize для nested controls отключен

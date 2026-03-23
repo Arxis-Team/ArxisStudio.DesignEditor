@@ -7,9 +7,8 @@
 
     <Border Background="#202020"
             BorderBrush="#383838"
-            BorderThickness="1"
-            attached:Layout.IsTracked="True">
-        <controls:AbsolutePanel attached:Layout.IsTracked="True">
+            BorderThickness="1">
+        <controls:AbsolutePanel>
             <TextBlock Name="TextBlock1"
                        IsHitTestVisible="False"
                        attached:Layout.X="100"
