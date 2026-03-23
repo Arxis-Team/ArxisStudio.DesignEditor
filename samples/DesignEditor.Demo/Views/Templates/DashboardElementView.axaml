@@ -19,6 +19,10 @@
                        FontSize="16"
                        Foreground="White" />
 
+            <Calendar IsHitTestVisible="False" attached:Layout.X="300" attached:Layout.Y="100">
+
+            </Calendar>
+
             <TextBlock Name="TextBlock2"
                        IsHitTestVisible="False"
                        attached:Layout.X="400"
@@ -32,7 +36,10 @@
                        IsHitTestVisible="False"
                        attached:Layout.X="400"
                        attached:Layout.Y="200"
-                       attached:DesignInteraction.ResizePolicy="Horizontal"
+                       MinWidth="100"
+                       MinHeight="40"
+                       Width="100"
+                       Height="40"
                        Text="TextBox1"
                        FontWeight="Bold"
                        FontSize="16"
