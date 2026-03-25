@@ -276,6 +276,8 @@ Additive selection управляется отдельно через `InputGest
 - `Shift + Click` по nested control из другого `DesignEditorItem` не объединяет группы между контейнерами и ничего не меняет в текущем owner
 - обычный `Click` по уже выбранному nested control в группе не схлопывает группу и делает этот control primary target
 - обычный `Click` по nested control вне текущей группы выполняет exclusive selection этого target внутри текущего owner
+- `Click` по области внутри `DesignEditorItem`, где нет ни одного `attached:Layout` target под курсором, не выбирает fallback nested target
+- в таком клике nested target сбрасывается и selection target переводится на `DesignEditorItem` (container-level)
 - drag/resize выбранных targets учитывают `DesignInteraction.MovePolicy` и `DesignInteraction.ResizePolicy`
 
 Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
@@ -395,6 +397,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 - Для `nested` multi-selection:
 - `Shift + Click` по уже выбранному nested target снимает его из группы.
 - обычный `Click` по уже выбранному nested target в группе не схлопывает группу и делает этот target primary.
+- `Click` по нетрекаемой (`attached:Layout` отсутствует) области внутри `DesignEditorItem` сбрасывает nested target и переводит выбор на container target.
+- при таком клике больше не используется fallback-выбор "первого tracked nested control".
 - Для `DesignInteraction`:
 - `MovePolicy = None` блокирует перемещение target.
 - `ResizePolicy = None` блокирует resize target.

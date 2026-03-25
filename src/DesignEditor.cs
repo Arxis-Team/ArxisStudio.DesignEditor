@@ -1778,7 +1778,16 @@ public class DesignEditor : SelectingItemsControl
 
         _containerSelectionTargets.Remove(container);
         var worldPoint = GetWorldPosition(screenPoint);
-        var target = ResolveSelectionTargetAtPoint(container, worldPoint);
+        if (!TryResolveSelectionTargetAtPoint(container, worldPoint, out var target))
+        {
+            // Клик по области без designer-metadata внутри контейнера
+            // переводит selection target на уровень контейнера.
+            _selectionTargets.Remove(container);
+            _containerSelectionTargets.Add(container);
+            UpdateSelectionOverlayState();
+            return;
+        }
+
         var isAdditive = ShouldUseAdditiveSelection(modifiers);
         if (isAdditive && !CanAddNestedTargetToContainer(container))
             return;
@@ -2085,9 +2094,8 @@ public class DesignEditor : SelectingItemsControl
         return ResolveSelectionTarget(item);
     }
 
-    private Control ResolveSelectionTargetAtPoint(DesignEditorItem item, Point worldPoint)
+    private bool TryResolveSelectionTargetAtPoint(DesignEditorItem item, Point worldPoint, out Control target)
     {
-        var fallback = ResolveSelectionTarget(item);
         Control? bestMatch = null;
         Rect bestBounds = default;
         var bestDepth = -1;
@@ -2111,7 +2119,14 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
-        return bestMatch ?? fallback;
+        if (bestMatch == null)
+        {
+            target = null!;
+            return false;
+        }
+
+        target = bestMatch;
+        return true;
     }
 
     private static Control ResolveSelectionTarget(Control root)
