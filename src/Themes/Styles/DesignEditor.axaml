@@ -45,7 +45,8 @@
                                 IsHitTestVisible="True"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
-                            <controls:SelectionAdornerLayer Items="{TemplateBinding SecondarySelectionAdorners}"
+                            <controls:SelectionAdornerLayer Name="PART_SecondarySelectionAdorners"
+                                                            Items="{TemplateBinding SecondarySelectionAdorners}"
                                                             ViewportZoom="{TemplateBinding ViewportZoom}"
                                                             ClipToBounds="False"
                                                             IsHitTestVisible="True"
