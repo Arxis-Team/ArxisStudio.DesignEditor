@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <AvaloniaVersion>12.0.0</AvaloniaVersion>
+    <AvaloniaDiagnosticsSupportVersion>2.2.0</AvaloniaDiagnosticsSupportVersion>
+    <CommunityToolkitMvvmVersion>8.2.1</CommunityToolkitMvvmVersion>
+  </PropertyGroup>
+</Project>
