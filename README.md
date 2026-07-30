@@ -65,6 +65,7 @@
 - `ZoomModifiers` — модификаторы для wheel-zoom
 - `ContainerInteractionModifiers` — модификаторы, которые принудительно переключают selection, drag и resize на уровень `DesignEditorItem`
 - `AdditiveSelectionModifiers` — модификаторы, которые включают additive selection
+- `ContainerEmptyAreaDrag` — что означает перетаскивание, начатое на пустой области контейнера: `Marquee` (по умолчанию) или `MoveContainer`
 
 ### `DesignEditorInteractionOptions`
 
@@ -280,11 +281,33 @@ Additive selection управляется отдельно через `InputGest
 - в таком клике nested target сбрасывается и selection target переводится на `DesignEditorItem` (container-level)
 - drag/resize выбранных targets учитывают `DesignInteraction.MovePolicy` и `DesignInteraction.ResizePolicy`
 
-Обычное marquee-selection без `Ctrl` работает в пределах одного owner `DesignEditorItem`:
+Обычное marquee-selection без `Ctrl` работает в пределах одного design host:
 
-- nested controls выбираются только внутри одного UI-контейнера
-- controls из других `DesignEditorItem` в группу не попадают
+- вместе выбираются только соседи по ближайшему контейнеру
+- controls из других `DesignEditorItem`, включая вложенные, в группу не попадают
 - это защищает от случайного group edit между разными документными узлами
+
+### Рамка внутри контейнера
+
+Перетаскивание, начатое на пустой области контейнера, по умолчанию тянет рамку выделения по его содержимому — конвенция form designer'ов, где пустое место внутри формы это фон, а не ручка перемещения. «Пустая область» означает точку, под которой нет ни одного контрола с метаданными `Layout`.
+
+Контейнер при этом остаётся перемещаемым:
+
+- с модификатором `InputGestures.ContainerInteractionModifiers` (по умолчанию `Ctrl`)
+- обычным перетаскиванием, если он уже выбран
+
+Клик по пустой области без перетаскивания по-прежнему выбирает сам контейнер.
+
+Поведение настраивается, потому что жест зависит от продукта:
+
+```xml
+<design:DesignEditorInputGestures ContainerEmptyAreaDrag="MoveContainer" />
+```
+
+- `Marquee` (по умолчанию) — рамка по содержимому контейнера
+- `MoveContainer` — перетаскивание двигает сам контейнер
+
+Владельцем рамки становится самый глубокий контейнер, целиком её содержащий, поэтому вложенные контейнеры работают как самостоятельные области выделения.
 
 ## Навигация по viewport
 

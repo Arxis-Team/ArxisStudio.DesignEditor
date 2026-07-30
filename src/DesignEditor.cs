@@ -1219,7 +1219,19 @@ public class DesignEditor : SelectingItemsControl
             if (marqueeOwner != null)
             {
                 // Рамка попала внутрь конкретного контейнера — работаем в его пределах.
-                CommitMarqueeWithinContainer(marqueeOwner, marqueeOwnerItem, bounds, isCtrlPressed);
+                var selectedAny = CommitMarqueeWithinContainer(marqueeOwner, marqueeOwnerItem, bounds, isCtrlPressed);
+
+                // Пустая рамка — это клик по пустой области контейнера,
+                // и он должен выбрать сам контейнер, как и до появления рамки внутри.
+                if (!selectedAny && !isCtrlPressed)
+                {
+                    var ownerIndex = IndexFromContainer(marqueeOwnerItem ?? marqueeOwner);
+                    if (ownerIndex >= 0)
+                    {
+                        SetSingleSelectedTarget(marqueeOwner);
+                        Selection.Select(ownerIndex);
+                    }
+                }
             }
             else
             {
@@ -1255,7 +1267,8 @@ public class DesignEditor : SelectingItemsControl
     /// <param name="ownerItem">Item верхнего уровня, на который адресуется индексный выбор.</param>
     /// <param name="bounds">Прямоугольник рамки в мировых координатах.</param>
     /// <param name="isAdditive">Признак добавления к текущему выбору.</param>
-    private void CommitMarqueeWithinContainer(
+    /// <returns><see langword="true"/>, если хотя бы один target попал в выделение.</returns>
+    private bool CommitMarqueeWithinContainer(
         DesignEditorItem scope,
         DesignEditorItem? ownerItem,
         Rect bounds,
@@ -1263,7 +1276,7 @@ public class DesignEditor : SelectingItemsControl
     {
         ownerItem ??= ResolveOwningItem(scope);
         if (ownerItem == null)
-            return;
+            return false;
 
         var nestedTargets = new List<Control>();
         foreach (var target in EnumerateSelectionCandidates(scope))
@@ -1281,12 +1294,13 @@ public class DesignEditor : SelectingItemsControl
         }
 
         if (nestedTargets.Count == 0)
-            return;
+            return false;
 
         foreach (var target in nestedTargets)
             AddSelectedTarget(target);
 
         Selection.Select(IndexFromContainer(ownerItem));
+        return true;
     }
 
     /// <summary>
@@ -2469,6 +2483,39 @@ public class DesignEditor : SelectingItemsControl
     {
         return MatchesModifiers(modifiers, InputGestures.PanModifiers)
                && IsPointerButtonPressed(pointerProperties, InputGestures.PanButton);
+    }
+
+    /// <summary>
+    /// Определяет, должен ли контейнер уступить нажатие рамке выделения.
+    /// </summary>
+    /// <param name="container">Контейнер, получивший нажатие. Может быть вложенным.</param>
+    /// <param name="viewportPoint">Точка нажатия в координатах редактора.</param>
+    /// <param name="modifiers">Модификаторы ввода.</param>
+    /// <remarks>
+    /// Решение принимает редактор, а не состояние контейнера: политика ввода живёт
+    /// в <see cref="InputGestures"/>, и контейнеру знать о ней незачем. Уступив жест,
+    /// контейнер не захватывает указатель и не помечает событие обработанным,
+    /// поэтому нажатие всплывает до редактора обычным маршрутом.
+    /// <para>
+    /// Контейнер удерживает жест, если нажат <see cref="DesignEditorInputGestures.ContainerInteractionModifiers"/>,
+    /// если контейнер уже выбран целиком, либо если под точкой есть design target.
+    /// </para>
+    /// </remarks>
+    internal bool ShouldDeferPressToMarquee(DesignEditorItem container, Point viewportPoint, KeyModifiers modifiers)
+    {
+        if (InputGestures.ContainerEmptyAreaDrag != ContainerEmptyAreaDragGesture.Marquee)
+            return false;
+
+        if (ShouldUseContainerInteraction(modifiers))
+            return false;
+
+        // Уже выбранный контейнер перетаскивается без модификаторов —
+        // иначе его нельзя было бы двигать мышью вовсе.
+        if (_selectedTargets.Contains(container))
+            return false;
+
+        var worldPoint = GetWorldPosition(viewportPoint);
+        return !TryResolveSelectionTargetAtPoint(container, worldPoint, out _);
     }
 
     internal bool ShouldStartMarquee(PointerPointProperties pointerProperties, KeyModifiers modifiers)

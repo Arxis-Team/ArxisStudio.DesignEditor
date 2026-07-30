@@ -93,11 +93,22 @@ public class ItemIdleState : DesignEditorItemState
         var props = e.GetCurrentPoint(Container).Properties;
         if (props.IsLeftButtonPressed)
         {
+            var owningEditor = Container.FindAncestorOfType<DesignEditor>();
+
+            // Жест по пустой области может принадлежать рамке выделения.
+            // Тогда контейнер не захватывает указатель и не помечает событие
+            // обработанным — нажатие всплывает до редактора, который сам решит.
+            if (owningEditor != null &&
+                owningEditor.ShouldDeferPressToMarquee(Container, e.GetPosition(owningEditor), e.KeyModifiers))
+            {
+                return;
+            }
+
             e.Pointer.Capture(Container);
             e.Handled = true;
             _isPressed = true;
 
-            var editor = Container.FindAncestorOfType<DesignEditor>();
+            var editor = owningEditor;
             var parent = Container.GetVisualParent();
             if (editor != null)
                 _startPoint = e.GetPosition(editor);

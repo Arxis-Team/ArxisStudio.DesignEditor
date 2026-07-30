@@ -10,6 +10,32 @@ namespace ArxisStudio;
 /// Перечисление используется свойствами класса <see cref="DesignEditorInputGestures"/>
 /// и описывает, какая кнопка мыши инициирует соответствующее действие.
 /// </remarks>
+/// <summary>
+/// Определяет смысл перетаскивания, начатого на пустой области контейнера.
+/// </summary>
+/// <remarks>
+/// «Пустая область» — точка внутри <see cref="DesignEditorItem"/>, под которой нет
+/// ни одного контрола с designer-метаданными <c>Layout</c>.
+/// </remarks>
+public enum ContainerEmptyAreaDragGesture
+{
+    /// <summary>
+    /// Перетаскивание двигает сам контейнер.
+    /// </summary>
+    MoveContainer,
+
+    /// <summary>
+    /// Перетаскивание тянет рамку выделения в пределах контейнера.
+    /// </summary>
+    /// <remarks>
+    /// Поведение, привычное по form designer'ам: пустое место внутри формы —
+    /// это фон для рамки, а не ручка перемещения. Контейнер при этом остаётся
+    /// перемещаемым через <see cref="DesignEditorInputGestures.ContainerInteractionModifiers"/>
+    /// и обычным перетаскиванием, когда он уже выбран.
+    /// </remarks>
+    Marquee
+}
+
 public enum DesignEditorPointerButton
 {
     /// <summary>
@@ -190,5 +216,27 @@ public class DesignEditorInputGestures : AvaloniaObject
     {
         get => GetValue(AdditiveSelectionModifiersProperty);
         set => SetValue(AdditiveSelectionModifiersProperty, value);
+    }
+
+    /// <summary>
+    /// Идентификатор свойства смысла перетаскивания по пустой области контейнера.
+    /// </summary>
+    /// <remarks>
+    /// По умолчанию <see cref="ContainerEmptyAreaDragGesture.Marquee"/> — конвенция
+    /// form designer'ов. Интеграции, которым нужно прежнее поведение, переключают
+    /// свойство на <see cref="ContainerEmptyAreaDragGesture.MoveContainer"/>.
+    /// </remarks>
+    public static readonly StyledProperty<ContainerEmptyAreaDragGesture> ContainerEmptyAreaDragProperty =
+        AvaloniaProperty.Register<DesignEditorInputGestures, ContainerEmptyAreaDragGesture>(
+            nameof(ContainerEmptyAreaDrag),
+            ContainerEmptyAreaDragGesture.Marquee);
+
+    /// <summary>
+    /// Получает или задает, что означает перетаскивание, начатое на пустой области контейнера.
+    /// </summary>
+    public ContainerEmptyAreaDragGesture ContainerEmptyAreaDrag
+    {
+        get => GetValue(ContainerEmptyAreaDragProperty);
+        set => SetValue(ContainerEmptyAreaDragProperty, value);
     }
 }

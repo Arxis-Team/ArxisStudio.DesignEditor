@@ -27,10 +27,11 @@ public class EditorIdleState : EditorState
             return;
         }
 
-        var source = e.Source as Visual;
-        var itemContainer = source?.FindAncestorOfType<DesignEditorItem>();
-
-        if (itemContainer == null && Editor.ShouldStartMarquee(props, modifiers))
+        // Рамку начинаем, когда нажатие не забрал ни один контейнер: снаружи их
+        // просто нет, а внутри контейнер сам уступает жест по пустой области.
+        // Проверять принадлежность источника контейнеру больше нельзя — она
+        // не отличает «внутри контейнера» от «контейнер удержал жест».
+        if (!e.Handled && Editor.ShouldStartMarquee(props, modifiers))
         {
             Editor.PushState(new EditorSelectingState(Editor));
             return;
