@@ -66,6 +66,11 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
                 () => FitTarget(editor, request),
                 isEnabled: hasTarget),
             Separator("container.sep1"),
+            Action("container.front", "На передний план", () => editor.BringToFront()),
+            Action("container.forward", "Поднять на уровень", () => editor.BringForward()),
+            Action("container.backward", "Опустить на уровень", () => editor.SendBackward()),
+            Action("container.back", "На задний план", () => editor.SendToBack()),
+            Separator("container.sep2"),
             Action(
                 "container.delete",
                 "Удалить элемент",
@@ -94,6 +99,9 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
                 "Вписать родительский элемент",
                 () => FitTarget(editor, request),
                 isEnabled: hasTarget),
+            Separator("nested.sep0"),
+            Action("nested.front", "На передний план", () => editor.BringToFront()),
+            Action("nested.back", "На задний план", () => editor.SendToBack()),
             Separator("nested.sep1"),
             Action(
                 "nested.toggle-lock",

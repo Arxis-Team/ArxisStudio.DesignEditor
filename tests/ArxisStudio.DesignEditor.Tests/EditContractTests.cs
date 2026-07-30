@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -53,7 +53,7 @@ public class EditContractTests
         // Кадров перетаскивания было несколько, запись — одна.
         var edit = Assert.Single(edits);
         Assert.Equal(DesignEditKind.Move, edit.Kind);
-        var change = Assert.Single(edit.Changes);
+        var change = Assert.IsType<DesignGeometryChange>(Assert.Single(edit.Changes));
         Assert.Same(harness.Nested(0), change.Target);
     }
 
@@ -64,7 +64,7 @@ public class EditContractTests
 
         Drag(harness, NestedCentre, new Vector(60, 40));
 
-        var change = edits.Single().Changes.Single();
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
 
         Assert.Equal(change.OldBounds.X + 60, change.NewBounds.X, 1);
         Assert.Equal(change.OldBounds.Y + 40, change.NewBounds.Y, 1);
@@ -137,7 +137,7 @@ public class EditContractTests
         var (harness, edits) = Create();
 
         Drag(harness, NestedCentre, new Vector(60, 40));
-        var change = edits.Single().Changes.Single();
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
 
         harness.Editor.ApplyGeometry(change.Target, change.OldBounds);
         harness.RunLayout();
@@ -158,7 +158,7 @@ public class EditContractTests
         var (harness, edits) = Create();
 
         Drag(harness, NestedCentre, new Vector(60, 40));
-        var change = edits.Single().Changes.Single();
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
 
         edits.Clear();
         harness.Editor.ApplyGeometry(change.Target, change.OldBounds);

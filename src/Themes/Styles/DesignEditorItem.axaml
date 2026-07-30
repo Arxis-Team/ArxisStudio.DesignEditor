@@ -55,9 +55,13 @@
             </ControlTemplate>
         </Setter>
 
+        <!--
+            ZIndex здесь намеренно не задаётся. Раньше выбранный элемент поднимался
+            на 99, чтобы его рамка не перекрывалась соседями, но рамки и ручки давно
+            живут на уровне редактора, в PART_SelectionOverlayLayer. Сейчас такой
+            подъём молча перебивал бы порядок, заданный BringToFront/SendToBack.
+        -->
         <Style Selector="^:selected">
-            <Setter Property="ZIndex" Value="99" />
-
             <Style Selector="^ /template/ StackPanel#PART_Toolbar">
                 <Setter Property="Opacity" Value="1"/>
                 <Setter Property="IsHitTestVisible" Value="True"/>

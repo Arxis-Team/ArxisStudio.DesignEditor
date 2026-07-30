@@ -20,6 +20,9 @@ internal sealed class DesignEditScope
         public Rect Before;
         public Point Position;
         public Size Size;
+
+        public int BeforeZIndex;
+        public int ZIndex;
     }
 
     private const double Tolerance = 0.01;
@@ -37,26 +40,35 @@ internal sealed class DesignEditScope
     public void RecordSize(DesignEditor editor, Control target, Size size)
         => Touch(editor, target).Size = size;
 
+    public void RecordZIndex(DesignEditor editor, Control target, int zIndex)
+        => Touch(editor, target).ZIndex = zIndex;
+
     /// <summary>
     /// Собирает итоговый список изменений, отбрасывая те, что вернулись к исходному.
     /// </summary>
-    public IReadOnlyList<DesignGeometryChange> BuildChanges()
+    public IReadOnlyList<DesignChange> BuildChanges()
     {
-        List<DesignGeometryChange>? changes = null;
+        List<DesignChange>? changes = null;
 
         foreach (var target in _order)
         {
             var entry = _entries[target];
             var after = new Rect(entry.Position, entry.Size);
 
-            if (AreClose(entry.Before, after))
-                continue;
+            if (!AreClose(entry.Before, after))
+            {
+                (changes ??= new List<DesignChange>()).Add(
+                    new DesignGeometryChange(target, entry.Before, after));
+            }
 
-            (changes ??= new List<DesignGeometryChange>()).Add(
-                new DesignGeometryChange(target, entry.Before, after));
+            if (entry.ZIndex != entry.BeforeZIndex)
+            {
+                (changes ??= new List<DesignChange>()).Add(
+                    new DesignOrderChange(target, entry.BeforeZIndex, entry.ZIndex));
+            }
         }
 
-        return changes ?? (IReadOnlyList<DesignGeometryChange>)Array.Empty<DesignGeometryChange>();
+        return changes ?? (IReadOnlyList<DesignChange>)Array.Empty<DesignChange>();
     }
 
     private Entry Touch(DesignEditor editor, Control target)
@@ -71,7 +83,9 @@ internal sealed class DesignEditScope
         {
             Before = new Rect(position, size),
             Position = position,
-            Size = size
+            Size = size,
+            BeforeZIndex = target.ZIndex,
+            ZIndex = target.ZIndex
         };
 
         _entries[target] = entry;

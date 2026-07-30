@@ -39,8 +39,10 @@ public sealed class EditHistory
             return;
 
         var edit = _undo.Pop();
+
+        // Тип изменения разбирать не нужно: геометрия и порядок откатываются одинаково.
         foreach (var change in edit.Changes)
-            _editor.ApplyGeometry(change.Target, change.OldBounds);
+            _editor.Revert(change);
 
         _redo.Push(edit);
         Changed?.Invoke(this, System.EventArgs.Empty);
@@ -53,7 +55,7 @@ public sealed class EditHistory
 
         var edit = _redo.Pop();
         foreach (var change in edit.Changes)
-            _editor.ApplyGeometry(change.Target, change.NewBounds);
+            _editor.Reapply(change);
 
         _undo.Push(edit);
         Changed?.Invoke(this, System.EventArgs.Empty);

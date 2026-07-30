@@ -18,7 +18,61 @@ public enum DesignEditKind
     /// <summary>
     /// Изменение размера одного или нескольких targets.
     /// </summary>
-    Resize
+    Resize,
+
+    /// <summary>
+    /// Изменение порядка перекрытия одного или нескольких targets.
+    /// </summary>
+    Reorder
+}
+
+/// <summary>
+/// Базовое описание изменения одного design target.
+/// </summary>
+/// <remarks>
+/// Приложению не обязательно разбирать конкретный тип: <see cref="DesignEditor.Revert"/>
+/// и <see cref="DesignEditor.Reapply"/> принимают любое изменение, поэтому стек отмены
+/// пишется единообразно.
+/// </remarks>
+public abstract class DesignChange
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignChange"/>.
+    /// </summary>
+    /// <param name="target">Изменённый контрол.</param>
+    protected DesignChange(Control target)
+        => Target = target ?? throw new ArgumentNullException(nameof(target));
+
+    /// <summary>
+    /// Получает изменённый контрол.
+    /// </summary>
+    public Control Target { get; }
+}
+
+/// <summary>
+/// Описывает изменение порядка перекрытия одного design target.
+/// </summary>
+public sealed class DesignOrderChange : DesignChange
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignOrderChange"/>.
+    /// </summary>
+    public DesignOrderChange(Control target, int oldZIndex, int newZIndex)
+        : base(target)
+    {
+        OldZIndex = oldZIndex;
+        NewZIndex = newZIndex;
+    }
+
+    /// <summary>
+    /// Получает порядок перекрытия до изменения.
+    /// </summary>
+    public int OldZIndex { get; }
+
+    /// <summary>
+    /// Получает порядок перекрытия после изменения.
+    /// </summary>
+    public int NewZIndex { get; }
 }
 
 /// <summary>
@@ -61,7 +115,7 @@ public sealed class DesignEditorDeleteRequestedEventArgs : EventArgs
 /// Их достаточно, чтобы вернуть target в прежнее состояние через
 /// <see cref="DesignEditor.ApplyGeometry"/>.
 /// </remarks>
-public sealed class DesignGeometryChange
+public sealed class DesignGeometryChange : DesignChange
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="DesignGeometryChange"/>.
@@ -70,16 +124,11 @@ public sealed class DesignGeometryChange
     /// <param name="oldBounds">Геометрия до изменения.</param>
     /// <param name="newBounds">Геометрия после изменения.</param>
     public DesignGeometryChange(Control target, Rect oldBounds, Rect newBounds)
+        : base(target)
     {
-        Target = target ?? throw new ArgumentNullException(nameof(target));
         OldBounds = oldBounds;
         NewBounds = newBounds;
     }
-
-    /// <summary>
-    /// Получает изменённый контрол.
-    /// </summary>
-    public Control Target { get; }
 
     /// <summary>
     /// Получает геометрию до изменения.
@@ -111,7 +160,7 @@ public sealed class DesignEditCompletedEventArgs : EventArgs
     /// </summary>
     /// <param name="kind">Вид изменения.</param>
     /// <param name="changes">Изменения геометрии, вошедшие в единицу редактирования.</param>
-    public DesignEditCompletedEventArgs(DesignEditKind kind, IReadOnlyList<DesignGeometryChange> changes)
+    public DesignEditCompletedEventArgs(DesignEditKind kind, IReadOnlyList<DesignChange> changes)
     {
         Kind = kind;
         Changes = changes ?? throw new ArgumentNullException(nameof(changes));
@@ -129,5 +178,5 @@ public sealed class DesignEditCompletedEventArgs : EventArgs
     /// Содержит только те targets, геометрия которых действительно изменилась:
     /// жест, вернувший элемент на исходное место, записи не создаёт.
     /// </remarks>
-    public IReadOnlyList<DesignGeometryChange> Changes { get; }
+    public IReadOnlyList<DesignChange> Changes { get; }
 }
