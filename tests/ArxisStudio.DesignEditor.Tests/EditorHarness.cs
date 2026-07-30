@@ -48,7 +48,16 @@ internal sealed class EditorHarness
     public DesignEditor Editor { get; }
     public IReadOnlyList<TestNode> Nodes { get; }
 
-    public static EditorHarness Create(int nodeCount = 1, double width = 800, double height = 600)
+    /// <summary>
+    /// Собирает редактор для тестов.
+    /// </summary>
+    /// <param name="snapToGrid">
+    /// Привязка к сетке. По умолчанию выключена: большинство тестов проверяют
+    /// механику перемещения, а не привязку, и не должны от неё зависеть.
+    /// Сам факт того, что в боевой конфигурации она включена, закреплён отдельно
+    /// в <c>SnapToGridTests</c>.
+    /// </param>
+    public static EditorHarness Create(int nodeCount = 1, double width = 800, double height = 600, bool snapToGrid = false)
     {
         var nodes = Enumerable.Range(0, nodeCount)
             .Select(i => new TestNode("node" + i))
@@ -92,6 +101,8 @@ internal sealed class EditorHarness
             Height = height,
             Content = editor
         };
+
+        editor.InteractionOptions.IsSnapToGridEnabled = snapToGrid;
 
         window.Show();
 

@@ -268,12 +268,18 @@ internal class ItemDraggingState : DesignEditorItemState
             var rawTotalDelta = editor.GetWorldPosition(currentPointerPosition) - editor.GetWorldPosition(_initialPointerPosition);
             var appliedTotalDelta = editor.ApplyMovePolicy(_dragTarget, rawTotalDelta);
 
-            double newX = Math.Round(_elementStartLocation.X + appliedTotalDelta.X);
-            double newY = Math.Round(_elementStartLocation.Y + appliedTotalDelta.Y);
-            editor.SetDesignPosition(_dragTarget, new Point(newX, newY));
-            var frameDelta = appliedTotalDelta - _previousAppliedDelta;
+            // Привязывается результат, а не дельта: иначе элемент сохранил бы
+            // исходное смещение относительно сетки и на узел бы не встал.
+            var snapped = editor.SnapPosition(_elementStartLocation + appliedTotalDelta, e.KeyModifiers);
+
+            // Дальше по группе идёт уже привязанное смещение, поэтому соседи
+            // двигаются ровно на столько же и взаимное расположение сохраняется.
+            var effectiveDelta = snapped - _elementStartLocation;
+
+            editor.SetDesignPosition(_dragTarget, snapped);
+            var frameDelta = effectiveDelta - _previousAppliedDelta;
             Container.RaiseEvent(new DragDeltaEventArgs(frameDelta.X, frameDelta.Y) { RoutedEvent = DesignEditorItem.DragDeltaEvent });
-            _previousAppliedDelta = appliedTotalDelta;
+            _previousAppliedDelta = effectiveDelta;
             _previousPointerPosition = currentPointerPosition;
             e.Handled = true;
             return;
@@ -370,6 +376,22 @@ internal class ItemResizingState : DesignEditorItemState
             case ResizeDirection.BottomLeft: newW -= dx; newX += dx; newH += dy; break;
             case ResizeDirection.TopRight: newW += dx; newH -= dy; newY += dy; break;
             case ResizeDirection.TopLeft: newW -= dx; newX += dx; newH -= dy; newY += dy; break;
+        }
+
+        // Привязывается двигающийся край, а не размер: иначе у элемента,
+        // стоящего мимо сетки, край так и остался бы вне узла.
+        // Модификатор читается на момент нажатия — в аргументах resize его нет.
+        if (editor != null && editor.ShouldSnap(editor.LastInputModifiers))
+        {
+            if (_direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
+                newW = editor.SnapCoordinate(newX + newW) - newX;
+            else if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+                newW = initialRight - editor.SnapCoordinate(initialRight - newW);
+
+            if (_direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
+                newH = editor.SnapCoordinate(newY + newH) - newY;
+            else if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+                newH = initialBottom - editor.SnapCoordinate(initialBottom - newH);
         }
 
         newW = Math.Max(minWidth, newW);

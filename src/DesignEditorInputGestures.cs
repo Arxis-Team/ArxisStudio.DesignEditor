@@ -222,6 +222,27 @@ public class DesignEditorInputGestures : AvaloniaObject
     /// Идентификатор свойства смысла перетаскивания по пустой области контейнера.
     /// </summary>
     /// <summary>
+    /// Идентификатор свойства модификаторов временного отключения привязки.
+    /// </summary>
+    public static readonly StyledProperty<KeyModifiers> SnapBypassModifiersProperty =
+        AvaloniaProperty.Register<DesignEditorInputGestures, KeyModifiers>(
+            nameof(SnapBypassModifiers),
+            KeyModifiers.Alt);
+
+    /// <summary>
+    /// Получает или задает модификаторы, отключающие привязку на время жеста.
+    /// </summary>
+    /// <remarks>
+    /// Без такого модификатора поставить элемент мимо сетки можно было бы только
+    /// отключив привязку целиком, а это нужно постоянно.
+    /// </remarks>
+    public KeyModifiers SnapBypassModifiers
+    {
+        get => GetValue(SnapBypassModifiersProperty);
+        set => SetValue(SnapBypassModifiersProperty, value);
+    }
+
+    /// <summary>
     /// Идентификатор свойства модификаторов увеличенного смещения стрелками.
     /// </summary>
     public static readonly StyledProperty<KeyModifiers> LargeNudgeModifiersProperty =

@@ -28,6 +28,11 @@ internal sealed class GroupResizeOperation
     {
         _accumulatedDelta += worldDelta;
         var nextBounds = CalculateResizedBounds(_initialBounds, _direction, _accumulatedDelta, _minSize);
+
+        // Для группы привязывается рамка целиком: привязка каждого target'а
+        // по отдельности разрушила бы пропорции внутри группы.
+        if (editor.ShouldSnap(editor.LastInputModifiers))
+            nextBounds = SnapBounds(editor, nextBounds, _direction, _initialBounds, _minSize);
         var scaleX = _initialBounds.Width > 0 ? nextBounds.Width / _initialBounds.Width : 1.0;
         var scaleY = _initialBounds.Height > 0 ? nextBounds.Height / _initialBounds.Height : 1.0;
 
@@ -79,6 +84,39 @@ internal sealed class GroupResizeOperation
         }
 
         return minScale;
+    }
+
+    /// <summary>
+    /// Приводит к сетке те края рамки группы, которые тянет пользователь.
+    /// </summary>
+    private static Rect SnapBounds(DesignEditor editor, Rect bounds, ResizeDirection direction, Rect initialBounds, double minSize)
+    {
+        var left = bounds.X;
+        var top = bounds.Y;
+        var right = bounds.Right;
+        var bottom = bounds.Bottom;
+
+        if (direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
+            right = editor.SnapCoordinate(right);
+        else if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            left = editor.SnapCoordinate(left);
+
+        if (direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
+            bottom = editor.SnapCoordinate(bottom);
+        else if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            top = editor.SnapCoordinate(top);
+
+        var width = Math.Max(minSize, right - left);
+        var height = Math.Max(minSize, bottom - top);
+
+        // Неподвижный край остаётся на месте даже после клампа по минимуму.
+        if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            left = initialBounds.Right - width;
+
+        if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            top = initialBounds.Bottom - height;
+
+        return new Rect(left, top, width, height);
     }
 
     private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta, double minSize)

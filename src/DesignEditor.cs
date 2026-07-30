@@ -698,6 +698,7 @@ public class DesignEditor : SelectingItemsControl
     private SelectionAdorner? _selectionAdorner;
     private SelectionAdorner? _groupSelectionAdorner;
     private SelectionAdornerLayer? _secondarySelectionAdornerLayer;
+    private DesignGrid? _grid;
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
     // Выбранные design targets в порядке приоритета: первый — primary.
@@ -836,6 +837,7 @@ public class DesignEditor : SelectingItemsControl
             _secondarySelectionAdornerLayer.AdornerResizeCompleted -= OnSecondarySelectionResizeCompleted;
         }
 
+        _grid = e.NameScope.Find<DesignGrid>("PART_Grid");
         _selectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_SelectionAdorner");
         _groupSelectionAdorner = e.NameScope.Find<SelectionAdorner>("PART_GroupSelectionAdorner");
         _secondarySelectionAdornerLayer = e.NameScope.Find<SelectionAdornerLayer>("PART_SecondarySelectionAdorners");
@@ -3133,6 +3135,68 @@ public class DesignEditor : SelectingItemsControl
 
         var worldPoint = GetWorldPosition(viewportPoint);
         return !TryResolveSelectionTargetAtPoint(container, worldPoint, out _);
+    }
+
+    /// <summary>
+    /// Определяет, должна ли действовать привязка при текущих модификаторах.
+    /// </summary>
+    internal bool ShouldSnap(KeyModifiers modifiers)
+    {
+        if (!InteractionOptions.IsSnapToGridEnabled)
+            return false;
+
+        var bypass = InputGestures.SnapBypassModifiers;
+        if (bypass != KeyModifiers.None && modifiers.HasFlag(bypass))
+            return false;
+
+        return ResolveSnapStep() > 0;
+    }
+
+    /// <summary>
+    /// Возвращает действующий шаг привязки.
+    /// </summary>
+    /// <remarks>
+    /// Явно заданный <see cref="DesignEditorInteractionOptions.SnapStep"/> имеет приоритет;
+    /// иначе шаг берётся у сетки шаблона. Это не даёт сетке рисовать одну структуру,
+    /// а привязке использовать другую.
+    /// </remarks>
+    internal double ResolveSnapStep()
+    {
+        var configured = InteractionOptions.SnapStep;
+        if (!double.IsNaN(configured))
+            return configured;
+
+        return _grid?.CellSize ?? 0;
+    }
+
+    /// <summary>
+    /// Округляет координату до ближайшего узла сетки.
+    /// </summary>
+    /// <remarks>
+    /// Ровно посередине между узлами привязка уходит вверх — всегда и везде.
+    /// <see cref="Math.Round(double)"/> здесь не годится: он округляет к чётному,
+    /// поэтому на середине направление зависело бы от чётности узла, и при
+    /// медленной протяжке край прыгал бы то вперёд, то назад.
+    /// </remarks>
+    internal double SnapCoordinate(double value)
+    {
+        var step = ResolveSnapStep();
+        return step > 0 ? Math.Floor((value / step) + 0.5) * step : Math.Round(value);
+    }
+
+    /// <summary>
+    /// Приводит позицию к сетке, если привязка активна.
+    /// </summary>
+    /// <remarks>
+    /// Привязывается именно результат, а не смещение: округление дельты сохранило бы
+    /// исходный сдвиг элемента, и на узел сетки он бы так и не встал.
+    /// </remarks>
+    internal Point SnapPosition(Point position, KeyModifiers modifiers)
+    {
+        if (!ShouldSnap(modifiers))
+            return new Point(Math.Round(position.X), Math.Round(position.Y));
+
+        return new Point(SnapCoordinate(position.X), SnapCoordinate(position.Y));
     }
 
     internal bool ShouldStartMarquee(PointerPointProperties pointerProperties, KeyModifiers modifiers)

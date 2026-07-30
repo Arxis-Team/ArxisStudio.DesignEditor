@@ -69,6 +69,49 @@ public class DesignEditorInteractionOptions : AvaloniaObject
     }
 
     /// <summary>
+    /// Идентификатор свойства привязки к сетке.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsSnapToGridEnabledProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, bool>(
+            nameof(IsSnapToGridEnabled),
+            true);
+
+    /// <summary>
+    /// Идентификатор свойства шага привязки.
+    /// </summary>
+    public static readonly StyledProperty<double> SnapStepProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, double>(
+            nameof(SnapStep),
+            double.NaN);
+
+    /// <summary>
+    /// Получает или задает признак привязки к сетке при перетаскивании и изменении размера.
+    /// </summary>
+    /// <remarks>
+    /// Привязка исправляет неточный ввод указателем и намеренно не влияет на смещение
+    /// стрелками: там пользователь уже задал точную величину.
+    /// </remarks>
+    public bool IsSnapToGridEnabled
+    {
+        get => GetValue(IsSnapToGridEnabledProperty);
+        set => SetValue(IsSnapToGridEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает шаг привязки в мировых единицах.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="double.NaN"/> означает «следовать за сеткой»: шаг берётся из
+    /// <see cref="Controls.DesignGrid.CellSize"/> шаблона редактора. Так настройки
+    /// не расходятся: сетка не может обещать одну структуру, а привязка давать другую.
+    /// </remarks>
+    public double SnapStep
+    {
+        get => GetValue(SnapStepProperty);
+        set => SetValue(SnapStepProperty, value);
+    }
+
+    /// <summary>
     /// Идентификатор свойства шага смещения стрелками.
     /// </summary>
     public static readonly StyledProperty<double> NudgeStepProperty =

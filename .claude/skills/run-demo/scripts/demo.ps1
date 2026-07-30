@@ -14,18 +14,24 @@
 demo.ps1 -Action start
 demo.ps1 -Action shot  -Out C:\tmp\1.png
 demo.ps1 -Action click -X 706 -Y 453
+demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500
+demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500 -Modifier Alt
 demo.ps1 -Action wheel -X 300 -Y 200 -Notches 4
 demo.ps1 -Action stop
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'shot', 'click', 'rightclick', 'wheel', 'stop', 'status')]
+    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'wheel', 'stop', 'status')]
     [string]$Action,
 
     [string]$Out,
     [int]$X = 0,
     [int]$Y = 0,
+    [int]$ToX = 0,
+    [int]$ToY = 0,
+    [ValidateSet('None', 'Ctrl', 'Shift', 'Alt')]
+    [string]$Modifier = 'None',
     [int]$Notches = 3,
     [int]$TimeoutSec = 20
 )
@@ -45,6 +51,27 @@ public static class DemoDriver
     [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, IntPtr e);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra);
+
+    private static byte Vk(string modifier)
+    {
+        if (modifier == "Ctrl") return 0x11;
+        if (modifier == "Shift") return 0x10;
+        if (modifier == "Alt") return 0x12;
+        return 0;
+    }
+
+    private static void ModifierDown(string modifier)
+    {
+        byte vk = Vk(modifier);
+        if (vk != 0) { keybd_event(vk, 0, 0, IntPtr.Zero); System.Threading.Thread.Sleep(60); }
+    }
+
+    private static void ModifierUp(string modifier)
+    {
+        byte vk = Vk(modifier);
+        if (vk != 0) { keybd_event(vk, 0, 0x0002, IntPtr.Zero); System.Threading.Thread.Sleep(60); }
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left, Top, Right, Bottom; }
@@ -88,6 +115,34 @@ public static class DemoDriver
         mouse_event(0x0008, 0, 0, 0, IntPtr.Zero);
         System.Threading.Thread.Sleep(80);
         mouse_event(0x0010, 0, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(900);
+    }
+
+    // Перетаскивание. Промежуточные шаги обязательны: один прыжок из точки в
+    // точку не переводит контейнер в состояние drag - редактору нужен сдвиг,
+    // превышающий DragStartThreshold, а затем сами move-события.
+    public static void Drag(IntPtr h, int wx, int wy, int tx, int ty, string modifier)
+    {
+        Focus(h);
+        RECT r = Rect(h);
+        SetCursorPos(r.Left + wx, r.Top + wy);
+        System.Threading.Thread.Sleep(250);
+        ModifierDown(modifier);
+        mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(150);
+
+        const int steps = 12;
+        for (int i = 1; i <= steps; i++)
+        {
+            int x = wx + ((tx - wx) * i / steps);
+            int y = wy + ((ty - wy) * i / steps);
+            SetCursorPos(r.Left + x, r.Top + y);
+            System.Threading.Thread.Sleep(40);
+        }
+
+        System.Threading.Thread.Sleep(150);
+        mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
+        ModifierUp(modifier);
         System.Threading.Thread.Sleep(900);
     }
 
@@ -180,6 +235,12 @@ switch ($Action) {
         $p = Require-Demo
         [DemoDriver]::RightClick($p.MainWindowHandle, $X, $Y)
         "right-clicked window-relative $X,$Y"
+    }
+
+    'drag' {
+        $p = Require-Demo
+        [DemoDriver]::Drag($p.MainWindowHandle, $X, $Y, $ToX, $ToY, $Modifier)
+        "dragged window-relative $X,$Y -> $ToX,$ToY modifier=$Modifier"
     }
 
     'wheel' {

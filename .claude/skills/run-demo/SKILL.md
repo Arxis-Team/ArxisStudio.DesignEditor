@@ -52,7 +52,17 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 
 # контекстное меню — оно должно открыться в точке клика
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action rightclick -X 500 -Y 400
+
+# перетаскивание: down в (X,Y), 12 промежуточных move, up в (ToX,ToY)
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action drag -X 951 -Y 441 -ToX 988 -ToY 464
+
+# с модификатором: Ctrl двигает контейнер, Alt отключает привязку к сетке
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action drag -X 951 -Y 441 -ToX 988 -ToY 464 -Modifier Alt
 ```
+
+Промежуточные move в `drag` обязательны: один прыжок из точки в точку не переводит контейнер в состояние перетаскивания — редактору нужен сдвиг больше `DragStartThreshold`, а затем сами move-события.
+
+`-Modifier` принимает `None` (по умолчанию), `Ctrl`, `Shift`, `Alt`.
 
 `-Action status` печатает pid, responding, заголовок и прямоугольник окна.
 
@@ -91,6 +101,6 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 
 ## Ограничения
 
-- Только Windows: используется `user32.dll` (`mouse_event`, `GetWindowRect`, `CopyFromScreen`).
-- Скрипт двигает реальный курсор и поднимает окно на передний план.
-- Drag пока не реализован — для него нужна отдельная последовательность down/move/up.
+- Только Windows: используется `user32.dll` (`mouse_event`, `keybd_event`, `GetWindowRect`, `CopyFromScreen`).
+- Скрипт двигает реальный курсор, жмёт реальные модификаторы и поднимает окно на передний план.
+- Верхняя панель показывает геометрию **контейнера** (`ActiveItem`), а не выбранного вложенного target. Позицию вложенного контрола видно только в самой карточке Dashboard — там выведены `DesignX / DesignY / X / Y` для `TextBlock1`. Для проверок, где важно точное положение вложенного элемента, тянуть надо именно его.

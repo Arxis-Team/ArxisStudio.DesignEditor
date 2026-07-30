@@ -83,6 +83,9 @@ public class NestedContainerTests
             }, supportsRecycling: false)
         };
 
+        // Тесты вложенности проверяют механику, а не привязку.
+        editor.InteractionOptions.IsSnapToGridEnabled = false;
+
         var window = new Window { Width = 800, Height = 600, Content = editor };
         window.Show();
         RunLayout(window);
