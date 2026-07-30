@@ -1,13 +1,13 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="DesignEditor.Demo.App"
-             xmlns:local="using:DesignEditor.Demo"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-    <Application.DataTemplates>
-        <local:ViewLocator />
-    </Application.DataTemplates>
+    <!--
+        ViewLocator убран: он сопоставлял View по ViewModelBase, но от него
+        никто не наследуется. Шаблоны элементов заданы явно в MainWindow.axaml.
+    -->
 
     <Application.Styles>
         <FluentTheme />

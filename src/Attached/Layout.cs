@@ -33,6 +33,13 @@ public static class Layout
         AvaloniaProperty.RegisterAttached<Control, bool>(
             "IsAwaitingAttach", typeof(Layout), false, inherits: false);
 
+    // Отражает фактическую подписку на LayoutUpdated. Это НЕ то же самое, что
+    // публичное IsTracked: последнее задаёт пользователь в XAML, а отслеживание
+    // включается также из AbsolutePanel и из редактора для любого design target.
+    private static readonly AttachedProperty<bool> IsTrackingProperty =
+        AvaloniaProperty.RegisterAttached<Control, bool>(
+            "IsTracking", typeof(Layout), false, inherits: false);
+
     #region Attached Properties
 
     /// <summary>
@@ -98,9 +105,18 @@ public static class Layout
     {
         if (control == null) return;
 
-        control.LayoutUpdated -= OnLayoutUpdated;
+        // Идемпотентно. AbsolutePanel вызывает Track для каждого ребёнка на каждом
+        // arrange, а редактор — для каждого selection target при пересборке overlay.
+        // Повторная подписка не нужна: пересчёт и так придёт из LayoutUpdated,
+        // а лишний UpdateDesignPosition ставит ещё один dispatcher-пост.
+        if (GetIsTracking(control))
+            return;
+
+        SetIsTracking(control, true);
         control.LayoutUpdated += OnLayoutUpdated;
 
+        // Первичное заполнение DesignX/DesignY: layout-прохода может и не быть,
+        // если координаты уже актуальны.
         UpdateDesignPosition(control);
     }
 
@@ -111,8 +127,20 @@ public static class Layout
     public static void Untrack(Control? control)
     {
         if (control == null) return;
+        if (!GetIsTracking(control)) return;
+
+        SetIsTracking(control, false);
         control.LayoutUpdated -= OnLayoutUpdated;
     }
+
+    /// <summary>
+    /// Возвращает признак фактической подписки на изменение положения.
+    /// </summary>
+    /// <remarks>
+    /// Используется как дешёвый фильтр в глобальных обработчиках редактора:
+    /// контрол без отслеживания не может участвовать в selection overlay.
+    /// </remarks>
+    internal static bool IsTracking(Control control) => GetIsTracking(control);
 
     private static void OnLayoutUpdated(object? sender, EventArgs e)
     {
@@ -303,6 +331,9 @@ public static class Layout
 
     private static bool GetIsAwaitingAttach(AvaloniaObject o) => o.GetValue(IsAwaitingAttachProperty);
     private static void SetIsAwaitingAttach(AvaloniaObject o, bool v) => o.SetValue(IsAwaitingAttachProperty, v);
+
+    private static bool GetIsTracking(AvaloniaObject o) => o.GetValue(IsTrackingProperty);
+    private static void SetIsTracking(AvaloniaObject o, bool v) => o.SetValue(IsTrackingProperty, v);
 
     #endregion
 }

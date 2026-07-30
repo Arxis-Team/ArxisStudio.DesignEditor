@@ -674,6 +674,13 @@ public class DesignEditor : SelectingItemsControl
         });
         BoundsProperty.Changed.AddClassHandler<Control>((control, _) =>
         {
+            // Обработчик глобальный: срабатывает на любой Control во всём приложении,
+            // а FindAncestorOfType поднимается по дереву. Дешёвый отсев по флагу
+            // отслеживания оставляет только design targets — участвовать в selection
+            // overlay может лишь контрол, который редактор уже отслеживает.
+            if (!DesignLayout.IsTracking(control))
+                return;
+
             if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
                 editor.UpdateSelectionOverlayState();
         });
@@ -1778,19 +1785,6 @@ public class DesignEditor : SelectingItemsControl
         e.Handled = true;
     }
 
-    internal void UpdateSelectionTargetFromSource(DesignEditorItem container, Visual? source)
-    {
-        _containerSelectionTargets.Remove(container);
-        var target = ResolveSelectionTarget(container, source);
-
-        if (ReferenceEquals(target, container))
-            _selectionTargets.Remove(container);
-        else
-            _selectionTargets[container] = new List<Control> { target };
-
-        UpdateSelectionOverlayState();
-    }
-
     internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
     {
         if (ShouldUseContainerInteraction(modifiers))
@@ -2177,8 +2171,10 @@ public class DesignEditor : SelectingItemsControl
 
     private static void EnsureTracked(Control control)
     {
-        if (!DesignLayout.GetIsTracked(control))
-            DesignLayout.Track(control);
+        // Track идемпотентен. Прежний guard по GetIsTracked не работал:
+        // Track не выставляет публичное IsTracked, поэтому для контролов
+        // с одними Layout.X/Y условие было истинно всегда.
+        DesignLayout.Track(control);
     }
 
     private static int GetVisualDepth(Control control, Visual root)

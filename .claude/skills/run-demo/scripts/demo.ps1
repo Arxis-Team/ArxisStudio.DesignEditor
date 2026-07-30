@@ -20,7 +20,7 @@ demo.ps1 -Action stop
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'shot', 'click', 'wheel', 'stop', 'status')]
+    [ValidateSet('start', 'shot', 'click', 'rightclick', 'wheel', 'stop', 'status')]
     [string]$Action,
 
     [string]$Out,
@@ -75,6 +75,19 @@ public static class DemoDriver
         mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
         System.Threading.Thread.Sleep(80);
         mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(900);
+    }
+
+    // Правый клик: контекстное меню редактора открывается по RMB.
+    public static void RightClick(IntPtr h, int wx, int wy)
+    {
+        Focus(h);
+        RECT r = Rect(h);
+        SetCursorPos(r.Left + wx, r.Top + wy);
+        System.Threading.Thread.Sleep(250);
+        mouse_event(0x0008, 0, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(80);
+        mouse_event(0x0010, 0, 0, 0, IntPtr.Zero);
         System.Threading.Thread.Sleep(900);
     }
 
@@ -161,6 +174,12 @@ switch ($Action) {
         $p = Require-Demo
         [DemoDriver]::Click($p.MainWindowHandle, $X, $Y)
         "clicked window-relative $X,$Y"
+    }
+
+    'rightclick' {
+        $p = Require-Demo
+        [DemoDriver]::RightClick($p.MainWindowHandle, $X, $Y)
+        "right-clicked window-relative $X,$Y"
     }
 
     'wheel' {

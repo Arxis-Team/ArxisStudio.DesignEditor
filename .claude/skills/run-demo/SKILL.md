@@ -49,6 +49,9 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 
 # зум колесом: + приближает, - отдаляет
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action wheel -X 300 -Y 200 -Notches 4
+
+# контекстное меню — оно должно открыться в точке клика
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action rightclick -X 500 -Y 400
 ```
 
 `-Action status` печатает pid, responding, заголовок и прямоугольник окна.

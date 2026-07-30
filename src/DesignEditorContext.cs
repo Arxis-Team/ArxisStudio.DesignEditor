@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
 
 namespace ArxisStudio;
@@ -212,7 +213,14 @@ public sealed class ContextMenuContextPresenter : IDesignEditorContextPresenter
         _activeContextMenu?.Close();
         var contextMenu = new ContextMenu
         {
-            ItemsSource = CreateContextMenuItems(actions)
+            ItemsSource = CreateContextMenuItems(actions),
+            // Меню открывается в точке вызова, а не по дефолтному placement редактора.
+            // ViewportPoint уже в координатах DesignEditor, поэтому он же и есть якорь.
+            PlacementTarget = editor,
+            Placement = PlacementMode.AnchorAndGravity,
+            PlacementAnchor = PopupAnchor.TopLeft,
+            PlacementGravity = PopupGravity.BottomRight,
+            PlacementRect = new Rect(request.ViewportPoint, new Size(1, 1))
         };
 
         _activeContextMenu = contextMenu;

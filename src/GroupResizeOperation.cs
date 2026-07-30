@@ -31,16 +31,21 @@ internal sealed class GroupResizeOperation
         var scaleX = _initialBounds.Width > 0 ? nextBounds.Width / _initialBounds.Width : 1.0;
         var scaleY = _initialBounds.Height > 0 ? nextBounds.Height / _initialBounds.Height : 1.0;
 
+        // Масштаб группы ограничивается самым «зажатым» target'ом.
+        // Иначе его размер упирается в минимум и перестаёт уменьшаться,
+        // а позиция продолжает считаться от неограниченного масштаба —
+        // target'ы наезжают друг на друга и вылезают за рамку выделения.
+        scaleX = Math.Max(scaleX, GetMinimumScale(_targets, horizontal: true, _minSize));
+        scaleY = Math.Max(scaleY, GetMinimumScale(_targets, horizontal: false, _minSize));
+
         for (var i = 0; i < _targets.Count; i++)
         {
             var target = _targets[i];
             var initialTargetBounds = target.InitialBounds;
-            var minWidth = Math.Max(_minSize, target.Target.MinWidth);
-            var minHeight = Math.Max(_minSize, target.Target.MinHeight);
             var newX = nextBounds.X + ((initialTargetBounds.X - _initialBounds.X) * scaleX);
             var newY = nextBounds.Y + ((initialTargetBounds.Y - _initialBounds.Y) * scaleY);
-            var newWidth = Math.Max(minWidth, initialTargetBounds.Width * scaleX);
-            var newHeight = Math.Max(minHeight, initialTargetBounds.Height * scaleY);
+            var newWidth = initialTargetBounds.Width * scaleX;
+            var newHeight = initialTargetBounds.Height * scaleY;
 
             editor.SetDesignSize(target.Target, new Size(newWidth, newHeight));
             editor.SetDesignPosition(target.Target, new Point(newX, newY));
@@ -49,6 +54,31 @@ internal sealed class GroupResizeOperation
 
     public void Complete(DesignEditor editor)
     {
+    }
+
+    /// <summary>
+    /// Возвращает минимальный масштаб, при котором ни один target не опускается
+    /// ниже своего минимального размера.
+    /// </summary>
+    private static double GetMinimumScale(IReadOnlyList<GroupResizeTarget> targets, bool horizontal, double minSize)
+    {
+        var minScale = 0.0;
+
+        for (var i = 0; i < targets.Count; i++)
+        {
+            var target = targets[i];
+            var initial = horizontal ? target.InitialBounds.Width : target.InitialBounds.Height;
+            if (initial <= 0)
+                continue;
+
+            var limit = horizontal
+                ? Math.Max(minSize, target.Target.MinWidth)
+                : Math.Max(minSize, target.Target.MinHeight);
+
+            minScale = Math.Max(minScale, limit / initial);
+        }
+
+        return minScale;
     }
 
     private static Rect CalculateResizedBounds(Rect initialBounds, ResizeDirection direction, Vector delta, double minSize)

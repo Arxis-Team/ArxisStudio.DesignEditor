@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -49,11 +50,26 @@ public partial class MainWindowViewModel : ObservableObject
         Elements.Add(new LoginElementViewModel(400, 300));
         Elements.Add(new DashboardElementViewModel(800, 300));
 
-        // ВАЖНО: Подписываемся на изменение выделения, чтобы обновлять UI (ActiveItem)
-        SelectedElements.CollectionChanged += (s, e) =>
-        {
-            OnPropertyChanged(nameof(ActiveItem));
-            OnPropertyChanged(nameof(HasSelection));
-        };
+        SelectedElements.CollectionChanged += OnSelectedElementsCollectionChanged;
+    }
+
+    // Подписка переезжает вместе с коллекцией: раньше она ставилась один раз
+    // в конструкторе, и замена SelectedElements через сеттер тихо оставляла
+    // ActiveItem/HasSelection без обновлений.
+    partial void OnSelectedElementsChanged(
+        ObservableCollection<object>? oldValue,
+        ObservableCollection<object> newValue)
+    {
+        if (oldValue != null)
+            oldValue.CollectionChanged -= OnSelectedElementsCollectionChanged;
+
+        newValue.CollectionChanged += OnSelectedElementsCollectionChanged;
+        OnSelectedElementsCollectionChanged(newValue, null!);
+    }
+
+    private void OnSelectedElementsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs? e)
+    {
+        OnPropertyChanged(nameof(ActiveItem));
+        OnPropertyChanged(nameof(HasSelection));
     }
 }

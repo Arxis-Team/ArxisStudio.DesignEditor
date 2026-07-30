@@ -17,6 +17,10 @@ public class SelectionAdornerLayer : Panel
 {
     private readonly Dictionary<Control, SelectionAdorner> _adornersByTarget = new();
 
+    // Все adorner'ы, на события которых мы сейчас подписаны. Ведётся отдельно от
+    // _adornersByTarget, потому что не у каждого adorner'а есть Target.
+    private readonly HashSet<SelectionAdorner> _liveAdorners = new();
+
     /// <summary>
     /// Идентификатор routed event начала resize дочернего adorner'а.
     /// </summary>
@@ -200,15 +204,28 @@ public class SelectionAdornerLayer : Panel
             if (usedTargets.Contains(pair.Key))
                 continue;
 
-            var child = pair.Value;
-            child.ResizeStarted -= OnChildResizeStarted;
-            child.ResizeDelta -= OnChildResizeDelta;
-            child.ResizeCompleted -= OnChildResizeCompleted;
             staleTargets.Add(pair.Key);
         }
 
         foreach (var target in staleTargets)
             _adornersByTarget.Remove(target);
+
+        // Отписываем всё, что не попало в новый набор. Раньше чистка шла только по
+        // _adornersByTarget, поэтому adorner'ы, созданные для info.Target == null,
+        // не отписывались никогда — они в словарь не попадают.
+        var desiredSet = new HashSet<SelectionAdorner>(desiredChildren);
+        foreach (var adorner in _liveAdorners)
+        {
+            if (desiredSet.Contains(adorner))
+                continue;
+
+            adorner.ResizeStarted -= OnChildResizeStarted;
+            adorner.ResizeDelta -= OnChildResizeDelta;
+            adorner.ResizeCompleted -= OnChildResizeCompleted;
+        }
+
+        _liveAdorners.Clear();
+        _liveAdorners.UnionWith(desiredChildren);
 
         if (Children.Count != desiredChildren.Count || !Children.SequenceEqual(desiredChildren))
         {

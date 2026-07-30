@@ -30,7 +30,7 @@ namespace ArxisStudio;
 /// </example>
 [TemplatePart("PART_Border", typeof(Border))]
 [PseudoClasses(":selected", ":dragging", ":resizing")]
-public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
+public class DesignEditorItem : ContentControl, ISelectable
 {
     #region Fields
     private readonly Stack<DesignEditorItemState> _states = new();
@@ -303,9 +303,6 @@ public class DesignEditorItem : ContentControl, ISelectable, IDesignEditorItem
     /// <param name="e">Аргументы потери захвата указателя.</param>
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); while (_states.Count > 1) PopState(); }
 
-    internal void OnDragStarted(DragStartedEventArgs e) => RaiseEvent(e);
-    internal void OnDragDelta(DragDeltaEventArgs e) => RaiseEvent(e);
-    internal void OnDragCompleted(DragCompletedEventArgs e) => RaiseEvent(e);
     internal void OnResizeStarted(Vector vector) => RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeStartedEvent, Vector = vector });
     internal void OnResizeDelta(ResizeDeltaEventArgs e) => RaiseEvent(e);
     internal void OnResizeCompleted(Vector vector) => RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeCompletedEvent, Vector = vector });

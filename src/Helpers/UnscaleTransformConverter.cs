@@ -46,24 +46,4 @@ namespace ArxisStudio.Helpers
         }
     }
 
-    /// <summary>
-    /// Масштабирует точку на указанный коэффициент.
-    /// </summary>
-    internal class ScalePointConverter : IMultiValueConverter
-    {
-        /// <inheritdoc />
-        public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
-        {
-            if (values.Any(x => x is UnsetValueType)) return false;
-
-            Point result = (Point)((Vector)(Point)values[0]! * (double)values[1]!);
-            return result;
-        }
-
-        /// <inheritdoc />
-        public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
 }
