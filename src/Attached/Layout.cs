@@ -162,7 +162,7 @@ public static class Layout
              // ИСПРАВЛЕНИЕ: Проверка инициализации XAML.
              // Если элемент еще не в дереве (нет родителя или корня), мы не можем посчитать координаты.
              // Подписываемся на AttachedToVisualTree и ждем.
-             if (control.GetVisualRoot() is null || control.GetVisualParent() is null)
+             if (!control.IsAttachedToVisualTree() || control.GetVisualParent() is null)
              {
                  void OnAttached(object? sender, VisualTreeAttachmentEventArgs e)
                  {

@@ -786,7 +786,7 @@ public class DesignEditor : SelectingItemsControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (e.Root is TopLevel topLevel) topLevel.ScalingChanged += OnScreenScalingChanged;
+        if (e.RootVisual is TopLevel topLevel) topLevel.ScalingChanged += OnScreenScalingChanged;
         UpdateTransforms();
     }
 
@@ -797,7 +797,7 @@ public class DesignEditor : SelectingItemsControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (e.Root is TopLevel topLevel) topLevel.ScalingChanged -= OnScreenScalingChanged;
+        if (e.RootVisual is TopLevel topLevel) topLevel.ScalingChanged -= OnScreenScalingChanged;
     }
 
     private void OnScreenScalingChanged(object? sender, EventArgs e) => UpdateTransforms();
@@ -813,8 +813,8 @@ public class DesignEditor : SelectingItemsControl
         _translateTransform.X = x;
         _translateTransform.Y = y;
 
-        var root = this.GetVisualRoot();
-        double renderScaling = root?.RenderScaling ?? 1.0;
+        // В Avalonia 12 IRenderRoot больше не публичный: RenderScaling берется с TopLevel.
+        double renderScaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
 
         _dpiTranslateTransform.X = Math.Round(x * renderScaling) / renderScaling;
         _dpiTranslateTransform.Y = Math.Round(y * renderScaling) / renderScaling;

@@ -20,7 +20,7 @@
             <StackPanel Spacing="12" attached1:Layout.IsTracked="True">
                 <TextBox IsHitTestVisible="False"
                          attached1:Layout.IsTracked="True"
-                         Watermark="Email"
+                         PlaceholderText="Email"
                          CornerRadius="6"
                          Background="#2D2D2D"
                          Foreground="White" />
