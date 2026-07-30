@@ -616,8 +616,11 @@ public class DesignEditor : SelectingItemsControl
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
     private DesignEditorItem? _marqueeSelectionOwner;
-    private readonly Dictionary<DesignEditorItem, List<Control>> _selectionTargets = new();
-    private readonly HashSet<DesignEditorItem> _containerSelectionTargets = new();
+    // Выбранные design targets в порядке приоритета: первый — primary.
+    // Контейнеры и вложенные контролы лежат вместе: контейнер, выбранный целиком,
+    // это просто DesignEditorItem в списке. Владелец каждого target вычисляется
+    // по дереву, поэтому структура не привязана к глубине вложенности.
+    private readonly List<Control> _selectedTargets = new();
     private GroupResizeOperation? _groupResizeOperation;
     private GroupDragOperation? _groupDragOperation;
 
@@ -1193,8 +1196,7 @@ public class DesignEditor : SelectingItemsControl
             return;
         }
 
-        _selectionTargets.Clear();
-        _containerSelectionTargets.Clear();
+        _selectedTargets.Clear();
         SelectionBounds = default;
         SecondarySelectionAdorners = Array.Empty<SelectionAdornerInfo>();
         HasSingleSelection = false;
@@ -1226,7 +1228,13 @@ public class DesignEditor : SelectingItemsControl
 
         using (Selection.BatchUpdate())
         {
-            if (!isCtrlPressed) Selection.Clear();
+            if (!isCtrlPressed)
+            {
+                Selection.Clear();
+                // Целевой набор накапливается по контейнерам, поэтому чистится
+                // один раз здесь, а не внутри каждой итерации.
+                _selectedTargets.Clear();
+            }
 
             if (marqueeOwner != null)
             {
@@ -1246,8 +1254,7 @@ public class DesignEditor : SelectingItemsControl
                             !bounds.Intersects(containerBounds))
                             continue;
 
-                        _selectionTargets.Remove(container);
-                        _containerSelectionTargets.Add(container);
+                        AddSelectedTarget(container);
                         Selection.Select(IndexFromContainer(container));
                         continue;
                     }
@@ -1296,20 +1303,31 @@ public class DesignEditor : SelectingItemsControl
         if (nestedTargets.Count == 0)
             return;
 
-        if (isAdditive &&
-            _selectionTargets.TryGetValue(ownerItem, out var existingTargets) &&
-            existingTargets.Count > 0)
-        {
-            foreach (var target in existingTargets)
-            {
-                if (!nestedTargets.Contains(target))
-                    nestedTargets.Add(target);
-            }
-        }
+        foreach (var target in nestedTargets)
+            AddSelectedTarget(target);
 
-        _containerSelectionTargets.Remove(ownerItem);
-        _selectionTargets[ownerItem] = nestedTargets;
         Selection.Select(IndexFromContainer(ownerItem));
+    }
+
+    private void AddSelectedTarget(Control target)
+    {
+        if (!_selectedTargets.Contains(target))
+            _selectedTargets.Add(target);
+    }
+
+    private void SetSingleSelectedTarget(Control target)
+    {
+        _selectedTargets.Clear();
+        _selectedTargets.Add(target);
+    }
+
+    /// <summary>
+    /// Возвращает item верхнего уровня, которому принадлежит target.
+    /// </summary>
+    private DesignEditorItem? ResolveOwningItemForTarget(Control target)
+    {
+        var container = target as DesignEditorItem ?? FindDesignHost(target);
+        return container == null ? null : ResolveOwningItem(container);
     }
 
     private void UpdateSelectionAdornerPolicies()
@@ -1831,20 +1849,17 @@ public class DesignEditor : SelectingItemsControl
     {
         if (ShouldUseContainerInteraction(modifiers))
         {
-            _selectionTargets.Remove(container);
-            _containerSelectionTargets.Add(container);
+            SetSingleSelectedTarget(container);
             UpdateSelectionOverlayState();
             return;
         }
 
-        _containerSelectionTargets.Remove(container);
         var worldPoint = GetWorldPosition(screenPoint);
         if (!TryResolveSelectionTargetAtPoint(container, worldPoint, out var target))
         {
             // Клик по области без designer-metadata внутри контейнера
             // переводит selection target на уровень контейнера.
-            _selectionTargets.Remove(container);
-            _containerSelectionTargets.Add(container);
+            SetSingleSelectedTarget(container);
             UpdateSelectionOverlayState();
             return;
         }
@@ -1855,49 +1870,37 @@ public class DesignEditor : SelectingItemsControl
         if (isAdditive && (!CanAddNestedTargetToContainer(container) || !SharesDesignHostWithSelection(target)))
             return;
 
-        if (ReferenceEquals(target, container))
+        if (isAdditive)
         {
-            if (!isAdditive)
-                _selectionTargets.Remove(container);
-        }
-        else if (isAdditive)
-        {
-            if (_selectionTargets.TryGetValue(container, out var existingTargets) && existingTargets.Count > 0)
+            if (_selectedTargets.Contains(target))
             {
-                if (existingTargets.Contains(target))
-                {
-                    if (existingTargets.Count > 1)
-                        existingTargets.Remove(target);
-                }
-                else
-                {
-                    existingTargets.Add(target);
-                }
+                // Повторный additive-клик снимает target из группы,
+                // но не даёт опустошить выделение полностью.
+                if (_selectedTargets.Count > 1)
+                    _selectedTargets.Remove(target);
             }
             else
             {
-                _selectionTargets[container] = new List<Control> { target };
+                _selectedTargets.Add(target);
             }
         }
         else
         {
-            if (_selectionTargets.TryGetValue(container, out var existingTargets) &&
-                existingTargets.Count > 1 &&
-                existingTargets.Contains(target))
+            var index = _selectedTargets.IndexOf(target);
+            if (_selectedTargets.Count > 1 && index >= 0)
             {
-                // Обычный клик по уже выбранному nested target внутри группы
+                // Обычный клик по уже выбранному target внутри группы
                 // не должен схлопывать multi-selection. Переносим target в начало,
                 // чтобы он стал primary selection target.
-                var index = existingTargets.IndexOf(target);
                 if (index > 0)
                 {
-                    existingTargets.RemoveAt(index);
-                    existingTargets.Insert(0, target);
+                    _selectedTargets.RemoveAt(index);
+                    _selectedTargets.Insert(0, target);
                 }
             }
             else
             {
-                _selectionTargets[container] = new List<Control> { target };
+                SetSingleSelectedTarget(target);
             }
         }
 
@@ -1931,7 +1934,7 @@ public class DesignEditor : SelectingItemsControl
 
     internal Control ResolveInteractionTarget(DesignEditorItem container)
     {
-        if (_containerSelectionTargets.Contains(container) || ShouldUseContainerInteraction(LastInputModifiers))
+        if (_selectedTargets.Contains(container) || ShouldUseContainerInteraction(LastInputModifiers))
             return container;
 
         return ResolveSelectionTarget(container);
@@ -2135,18 +2138,12 @@ public class DesignEditor : SelectingItemsControl
     {
         if (item.FindAncestorOfType<DesignEditor>() is { } editor)
         {
-            if (editor._containerSelectionTargets.Contains(item))
-                return item;
-
-            if (editor._selectionTargets.TryGetValue(item, out var explicitTargets) &&
-                explicitTargets.Count > 0)
+            // Первый по приоритету target, принадлежащий этому item'у.
+            // Сам item в списке означает, что он выбран целиком.
+            foreach (var selected in editor._selectedTargets)
             {
-                for (var i = 0; i < explicitTargets.Count; i++)
-                {
-                    var explicitTarget = explicitTargets[i];
-                    if (IsOwnedByContainer(explicitTarget, item))
-                        return explicitTarget;
-                }
+                if (IsOwnedByContainer(selected, item))
+                    return selected;
             }
         }
 
@@ -2289,7 +2286,7 @@ public class DesignEditor : SelectingItemsControl
 
     private void CleanupSelectionTargets()
     {
-        if (_selectionTargets.Count == 0 && _containerSelectionTargets.Count == 0)
+        if (_selectedTargets.Count == 0)
             return;
 
         var selectedContainers = new HashSet<DesignEditorItem>();
@@ -2307,40 +2304,31 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
-        var staleContainers = new List<DesignEditorItem>();
-        foreach (var pair in _selectionTargets)
+        // Target выживает, пока его владелец верхнего уровня остаётся выбранным.
+        // Владелец вычисляется по дереву, поэтому правило одинаково работает
+        // для любой глубины вложенности.
+        _selectedTargets.RemoveAll(target =>
         {
-            if (!selectedContainers.Contains(pair.Key) ||
-                pair.Value.Count == 0)
-            {
-                staleContainers.Add(pair.Key);
-                continue;
-            }
-
-            pair.Value.RemoveAll(control => !IsOwnedByContainer(control, pair.Key));
-            if (pair.Value.Count == 0)
-                staleContainers.Add(pair.Key);
-        }
-
-        foreach (var container in staleContainers)
-            _selectionTargets.Remove(container);
-
-        _containerSelectionTargets.RemoveWhere(container => !selectedContainers.Contains(container));
+            var owner = ResolveOwningItemForTarget(target);
+            return owner == null || !selectedContainers.Contains(owner);
+        });
     }
 
     internal IReadOnlyList<Control> ResolveSelectionTargets(DesignEditorItem item)
     {
-        if (_containerSelectionTargets.Contains(item))
-            return new[] { (Control)item };
-
-        if (_selectionTargets.TryGetValue(item, out var explicitTargets) && explicitTargets.Count > 0)
+        // Targets этого item'а в порядке приоритета. Сам item в списке означает,
+        // что он выбран целиком; вложенные контейнеры попадают сюда наравне
+        // с обычными контролами.
+        List<Control>? owned = null;
+        foreach (var target in _selectedTargets)
         {
-            explicitTargets.RemoveAll(control => !IsOwnedByContainer(control, item));
-            if (explicitTargets.Count > 0)
-                return explicitTargets;
+            if (!IsOwnedByContainer(target, item))
+                continue;
+
+            (owned ??= new List<Control>()).Add(target);
         }
 
-        return new[] { ResolveDefaultSelectionTarget(item) };
+        return owned ?? (IReadOnlyList<Control>)new[] { ResolveDefaultSelectionTarget(item) };
     }
 
     private IReadOnlyList<DesignSelectionTarget> CreateSelectionTargetsSnapshot(DesignEditorItem? primaryItem, Control? primaryControl)
@@ -2388,17 +2376,7 @@ public class DesignEditor : SelectingItemsControl
     internal static DesignEditorItem? FindDesignHost(Control target)
         => target.FindAncestorOfType<DesignEditorItem>();
 
-    private IEnumerable<Control> EnumerateSelectedTargets()
-    {
-        foreach (var pair in _selectionTargets)
-        {
-            foreach (var target in pair.Value)
-                yield return target;
-        }
-
-        foreach (var container in _containerSelectionTargets)
-            yield return container;
-    }
+    private IEnumerable<Control> EnumerateSelectedTargets() => _selectedTargets;
 
     /// <summary>
     /// Проверяет, что target лежит в том же design host, что и всё текущее выделение.

@@ -35,6 +35,7 @@ internal sealed class EditorHarness
     public const double NestedOffset = 10;
     public const double NestedWidth = 60;
     public const double NestedHeight = 40;
+    public const double SiblingOffset = 100;
 
     private EditorHarness(Window window, DesignEditor editor, IReadOnlyList<TestNode> nodes)
     {
@@ -68,8 +69,19 @@ internal sealed class EditorHarness
                 DesignLayout.SetX(nested, NestedOffset);
                 DesignLayout.SetY(nested, NestedOffset);
 
+                // Второй сосед в том же host'е — для проверки группового выделения.
+                var sibling = new Border
+                {
+                    Name = "Sibling",
+                    Width = NestedWidth,
+                    Height = NestedHeight
+                };
+                DesignLayout.SetX(sibling, SiblingOffset);
+                DesignLayout.SetY(sibling, NestedOffset);
+
                 var panel = new AbsolutePanel();
                 panel.Children.Add(nested);
+                panel.Children.Add(sibling);
                 return panel;
             }, supportsRecycling: false)
         };
@@ -123,12 +135,14 @@ internal sealed class EditorHarness
     /// <summary>
     /// Находит вложенный <see cref="Border"/> внутри контейнера.
     /// </summary>
-    public Border Nested(int index)
+    public Border Nested(int index) => Named(index, "Nested");
+
+    public Border Named(int index, string name)
     {
-        var nested = Container(index).GetVisualDescendants()
+        var control = Container(index).GetVisualDescendants()
             .OfType<Border>()
-            .FirstOrDefault(b => b.Name == "Nested");
-        Assert.NotNull(nested);
-        return nested!;
+            .FirstOrDefault(b => b.Name == name);
+        Assert.NotNull(control);
+        return control!;
     }
 }

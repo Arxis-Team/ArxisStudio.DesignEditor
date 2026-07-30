@@ -21,7 +21,7 @@ public class SelectionTests
     private static readonly Size ContainerSize = new(200, 150);
 
     /// <summary>Точка внутри вложенного Border в координатах редактора.</summary>
-    private static Point NestedCenter => new(
+    private static Point NestedCentre => new(
         ContainerLocation.X + EditorHarness.NestedOffset + (EditorHarness.NestedWidth / 2),
         ContainerLocation.Y + EditorHarness.NestedOffset + (EditorHarness.NestedHeight / 2));
 
@@ -51,7 +51,7 @@ public class SelectionTests
         harness.PlaceContainer(0, ContainerLocation, ContainerSize);
         var nested = harness.Nested(0);
 
-        Click(harness, NestedCenter);
+        Click(harness, NestedCentre);
 
         Assert.True(harness.Editor.HasSingleSelection);
         Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
@@ -69,7 +69,7 @@ public class SelectionTests
         var harness = EditorHarness.Create();
         harness.PlaceContainer(0, ContainerLocation, ContainerSize);
 
-        Click(harness, NestedCenter);
+        Click(harness, NestedCentre);
 
         var expected = new Rect(
             ContainerLocation.X + EditorHarness.NestedOffset,
@@ -83,13 +83,75 @@ public class SelectionTests
         Assert.Equal(expected.Height, harness.Editor.SelectionBounds.Height, 1);
     }
 
+    /// <summary>Точка внутри второго вложенного контрола.</summary>
+    private static Point SiblingCentre => new(
+        ContainerLocation.X + EditorHarness.SiblingOffset + (EditorHarness.NestedWidth / 2),
+        ContainerLocation.Y + EditorHarness.NestedOffset + (EditorHarness.NestedHeight / 2));
+
+    [AvaloniaFact]
+    public void Additive_Click_Groups_Siblings_In_The_Same_Host()
+    {
+        var harness = EditorHarness.Create();
+        harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        Click(harness, NestedCentre);
+        harness.Window.MouseDown(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.Window.MouseUp(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.RunLayout();
+
+        var targets = harness.Editor.SelectedDesignTargets.Select(t => t.Target).ToList();
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Contains(harness.Nested(0), targets);
+        Assert.Contains(harness.Named(0, "Sibling"), targets);
+        Assert.True(harness.Editor.HasMultipleNestedSelection);
+    }
+
+    [AvaloniaFact]
+    public void Repeated_Additive_Click_Removes_Target_From_The_Group()
+    {
+        var harness = EditorHarness.Create();
+        harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        Click(harness, NestedCentre);
+        harness.Window.MouseDown(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.Window.MouseUp(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.RunLayout();
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+
+        harness.Window.MouseDown(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.Window.MouseUp(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.RunLayout();
+
+        Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Same(harness.Nested(0), harness.Editor.PrimarySelectionTarget!.Target);
+    }
+
+    [AvaloniaFact]
+    public void Plain_Click_On_Grouped_Target_Makes_It_Primary_Without_Collapsing()
+    {
+        var harness = EditorHarness.Create();
+        harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        Click(harness, NestedCentre);
+        harness.Window.MouseDown(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.Window.MouseUp(SiblingCentre, MouseButton.Left, RawInputModifiers.Shift);
+        harness.RunLayout();
+
+        // Обычный клик по уже выбранному участнику группы не схлопывает её.
+        Click(harness, SiblingCentre);
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Same(harness.Named(0, "Sibling"), harness.Editor.PrimarySelectionTarget!.Target);
+    }
+
     [AvaloniaFact]
     public void Click_On_Empty_Surface_Clears_Selection()
     {
         var harness = EditorHarness.Create();
         harness.PlaceContainer(0, ContainerLocation, ContainerSize);
 
-        Click(harness, NestedCenter);
+        Click(harness, NestedCentre);
         Assert.True(harness.Editor.HasSingleSelection);
 
         // Точка заведомо вне контейнера.
