@@ -137,8 +137,9 @@ public static class Layout
     /// Возвращает признак фактической подписки на изменение положения.
     /// </summary>
     /// <remarks>
-    /// Используется как дешёвый фильтр в глобальных обработчиках редактора:
-    /// контрол без отслеживания не может участвовать в selection overlay.
+    /// Точка наблюдения за идемпотентностью <see cref="Track"/>: он вызывается
+    /// из <c>AbsolutePanel.ArrangeOverride</c> для каждого ребёнка на каждом arrange,
+    /// поэтому повторная подписка недопустима.
     /// </remarks>
     internal static bool IsTracking(Control control) => GetIsTracking(control);
 

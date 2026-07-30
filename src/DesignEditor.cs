@@ -621,6 +621,11 @@ public class DesignEditor : SelectingItemsControl
     // это просто DesignEditorItem в списке. Владелец каждого target вычисляется
     // по дереву, поэтому структура не привязана к глубине вложенности.
     private readonly List<Control> _selectedTargets = new();
+
+    // Targets, на изменения свойств которых редактор сейчас подписан.
+    // Ведётся отдельно от _selectedTargets: следить нужно за разрешёнными
+    // targets, включая default'ные для item'ов без явного выбора.
+    private readonly List<Control> _subscribedTargets = new();
     private GroupResizeOperation? _groupResizeOperation;
     private GroupDragOperation? _groupDragOperation;
 
@@ -655,38 +660,11 @@ public class DesignEditor : SelectingItemsControl
             if (item.IsSelected && item.FindAncestorOfType<DesignEditor>() is { } editor)
                 editor.UpdateSelectionOverlayState();
         });
-        DesignLayout.DesignXProperty.Changed.AddClassHandler<Control>((control, _) =>
-        {
-            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
-                editor.UpdateSelectionOverlayState();
-        });
-        DesignLayout.DesignYProperty.Changed.AddClassHandler<Control>((control, _) =>
-        {
-            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
-                editor.UpdateSelectionOverlayState();
-        });
-        DesignInteraction.ResizePolicyProperty.Changed.AddClassHandler<Control>((control, _) =>
-        {
-            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
-                editor.UpdateSelectionOverlayState();
-        });
-        DesignInteraction.MovePolicyProperty.Changed.AddClassHandler<Control>((control, _) =>
-        {
-            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
-                editor.UpdateSelectionOverlayState();
-        });
-        BoundsProperty.Changed.AddClassHandler<Control>((control, _) =>
-        {
-            // Обработчик глобальный: срабатывает на любой Control во всём приложении,
-            // а FindAncestorOfType поднимается по дереву. Дешёвый отсев по флагу
-            // отслеживания оставляет только design targets — участвовать в selection
-            // overlay может лишь контрол, который редактор уже отслеживает.
-            if (!DesignLayout.IsTracking(control))
-                return;
-
-            if (control.FindAncestorOfType<DesignEditor>() is { } editor && editor.IsSelectionOverlayControl(control))
-                editor.UpdateSelectionOverlayState();
-        });
+        // Геометрия и политики выбранных targets отслеживаются точечно —
+        // подпиской на сами targets, см. SyncSelectedTargetSubscriptions.
+        // Раньше здесь висели AddClassHandler<Control> на Bounds, DesignX/DesignY
+        // и политики: они срабатывали на любой Control во всём приложении
+        // и на каждое срабатывание поднимались по дереву в поисках редактора.
     }
 
     /// <summary>
@@ -1192,6 +1170,7 @@ public class DesignEditor : SelectingItemsControl
             _primarySelectionControl = primaryControl;
             SelectedDesignTargets = CreateSelectionTargetsSnapshot(primaryItem, primaryControl);
             PrimarySelectionTarget = SelectedDesignTargets.Count > 0 ? SelectedDesignTargets[0] : null;
+            SyncSelectedTargetSubscriptions();
             UpdateSelectionAdornerPolicies();
             return;
         }
@@ -1207,6 +1186,7 @@ public class DesignEditor : SelectingItemsControl
         _primarySelectionControl = null;
         SelectedDesignTargets = Array.Empty<DesignSelectionTarget>();
         PrimarySelectionTarget = null;
+        SyncSelectedTargetSubscriptions();
         UpdateSelectionAdornerPolicies();
     }
 
@@ -1307,6 +1287,62 @@ public class DesignEditor : SelectingItemsControl
             AddSelectedTarget(target);
 
         Selection.Select(IndexFromContainer(ownerItem));
+    }
+
+    /// <summary>
+    /// Держит подписки на свойства текущих selection targets в актуальном состоянии.
+    /// </summary>
+    /// <remarks>
+    /// Подписка идёт на разрешённые targets из <see cref="SelectedDesignTargets"/>,
+    /// а не на <c>_selectedTargets</c>: если у выбранного item'а нет явного target,
+    /// его геометрию задаёт default target, и следить нужно за ним.
+    /// </remarks>
+    private void SyncSelectedTargetSubscriptions()
+    {
+        var targets = SelectedDesignTargets;
+
+        for (var i = _subscribedTargets.Count - 1; i >= 0; i--)
+        {
+            var subscribed = _subscribedTargets[i];
+
+            var stillSelected = false;
+            for (var j = 0; j < targets.Count; j++)
+            {
+                if (ReferenceEquals(targets[j].Target, subscribed))
+                {
+                    stillSelected = true;
+                    break;
+                }
+            }
+
+            if (stillSelected)
+                continue;
+
+            subscribed.PropertyChanged -= OnSelectedTargetPropertyChanged;
+            _subscribedTargets.RemoveAt(i);
+        }
+
+        for (var i = 0; i < targets.Count; i++)
+        {
+            var target = targets[i].Target;
+            if (_subscribedTargets.Contains(target))
+                continue;
+
+            target.PropertyChanged += OnSelectedTargetPropertyChanged;
+            _subscribedTargets.Add(target);
+        }
+    }
+
+    private void OnSelectedTargetPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == BoundsProperty ||
+            e.Property == DesignLayout.DesignXProperty ||
+            e.Property == DesignLayout.DesignYProperty ||
+            e.Property == DesignInteraction.ResizePolicyProperty ||
+            e.Property == DesignInteraction.MovePolicyProperty)
+        {
+            UpdateSelectionOverlayState();
+        }
     }
 
     private void AddSelectedTarget(Control target)
@@ -2254,34 +2290,6 @@ public class DesignEditor : SelectingItemsControl
         }
 
         return depth;
-    }
-
-    private bool IsSelectionOverlayControl(Control control)
-    {
-        if (_primarySelectionControl != null && ReferenceEquals(_primarySelectionControl, control))
-            return true;
-
-        var items = SelectedItems;
-        if (items == null || items.Count == 0)
-            return false;
-
-        foreach (var item in items)
-        {
-            var container = ContainerFromItem(item) as DesignEditorItem;
-            if (container == null && item is DesignEditorItem directItem)
-                container = directItem;
-
-            if (container == null)
-                continue;
-
-            foreach (var selectionTarget in ResolveSelectionTargets(container))
-            {
-                if (ReferenceEquals(selectionTarget, control))
-                    return true;
-            }
-        }
-
-        return false;
     }
 
     private void CleanupSelectionTargets()

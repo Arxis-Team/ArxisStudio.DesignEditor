@@ -83,6 +83,40 @@ public class SelectionTests
         Assert.Equal(expected.Height, harness.Editor.SelectionBounds.Height, 1);
     }
 
+    [AvaloniaFact]
+    public void Selection_Bounds_Follow_Geometry_Changes_Of_The_Target()
+    {
+        var harness = EditorHarness.Create();
+        harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        Click(harness, NestedCentre);
+        Assert.Equal(EditorHarness.NestedWidth, harness.Editor.SelectionBounds.Width, 1);
+
+        // Изменение геометрии выбранного target'а обязано дойти до overlay.
+        // Раньше это ловил глобальный class handler на BoundsProperty,
+        // теперь — точечная подписка на сами targets.
+        harness.Nested(0).Width = EditorHarness.NestedWidth + 40;
+        harness.RunLayout();
+
+        Assert.Equal(EditorHarness.NestedWidth + 40, harness.Editor.SelectionBounds.Width, 1);
+    }
+
+    [AvaloniaFact]
+    public void Selection_Bounds_Follow_Design_Position_Changes_Of_The_Target()
+    {
+        var harness = EditorHarness.Create();
+        harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        Click(harness, NestedCentre);
+        var startX = harness.Editor.SelectionBounds.X;
+
+        // Сдвиг через Layout.X идёт по тому же пути подписки, что и Bounds.
+        ArxisStudio.Attached.Layout.SetX(harness.Nested(0), EditorHarness.NestedOffset + 25);
+        harness.RunLayout();
+
+        Assert.Equal(startX + 25, harness.Editor.SelectionBounds.X, 1);
+    }
+
     /// <summary>Точка внутри второго вложенного контрола.</summary>
     private static Point SiblingCentre => new(
         ContainerLocation.X + EditorHarness.SiblingOffset + (EditorHarness.NestedWidth / 2),
