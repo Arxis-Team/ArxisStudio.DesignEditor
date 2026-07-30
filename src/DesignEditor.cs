@@ -646,6 +646,19 @@ public class DesignEditor : SelectingItemsControl
     public event EventHandler<DesignEditorContextRequestedEventArgs>? ContextMenuResolved;
 
     /// <summary>
+    /// Возникает после завершения единицы редактирования — перемещения или изменения размера.
+    /// </summary>
+    /// <remarks>
+    /// Одно событие на жест целиком, а не на кадр: это та гранулярность, в которой
+    /// изменения кладутся в стек undo. Жест, не изменивший геометрию, события не вызывает.
+    /// <para>
+    /// Стек отмены библиотека не ведёт: она отдаёт поток изменений, а хранит его приложение.
+    /// Вернуть состояние можно через <see cref="ApplyGeometry"/>.
+    /// </para>
+    /// </remarks>
+    public event EventHandler<DesignEditCompletedEventArgs>? EditCompleted;
+
+    /// <summary>
     /// Получает или задает presenter контекстных действий.
     /// </summary>
     public IDesignEditorContextPresenter ContextPresenter { get; set; } = new ContextMenuContextPresenter();
@@ -674,6 +687,14 @@ public class DesignEditor : SelectingItemsControl
     private readonly List<Control> _subscribedTargets = new();
     private GroupResizeOperation? _groupResizeOperation;
     private GroupDragOperation? _groupDragOperation;
+
+    // Текущая единица редактирования. Живёт от начала жеста до его завершения:
+    // все мутации проходят через SetDesignPosition/SetDesignSize и попадают в неё.
+    private DesignEditScope? _activeEdit;
+
+    // Подавляет запись на время программного применения геометрии,
+    // чтобы отмена не превращалась в новое изменение.
+    private bool _suppressEditRecording;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
@@ -1751,6 +1772,8 @@ public class DesignEditor : SelectingItemsControl
             return;
         }
 
+        // Все проверки пройдены — жест состоится, открываем единицу редактирования.
+        BeginEdit(DesignEditKind.Move);
         _groupDragOperation = GroupDragOperation.TryCreate(this, sourceContainer, sourceTarget);
 
         e.Handled = true;
@@ -1813,6 +1836,7 @@ public class DesignEditor : SelectingItemsControl
     private void OnItemsDragCompleted(DragCompletedEventArgs e)
     {
         CompleteInteractionOperation(ref _groupDragOperation);
+        CommitEdit();
         e.Handled = true;
     }
 
@@ -1830,6 +1854,8 @@ public class DesignEditor : SelectingItemsControl
         if (!IsResizeAllowed(_primarySelectionControl, e.Direction))
             return;
 
+        // До PushState: ItemResizingState.Enter уже фиксирует текущий размер.
+        BeginEdit(DesignEditKind.Resize);
         _primarySelectionItem.PushState(new ItemResizingState(_primarySelectionItem, _primarySelectionControl, e.Direction));
         _primarySelectionItem.OnResizeStarted(e.Vector);
         e.Handled = true;
@@ -1862,6 +1888,7 @@ public class DesignEditor : SelectingItemsControl
         _primarySelectionItem.PopState();
         _primarySelectionItem.OnResizeCompleted(e.Vector);
         UpdateSelectionOverlayState();
+        CommitEdit();
         e.Handled = true;
     }
 
@@ -1875,6 +1902,7 @@ public class DesignEditor : SelectingItemsControl
         if (!IsResizeAllowed(target, e.Direction))
             return;
 
+        BeginEdit(DesignEditKind.Resize);
         container.PushState(new ItemResizingState(container, target, e.Direction));
         container.OnResizeStarted(e.Vector);
         e.Handled = true;
@@ -1913,13 +1941,24 @@ public class DesignEditor : SelectingItemsControl
         container.PopState();
         container.OnResizeCompleted(e.Vector);
         UpdateSelectionOverlayState();
+        CommitEdit();
         e.Handled = true;
     }
 
     private void OnGroupSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
     {
-        if (!HasMultipleContainerSelection || !TryCreateGroupResizeOperation(e.Direction, out var operation))
+        if (!HasMultipleContainerSelection)
             return;
+
+        // TryCreateGroupResizeOperation фиксирует текущие размеры target'ов,
+        // поэтому открывать единицу редактирования нужно до него — и отменять,
+        // если операция так и не создалась.
+        BeginEdit(DesignEditKind.Resize);
+        if (!TryCreateGroupResizeOperation(e.Direction, out var operation))
+        {
+            CancelEdit();
+            return;
+        }
 
         _groupResizeOperation = operation;
         e.Handled = true;
@@ -1949,6 +1988,7 @@ public class DesignEditor : SelectingItemsControl
 
         CompleteInteractionOperation(ref _groupResizeOperation);
         UpdateSelectionOverlayState();
+        CommitEdit();
         e.Handled = true;
     }
 
@@ -2083,6 +2123,9 @@ public class DesignEditor : SelectingItemsControl
 
     internal void SetDesignPosition(Control control, Point position)
     {
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordPosition(this, control, position);
+
         if (control is DesignEditorItem item)
         {
             item.Location = position;
@@ -2103,8 +2146,48 @@ public class DesignEditor : SelectingItemsControl
 
     internal void SetDesignSize(Control control, Size size)
     {
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordSize(this, control, size);
+
         control.Width = size.Width;
         control.Height = size.Height;
+    }
+
+    /// <summary>
+    /// Применяет геометрию к target, не создавая новой единицы редактирования.
+    /// </summary>
+    /// <param name="target">Контрол, геометрию которого нужно задать.</param>
+    /// <param name="bounds">Целевая геометрия в design-координатах.</param>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="target"/> равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Предназначен для отмены и повтора: принимает <see cref="DesignGeometryChange.OldBounds"/>
+    /// или <see cref="DesignGeometryChange.NewBounds"/> напрямую. Запись изменений на время
+    /// вызова подавляется, поэтому отмена не порождает новую запись в стеке.
+    /// </remarks>
+    /// <example>
+    /// <code language="csharp"><![CDATA[
+    /// foreach (var change in edit.Changes)
+    ///     editor.ApplyGeometry(change.Target, change.OldBounds);
+    /// ]]></code>
+    /// </example>
+    public void ApplyGeometry(Control target, Rect bounds)
+    {
+        if (target == null)
+            throw new ArgumentNullException(nameof(target));
+
+        var previous = _suppressEditRecording;
+        _suppressEditRecording = true;
+        try
+        {
+            SetDesignSize(target, bounds.Size);
+            SetDesignPosition(target, bounds.Position);
+        }
+        finally
+        {
+            _suppressEditRecording = previous;
+        }
+
+        UpdateSelectionOverlayState();
     }
 
     internal ArxisStudio.Attached.ResizePolicy GetResizePolicy(Control control)
@@ -2802,6 +2885,34 @@ public class DesignEditor : SelectingItemsControl
 
         return true;
     }
+
+    /// <summary>
+    /// Открывает единицу редактирования. Вызывается на старте жеста, до первой мутации.
+    /// </summary>
+    private void BeginEdit(DesignEditKind kind) => _activeEdit = new DesignEditScope(kind);
+
+    /// <summary>
+    /// Закрывает единицу редактирования и публикует изменения, если они есть.
+    /// </summary>
+    private void CommitEdit()
+    {
+        var scope = _activeEdit;
+        _activeEdit = null;
+
+        if (scope == null)
+            return;
+
+        var changes = scope.BuildChanges();
+        if (changes.Count == 0)
+            return;
+
+        EditCompleted?.Invoke(this, new DesignEditCompletedEventArgs(scope.Kind, changes));
+    }
+
+    /// <summary>
+    /// Отбрасывает единицу редактирования, не публикуя изменения.
+    /// </summary>
+    private void CancelEdit() => _activeEdit = null;
 
     private void UpdateInteractionOperation(IInteractionOperation operation, Vector worldDelta)
     {

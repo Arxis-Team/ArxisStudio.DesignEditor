@@ -218,6 +218,29 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Отмена и повтор поверх DesignEditor.EditCompleted / ApplyGeometry. -->
+                <Button Classes="toolBtn"
+                        Name="UndoButton"
+                        ToolTip.Tip="Undo"
+                        Click="Undo_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12.5,8C9.85,8 7.45,8.99 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"
+                                  Width="14" Height="14" Foreground="#4C97FF"/>
+                        <TextBlock Text="Undo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        Name="RedoButton"
+                        ToolTip.Tip="Redo"
+                        Click="Redo_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M18.4,10.6C16.55,8.99 14.15,8 11.5,8C6.85,8 2.92,11.03 1.53,15.22L3.9,16C4.95,12.81 7.96,10.5 11.5,10.5C13.46,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z"
+                                  Width="14" Height="14" Foreground="#4C97FF"/>
+                        <TextBlock Text="Redo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
                 <Button Classes="toolBtn"
                         ToolTip.Tip="Center selected items in view"
                         Click="CenterSelection_OnClick"
