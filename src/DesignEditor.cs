@@ -1284,6 +1284,11 @@ public class DesignEditor : SelectingItemsControl
             if (!HasDesignerLayoutMetadata(target))
                 continue;
 
+            // Рамка выбирает соседей внутри одного host'а, а не смесь уровней:
+            // иначе в выборку попадали бы и вложенный контейнер, и его содержимое.
+            if (!ReferenceEquals(FindDesignHost(target), scope))
+                continue;
+
             if (TryGetDesignBounds(target, out var targetBounds) && bounds.Intersects(targetBounds))
                 nestedTargets.Add(target);
         }
@@ -1845,7 +1850,9 @@ public class DesignEditor : SelectingItemsControl
         }
 
         var isAdditive = ShouldUseAdditiveSelection(modifiers);
-        if (isAdditive && !CanAddNestedTargetToContainer(container))
+        // Грубая проверка по владельцу верхнего уровня плюс точная по design host:
+        // target уже известен, поэтому уровень вложенности можно сверить честно.
+        if (isAdditive && (!CanAddNestedTargetToContainer(container) || !SharesDesignHostWithSelection(target)))
             return;
 
         if (ReferenceEquals(target, container))
@@ -2367,6 +2374,54 @@ public class DesignEditor : SelectingItemsControl
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Возвращает ближайший design host target'а — контейнер, непосредственно
+    /// внутри которого он лежит.
+    /// </summary>
+    /// <remarks>
+    /// Для контрола внутри контейнера верхнего уровня это сам контейнер, для
+    /// контрола внутри вложенного — вложенный, для вложенного контейнера — его владелец.
+    /// Это единица группировки выделения: вместе выбираются только соседи по host'у.
+    /// </remarks>
+    internal static DesignEditorItem? FindDesignHost(Control target)
+        => target.FindAncestorOfType<DesignEditorItem>();
+
+    private IEnumerable<Control> EnumerateSelectedTargets()
+    {
+        foreach (var pair in _selectionTargets)
+        {
+            foreach (var target in pair.Value)
+                yield return target;
+        }
+
+        foreach (var container in _containerSelectionTargets)
+            yield return container;
+    }
+
+    /// <summary>
+    /// Проверяет, что target лежит в том же design host, что и всё текущее выделение.
+    /// </summary>
+    /// <remarks>
+    /// Правило точнее, чем «один item верхнего уровня»: два контрола из соседних
+    /// вложенных контейнеров принадлежат одному item'у, но разным host'ам,
+    /// и группировать их вместе нельзя.
+    /// </remarks>
+    private bool SharesDesignHostWithSelection(Control target)
+    {
+        var host = FindDesignHost(target);
+
+        foreach (var selected in EnumerateSelectedTargets())
+        {
+            if (ReferenceEquals(selected, target))
+                continue;
+
+            if (!ReferenceEquals(FindDesignHost(selected), host))
+                return false;
+        }
+
+        return true;
     }
 
     internal bool CanAddNestedTargetToContainer(DesignEditorItem container)

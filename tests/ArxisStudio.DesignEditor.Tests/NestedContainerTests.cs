@@ -245,6 +245,32 @@ public class NestedContainerTests
 
         Assert.Contains(Named(editor, "OuterChild"), targets);
         Assert.Contains(Inner(editor), targets);
+
+        // Содержимое вложенного контейнера не подмешивается: рамка выбирает
+        // соседей одного уровня, а не смесь контейнера и его детей.
+        Assert.DoesNotContain(Named(editor, "InnerChild"), targets);
+    }
+
+    [AvaloniaFact]
+    public void Additive_Click_Does_Not_Group_Targets_From_Different_Hosts()
+    {
+        var (window, editor, _) = Create();
+
+        // Сначала выбираем ребёнка вложенного контейнера.
+        var innerChildPoint = new Point(OuterLocation.X + InnerOffset + 30, OuterLocation.Y + InnerOffset + 30);
+        window.MouseDown(innerChildPoint, MouseButton.Left);
+        window.MouseUp(innerChildPoint, MouseButton.Left);
+        RunLayout(window);
+        Assert.Same(Named(editor, "InnerChild"), editor.PrimarySelectionTarget!.Target);
+
+        // Shift-клик по соседу из внешнего контейнера: другой design host.
+        var outerChildPoint = new Point(OuterLocation.X + 140, OuterLocation.Y + 40);
+        window.MouseDown(outerChildPoint, MouseButton.Left, RawInputModifiers.Shift);
+        window.MouseUp(outerChildPoint, MouseButton.Left, RawInputModifiers.Shift);
+        RunLayout(window);
+
+        var targets = editor.SelectedDesignTargets.Select(t => t.Target).ToList();
+        Assert.DoesNotContain(Named(editor, "OuterChild"), targets);
     }
 
     [AvaloniaFact]
