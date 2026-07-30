@@ -169,6 +169,12 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.Register<DesignEditor, Transform>(nameof(DpiScaledViewportTransform), new TransformGroup());
 
     /// <summary>
+    /// Идентификатор свойства видимости фоновой сетки.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowGridProperty =
+        AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowGrid), true);
+
+    /// <summary>
     /// Идентификатор темы для прямоугольника выделения.
     /// </summary>
     public static readonly StyledProperty<ControlTheme> SelectionRectangleStyleProperty =
@@ -371,6 +377,20 @@ public class DesignEditor : SelectingItemsControl
     {
         get => GetValue(DpiScaledViewportTransformProperty);
         set => SetValue(DpiScaledViewportTransformProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения фоновой сетки.
+    /// </summary>
+    /// <remarks>
+    /// Сетка входит в шаблон редактора и настраивается через тему
+    /// <see cref="Controls.DesignGrid"/> и ресурсы <c>DesignEditor.Grid.*</c>.
+    /// Для собственного фона достаточно выключить её и задать <see cref="TemplatedControl.Background"/>.
+    /// </remarks>
+    public bool ShowGrid
+    {
+        get => GetValue(ShowGridProperty);
+        set => SetValue(ShowGridProperty, value);
     }
 
     /// <summary>

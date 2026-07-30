@@ -34,53 +34,16 @@
     <Window.Resources>
         <Color x:Key="BackgroundColor">#141417</Color>
         <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
-        <SolidColorBrush x:Key="SmallLineBrush" Color="#26292E" />
-        <SolidColorBrush x:Key="LargeLineBrush" Color="#3E4451" />
-
-        <DrawingGroup x:Key="UnifiedGridDrawing">
-            <GeometryDrawing Brush="{StaticResource BackgroundBrush}">
-                <GeometryDrawing.Geometry>
-                    <RectangleGeometry Rect="0,0,100,100" />
-                </GeometryDrawing.Geometry>
-            </GeometryDrawing>
-            <GeometryDrawing Brush="{x:Null}">
-                <GeometryDrawing.Pen>
-                    <Pen Brush="{StaticResource SmallLineBrush}" Thickness="1" />
-                </GeometryDrawing.Pen>
-                <GeometryDrawing.Geometry>
-                    <GeometryGroup>
-                        <LineGeometry StartPoint="20,0" EndPoint="20,100" />
-                        <LineGeometry StartPoint="40,0" EndPoint="40,100" />
-                        <LineGeometry StartPoint="60,0" EndPoint="60,100" />
-                        <LineGeometry StartPoint="80,0" EndPoint="80,100" />
-                        <LineGeometry StartPoint="0,20" EndPoint="100,20" />
-                        <LineGeometry StartPoint="0,40" EndPoint="100,40" />
-                        <LineGeometry StartPoint="0,60" EndPoint="100,60" />
-                        <LineGeometry StartPoint="0,80" EndPoint="100,80" />
-                    </GeometryGroup>
-                </GeometryDrawing.Geometry>
-            </GeometryDrawing>
-            <GeometryDrawing Brush="{x:Null}">
-                <GeometryDrawing.Pen>
-                    <Pen Brush="{StaticResource LargeLineBrush}" Thickness="1" />
-                </GeometryDrawing.Pen>
-                <GeometryDrawing.Geometry>
-                    <StreamGeometry>M0,0 L100,0 M0,0 L0,100</StreamGeometry>
-                </GeometryDrawing.Geometry>
-            </GeometryDrawing>
-        </DrawingGroup>
-
-        <DrawingBrush x:Key="DesignEditorGridBrush"
-                      TileMode="Tile"
-                      DestinationRect="0 0 100 100"
-                      Transform="{Binding DpiScaledViewportTransform, ElementName=Editor}"
-                      Drawing="{StaticResource UnifiedGridDrawing}" />
+        <!--
+            Сетка больше не описывается в демо: её предоставляет сама библиотека
+            через DesignGrid в шаблоне DesignEditor. Палитра и шаг настраиваются
+            ресурсами DesignEditor.Grid.*.
+        -->
     </Window.Resources>
 
     <Grid Background="{StaticResource BackgroundBrush}">
 
         <arxisStudio:DesignEditor x:Name="Editor"
-                                 Background="{StaticResource DesignEditorGridBrush}"
                                  ItemsSource="{Binding Elements}"
                                  SelectedItems="{Binding SelectedElements}"
                                  SelectionMode="Multiple"

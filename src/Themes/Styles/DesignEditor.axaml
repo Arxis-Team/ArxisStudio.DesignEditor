@@ -26,6 +26,16 @@
                         BorderThickness="{TemplateBinding BorderThickness}">
 
                     <Grid>
+                        <!--
+                            Фоновая сетка. Рисуется в экранных координатах и получает
+                            viewport напрямую, поэтому ей не нужен ViewportTransform:
+                            толщина линий остаётся пиксельной на любом масштабе.
+                        -->
+                        <controls:DesignGrid Name="PART_Grid"
+                                             ViewportLocation="{TemplateBinding ViewportLocation}"
+                                             ViewportZoom="{TemplateBinding ViewportZoom}"
+                                             IsVisible="{TemplateBinding ShowGrid}" />
+
                         <!-- Реальное содержимое редактора и item containers. -->
                         <Canvas Name="PART_ItemsLayer"
                                 RenderTransform="{TemplateBinding ViewportTransform}"
