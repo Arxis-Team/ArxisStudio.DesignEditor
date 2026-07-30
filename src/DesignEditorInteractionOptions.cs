@@ -67,4 +67,42 @@ public class DesignEditorInteractionOptions : AvaloniaObject
         get => GetValue(ResizeMinSizeProperty);
         set => SetValue(ResizeMinSizeProperty, value);
     }
+
+    /// <summary>
+    /// Идентификатор свойства шага смещения стрелками.
+    /// </summary>
+    public static readonly StyledProperty<double> NudgeStepProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, double>(
+            nameof(NudgeStep),
+            1.0);
+
+    /// <summary>
+    /// Идентификатор свойства увеличенного шага смещения стрелками.
+    /// </summary>
+    public static readonly StyledProperty<double> LargeNudgeStepProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, double>(
+            nameof(LargeNudgeStep),
+            10.0);
+
+    /// <summary>
+    /// Получает или задает шаг смещения выделения стрелками, в мировых единицах.
+    /// </summary>
+    public double NudgeStep
+    {
+        get => GetValue(NudgeStepProperty);
+        set => SetValue(NudgeStepProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает шаг смещения стрелками с модификатором.
+    /// </summary>
+    /// <remarks>
+    /// Модификатор задаётся через <see cref="DesignEditorInputGestures.LargeNudgeModifiers"/>.
+    /// Значение обычно кратно шагу сетки, чтобы крупное смещение попадало по ячейкам.
+    /// </remarks>
+    public double LargeNudgeStep
+    {
+        get => GetValue(LargeNudgeStepProperty);
+        set => SetValue(LargeNudgeStepProperty, value);
+    }
 }

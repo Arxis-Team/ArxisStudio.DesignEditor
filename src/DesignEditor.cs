@@ -659,6 +659,16 @@ public class DesignEditor : SelectingItemsControl
     public event EventHandler<DesignEditCompletedEventArgs>? EditCompleted;
 
     /// <summary>
+    /// Возникает при запросе удаления выделения с клавиатуры.
+    /// </summary>
+    /// <remarks>
+    /// Редактор не владеет коллекцией элементов и удалять их не может: обработчик
+    /// должен выполнить удаление сам и выставить
+    /// <see cref="DesignEditorDeleteRequestedEventArgs.Handled"/>.
+    /// </remarks>
+    public event EventHandler<DesignEditorDeleteRequestedEventArgs>? DeleteRequested;
+
+    /// <summary>
     /// Получает или задает presenter контекстных действий.
     /// </summary>
     public IDesignEditorContextPresenter ContextPresenter { get; set; } = new ContextMenuContextPresenter();
@@ -1654,6 +1664,12 @@ public class DesignEditor : SelectingItemsControl
         _lastMousePosition = e.GetPosition(this);
         LastInputModifiers = e.KeyModifiers;
 
+        // Focusable сам по себе фокус не даёт: без него клавиатурные жесты
+        // до редактора не доходят. Проверка IsKeyboardFocusWithin не даёт
+        // отобрать фокус у вложенного редактируемого контрола.
+        if (!IsKeyboardFocusWithin)
+            Focus();
+
         if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
         {
             RetargetSelectionForContext(_lastMousePosition, e.KeyModifiers);
@@ -1665,6 +1681,138 @@ public class DesignEditor : SelectingItemsControl
         CurrentState.OnPointerPressed(e);
 
         if (!e.Handled) base.OnPointerPressed(e);
+    }
+
+    /// <summary>
+    /// Обрабатывает нажатие клавиши: смещение выделения, снятие выделения,
+    /// выбор всего и запрос удаления.
+    /// </summary>
+    /// <param name="e">Аргументы клавиатуры.</param>
+    /// <remarks>
+    /// Уже обработанные нажатия пропускаются: если фокус во вложенном редактируемом
+    /// контроле, стрелки и Delete принадлежат ему, а не редактору.
+    /// </remarks>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled)
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+            case Key.Right:
+            case Key.Up:
+            case Key.Down:
+                e.Handled = TryNudgeSelection(e.Key, e.KeyModifiers);
+                break;
+
+            case Key.Escape:
+                e.Handled = TryClearSelection();
+                break;
+
+            case Key.Delete:
+            case Key.Back:
+                e.Handled = TryRequestDelete();
+                break;
+
+            case Key.A when ShouldUseContainerInteraction(e.KeyModifiers):
+                e.Handled = TrySelectAll();
+                break;
+        }
+    }
+
+    private bool TryNudgeSelection(Key key, KeyModifiers modifiers)
+    {
+        var targets = SelectedDesignTargets;
+        if (targets.Count == 0)
+            return false;
+
+        var step = MatchesModifiers(modifiers, InputGestures.LargeNudgeModifiers)
+            && InputGestures.LargeNudgeModifiers != KeyModifiers.None
+                ? InteractionOptions.LargeNudgeStep
+                : InteractionOptions.NudgeStep;
+
+        var delta = key switch
+        {
+            Key.Left => new Vector(-step, 0),
+            Key.Right => new Vector(step, 0),
+            Key.Up => new Vector(0, -step),
+            Key.Down => new Vector(0, step),
+            _ => default
+        };
+
+        if (delta.X == 0 && delta.Y == 0)
+            return false;
+
+        // Одно нажатие — одна единица редактирования, как и одно перетаскивание.
+        BeginEdit(DesignEditKind.Move);
+
+        for (var i = 0; i < targets.Count; i++)
+        {
+            var target = targets[i].Target;
+            var filtered = ApplyMovePolicy(target, delta);
+            if (filtered.X == 0 && filtered.Y == 0)
+                continue;
+
+            SetDesignPosition(target, GetDesignPosition(target) + filtered);
+        }
+
+        CommitEdit();
+        UpdateSelectionOverlayState();
+        return true;
+    }
+
+    private bool TryClearSelection()
+    {
+        if (SelectedDesignTargets.Count == 0)
+            return false;
+
+        Selection.Clear();
+        _selectedTargets.Clear();
+        UpdateSelectionOverlayState();
+        return true;
+    }
+
+    private bool TrySelectAll()
+    {
+        if (ItemCount == 0)
+            return false;
+
+        using (Selection.BatchUpdate())
+        {
+            Selection.Clear();
+            Selection.SelectAll();
+        }
+
+        // Выбор всего работает на уровне контейнеров: это единица документа.
+        _selectedTargets.Clear();
+        if (Presenter?.Panel != null)
+        {
+            foreach (var child in Presenter.Panel.Children)
+            {
+                if (child is DesignEditorItem container)
+                    AddSelectedTarget(container);
+            }
+        }
+
+        UpdateSelectionOverlayState();
+        return true;
+    }
+
+    private bool TryRequestDelete()
+    {
+        var targets = SelectedDesignTargets;
+        if (targets.Count == 0)
+            return false;
+
+        var handler = DeleteRequested;
+        if (handler == null)
+            return false;
+
+        var args = new DesignEditorDeleteRequestedEventArgs(targets);
+        handler(this, args);
+        return args.Handled;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia.Controls;
 using ArxisStudio;
 using DesignEditor.Demo.Context;
@@ -17,6 +18,9 @@ public partial class MainWindow : Window
         {
             editor.ContextActionProviders.Add(new DesignEditorDemoContextActionsProvider());
 
+            // Редактор не владеет коллекцией, поэтому Delete приходит запросом.
+            editor.DeleteRequested += Editor_OnDeleteRequested;
+
             // Отмена строится поверх DesignEditor.EditCompleted и ApplyGeometry.
             _history = new EditHistory(editor);
             _history.Changed += (_, _) => UpdateHistoryButtons();
@@ -31,6 +35,31 @@ public partial class MainWindow : Window
 
         if (this.FindControl<Button>("RedoButton") is { } redo)
             redo.IsEnabled = _history?.CanRedo ?? false;
+    }
+
+    private void Editor_OnDeleteRequested(object? sender, DesignEditorDeleteRequestedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is not { } editor)
+            return;
+
+        // Удаляем от больших индексов к меньшим, иначе последующие съезжают.
+        var indexes = e.Targets
+            .Select(target => editor.IndexFromContainer(target.Container))
+            .Where(index => index >= 0)
+            .Distinct()
+            .OrderByDescending(index => index)
+            .ToList();
+
+        if (indexes.Count == 0)
+            return;
+
+        foreach (var index in indexes)
+            viewModel.Elements.RemoveAt(index);
+
+        e.Handled = true;
     }
 
     private void Undo_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _history?.Undo();

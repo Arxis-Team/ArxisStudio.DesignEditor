@@ -321,7 +321,7 @@
 
                 <Grid IsVisible="{Binding IsGestureHelpExpanded}"
                       ColumnDefinitions="Auto,*"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                       ColumnSpacing="10"
                       RowSpacing="6">
                     <Border Grid.Row="0"
@@ -451,6 +451,34 @@
                                Foreground="#C9D1D9"
                                FontSize="10"
                                TextWrapping="Wrap"/>
+
+                    <Border Grid.Row="8" Background="#243246" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="← ↑ → ↓" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Grid.Row="8" Grid.Column="1"
+                               Text="Сместить выделение на шаг"
+                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
+
+                    <Border Grid.Row="9" Background="#243246" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Shift + ← ↑ → ↓" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Grid.Row="9" Grid.Column="1"
+                               Text="Сместить крупным шагом"
+                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
+
+                    <Border Grid.Row="10" Background="#243246" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Delete" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Grid.Row="10" Grid.Column="1"
+                               Text="Удалить выбранные элементы"
+                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
+
+                    <Border Grid.Row="11" Background="#243246" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Esc / Ctrl + A" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Grid.Row="11" Grid.Column="1"
+                               Text="Снять выделение / выбрать все"
+                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
                 </Grid>
 
                 <TextBlock IsVisible="{Binding IsGestureHelpCollapsed}"

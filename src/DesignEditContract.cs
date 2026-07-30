@@ -22,6 +22,37 @@ public enum DesignEditKind
 }
 
 /// <summary>
+/// Аргументы запроса на удаление выделения.
+/// </summary>
+/// <remarks>
+/// Редактор не владеет коллекцией элементов — она приходит через <c>ItemsSource</c>,
+/// поэтому удалять он не может и не должен. Клавиша Delete превращается в запрос,
+/// который выполняет приложение. Пока запрос не помечен <see cref="Handled"/>,
+/// нажатие считается необработанным и продолжает всплывать.
+/// </remarks>
+public sealed class DesignEditorDeleteRequestedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignEditorDeleteRequestedEventArgs"/>.
+    /// </summary>
+    /// <param name="targets">Выделенные targets на момент запроса.</param>
+    public DesignEditorDeleteRequestedEventArgs(IReadOnlyList<DesignSelectionTarget> targets)
+    {
+        Targets = targets ?? throw new ArgumentNullException(nameof(targets));
+    }
+
+    /// <summary>
+    /// Получает выделенные targets на момент запроса.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> Targets { get; }
+
+    /// <summary>
+    /// Получает или задает признак того, что удаление выполнено приложением.
+    /// </summary>
+    public bool Handled { get; set; }
+}
+
+/// <summary>
 /// Описывает изменение геометрии одного design target.
 /// </summary>
 /// <remarks>

@@ -221,6 +221,27 @@ public class DesignEditorInputGestures : AvaloniaObject
     /// <summary>
     /// Идентификатор свойства смысла перетаскивания по пустой области контейнера.
     /// </summary>
+    /// <summary>
+    /// Идентификатор свойства модификаторов увеличенного смещения стрелками.
+    /// </summary>
+    public static readonly StyledProperty<KeyModifiers> LargeNudgeModifiersProperty =
+        AvaloniaProperty.Register<DesignEditorInputGestures, KeyModifiers>(
+            nameof(LargeNudgeModifiers),
+            KeyModifiers.Shift);
+
+    /// <summary>
+    /// Получает или задает модификаторы, переключающие стрелки на увеличенный шаг.
+    /// </summary>
+    /// <remarks>
+    /// Совпадение с <see cref="AdditiveSelectionModifiers"/> конфликта не создаёт:
+    /// это разные каналы ввода — указатель и клавиатура.
+    /// </remarks>
+    public KeyModifiers LargeNudgeModifiers
+    {
+        get => GetValue(LargeNudgeModifiersProperty);
+        set => SetValue(LargeNudgeModifiersProperty, value);
+    }
+
     /// <remarks>
     /// По умолчанию <see cref="ContainerEmptyAreaDragGesture.Marquee"/> — конвенция
     /// form designer'ов. Интеграции, которым нужно прежнее поведение, переключают
