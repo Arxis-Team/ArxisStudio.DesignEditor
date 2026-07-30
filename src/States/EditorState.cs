@@ -5,7 +5,7 @@ namespace ArxisStudio.States;
 /// <summary>
 /// Базовый класс состояния редактора.
 /// </summary>
-public abstract class EditorState
+internal abstract class EditorState
 {
     /// <summary>
     /// Получает редактор, которому принадлежит состояние.

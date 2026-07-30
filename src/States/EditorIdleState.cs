@@ -7,7 +7,7 @@ namespace ArxisStudio.States;
 /// <summary>
 /// Состояние ожидания, в котором редактор обрабатывает старт выделения, панорамирования и зума.
 /// </summary>
-public class EditorIdleState : EditorState
+internal class EditorIdleState : EditorState
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="EditorIdleState"/>.

@@ -10,7 +10,7 @@ namespace ArxisStudio.States;
 /// <summary>
 /// Базовый класс состояния элемента дизайнера.
 /// </summary>
-public abstract class DesignEditorItemState
+internal abstract class DesignEditorItemState
 {
     /// <summary>
     /// Получает контейнер, которому принадлежит состояние.
@@ -68,7 +68,7 @@ public abstract class DesignEditorItemState
 /// <summary>
 /// Состояние покоя. Ожидает выделения или начала перетаскивания.
 /// </summary>
-public class ItemIdleState : DesignEditorItemState
+internal class ItemIdleState : DesignEditorItemState
 {
     private Point _startPoint;
     private bool _isPressed;
@@ -219,7 +219,7 @@ public class ItemIdleState : DesignEditorItemState
 /// <summary>
 /// Состояние перетаскивания элемента.
 /// </summary>
-public class ItemDraggingState : DesignEditorItemState
+internal class ItemDraggingState : DesignEditorItemState
 {
     private Point _previousPointerPosition;
     private readonly Point _initialPointerPosition;
@@ -306,7 +306,7 @@ public class ItemDraggingState : DesignEditorItemState
 /// <summary>
 /// Состояние изменения размера элемента.
 /// </summary>
-public class ItemResizingState : DesignEditorItemState
+internal class ItemResizingState : DesignEditorItemState
 {
     private readonly Control _target;
     private readonly ResizeDirection _direction;

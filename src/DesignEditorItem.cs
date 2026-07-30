@@ -163,7 +163,7 @@ public class DesignEditorItem : ContentControl, ISelectable
     /// <summary>
     /// Получает текущее состояние контейнера.
     /// </summary>
-    public DesignEditorItemState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
+    internal DesignEditorItemState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
 
     static DesignEditorItem()
     {
@@ -249,7 +249,7 @@ public class DesignEditorItem : ContentControl, ISelectable
     /// Помещает новое состояние контейнера в стек и делает его активным.
     /// </summary>
     /// <param name="state">Новое состояние.</param>
-    public void PushState(DesignEditorItemState state)
+    internal void PushState(DesignEditorItemState state)
     {
         var previous = CurrentState;
         _states.Push(state);
@@ -260,7 +260,7 @@ public class DesignEditorItem : ContentControl, ISelectable
     /// <summary>
     /// Завершает текущее состояние контейнера и возвращается к предыдущему.
     /// </summary>
-    public void PopState()
+    internal void PopState()
     {
         if (_states.Count > 1)
         {

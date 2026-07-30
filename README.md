@@ -13,6 +13,28 @@
 - DPI-aware трансформации для фона, сетки и оверлеев
 - демо-приложение с типовым сценарием интеграции
 
+## Публичная поверхность
+
+Библиотека экспортирует 38 типов. Всё остальное — реализация и может меняться без предупреждения.
+
+| Область | Типы |
+|---|---|
+| Редактор | `DesignEditor`, `DesignEditorItem` |
+| Контролы для шаблонов и тем | `AbsolutePanel`, `DesignGrid`, `SelectionAdorner`, `SelectionAdornerRole`, `ResizeDirection`, `ResizeDeltaEventArgs`, `ResizeStartedEventArgs` |
+| Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
+| Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
+| Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
+| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs`, `DesignEditorDeleteRequestedEventArgs` |
+| События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
+| Контекстные действия | `IDesignEditorContextActionProvider`, `IDesignEditorContextPresenter`, `ContextMenuContextPresenter`, `DesignEditorContextAction`, `DesignEditorContextRequest`, `DesignEditorContextScope`, `DesignEditorContextSource`, `DesignEditorContextRequestingEventArgs`, `DesignEditorContextRequestedEventArgs` |
+
+Скрыты намеренно:
+
+- **машины состояний** — `EditorState`, `DesignEditorItemState` и наследники вместе с `CurrentState`, `PushState`, `PopState`;
+- **детали overlay** — `SelectionAdornerLayer`, `SelectionAdornerInfo`, `DesignSurface`, свойства `SecondarySelectionAdorners`.
+
+Поверхность закреплена тестом: новый публичный тип роняет сборку тестов, пока его не внесут в список осознанно либо не сделают `internal`.
+
 ## Структура решения
 
 - `src/` — библиотека контролов
@@ -572,8 +594,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 Следующий этап развития редактора:
 
-1. Очистить публичную поверхность библиотеки.
-Скрыть internal state machine и overlay implementation details, оставив стабильный API редактора, viewport navigation, gestures и design target interaction.
+1. Развить `PART_InteractionOverlayLayer`.
+Слой спроектирован под snap lines, alignment guides и drag/resize preview, но пока держит только рамку выделения.
 
 ## Запуск демо
 

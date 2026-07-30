@@ -54,13 +54,13 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Получает текущее активное состояние редактора.
     /// </summary>
-    public EditorState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
+    internal EditorState CurrentState => _states.Count > 0 ? _states.Peek() : null!;
 
     /// <summary>
     /// Помещает новое состояние в стек и вызывает его инициализацию.
     /// </summary>
     /// <param name="state">Состояние, которое должно стать активным.</param>
-    public void PushState(EditorState state)
+    internal void PushState(EditorState state)
     {
         var previous = _states.Count > 0 ? _states.Peek() : null;
         _states.Push(state);
@@ -70,7 +70,7 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Завершает текущее состояние и возвращается к предыдущему, если стек содержит более одного состояния.
     /// </summary>
-    public void PopState()
+    internal void PopState()
     {
         if (_states.Count > 1)
         {
@@ -251,7 +251,7 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Идентификатор коллекции per-target secondary outlines для multi-selection.
     /// </summary>
-    public static readonly DirectProperty<DesignEditor, IReadOnlyList<SelectionAdornerInfo>> SecondarySelectionAdornersProperty =
+    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<SelectionAdornerInfo>> SecondarySelectionAdornersProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<SelectionAdornerInfo>>(
             nameof(SecondarySelectionAdorners),
             o => o.SecondarySelectionAdorners,
@@ -260,7 +260,7 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Идентификатор количества secondary selection adorner'ов.
     /// </summary>
-    public static readonly DirectProperty<DesignEditor, int> SecondarySelectionAdornersCountProperty =
+    internal static readonly DirectProperty<DesignEditor, int> SecondarySelectionAdornersCountProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, int>(
             nameof(SecondarySelectionAdornersCount),
             o => o.SecondarySelectionAdornersCount);
@@ -544,7 +544,7 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Получает коллекцию per-target secondary adorner'ов для multi-selection.
     /// </summary>
-    public IReadOnlyList<SelectionAdornerInfo> SecondarySelectionAdorners
+    internal IReadOnlyList<SelectionAdornerInfo> SecondarySelectionAdorners
     {
         get => _secondarySelectionAdorners;
         private set
@@ -558,7 +558,7 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Получает количество secondary adorner'ов в текущем multi-selection overlay.
     /// </summary>
-    public int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
+    internal int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
 
     private DesignSelectionTarget? _primarySelectionTarget;
     /// <summary>

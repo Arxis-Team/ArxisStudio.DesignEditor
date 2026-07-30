@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using ArxisStudio.Attached;
 using ArxisStudio.Controls;
@@ -8,7 +8,7 @@ namespace ArxisStudio;
 /// <summary>
 /// Представляет модель геометрии adorner'а для selection overlay.
 /// </summary>
-public class SelectionAdornerInfo
+internal class SelectionAdornerInfo
 {
     /// <summary>
     /// Получает или задает контейнер, которому принадлежит visual target.

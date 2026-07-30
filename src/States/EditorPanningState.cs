@@ -6,7 +6,7 @@ namespace ArxisStudio.States;
 /// <summary>
 /// Состояние панорамирования viewport редактора.
 /// </summary>
-public class EditorPanningState : EditorState
+internal class EditorPanningState : EditorState
 {
     private Point _startMousePosition;
     private Point _startViewportLocation;

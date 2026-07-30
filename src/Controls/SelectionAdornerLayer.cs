@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -13,7 +13,7 @@ namespace ArxisStudio.Controls;
 /// Представляет lightweight-layer для отрисовки нескольких <see cref="SelectionAdorner"/>
 /// поверх selection targets редактора.
 /// </summary>
-public class SelectionAdornerLayer : Panel
+internal class SelectionAdornerLayer : Panel
 {
     private readonly Dictionary<Control, SelectionAdorner> _adornersByTarget = new();
 
@@ -308,7 +308,7 @@ public class SelectionAdornerLayer : Panel
 /// <summary>
 /// Базовый класс routed event args для resize событий дочернего adorner'а.
 /// </summary>
-public abstract class SelectionAdornerResizeEventArgs : RoutedEventArgs
+internal abstract class SelectionAdornerResizeEventArgs : RoutedEventArgs
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeEventArgs"/>.
@@ -328,7 +328,7 @@ public abstract class SelectionAdornerResizeEventArgs : RoutedEventArgs
 /// <summary>
 /// Аргументы начала resize дочернего adorner'а.
 /// </summary>
-public sealed class SelectionAdornerResizeStartedEventArgs : SelectionAdornerResizeEventArgs
+internal sealed class SelectionAdornerResizeStartedEventArgs : SelectionAdornerResizeEventArgs
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeStartedEventArgs"/>.
@@ -358,7 +358,7 @@ public sealed class SelectionAdornerResizeStartedEventArgs : SelectionAdornerRes
 /// <summary>
 /// Аргументы шага resize дочернего adorner'а.
 /// </summary>
-public sealed class SelectionAdornerResizeDeltaEventArgs : SelectionAdornerResizeEventArgs
+internal sealed class SelectionAdornerResizeDeltaEventArgs : SelectionAdornerResizeEventArgs
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeDeltaEventArgs"/>.
@@ -388,7 +388,7 @@ public sealed class SelectionAdornerResizeDeltaEventArgs : SelectionAdornerResiz
 /// <summary>
 /// Аргументы завершения resize дочернего adorner'а.
 /// </summary>
-public sealed class SelectionAdornerResizeCompletedEventArgs : SelectionAdornerResizeEventArgs
+internal sealed class SelectionAdornerResizeCompletedEventArgs : SelectionAdornerResizeEventArgs
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="SelectionAdornerResizeCompletedEventArgs"/>.

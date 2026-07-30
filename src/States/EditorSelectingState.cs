@@ -7,7 +7,7 @@ namespace ArxisStudio.States;
 /// <summary>
 /// Состояние прямоугольного выделения элементов редактора.
 /// </summary>
-public class EditorSelectingState : EditorState
+internal class EditorSelectingState : EditorState
 {
     private Point _startLocationWorld;
 
