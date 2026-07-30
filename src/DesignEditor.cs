@@ -669,6 +669,21 @@ public class DesignEditor : SelectingItemsControl
     public event EventHandler<DesignEditorDeleteRequestedEventArgs>? DeleteRequested;
 
     /// <summary>
+    /// Возникает при изменении набора выбранных design targets.
+    /// </summary>
+    /// <remarks>
+    /// Это не то же, что унаследованное <see cref="SelectingItemsControl.SelectionChanged"/>:
+    /// то работает на уровне элементов <c>ItemsSource</c>, а это — на уровне design targets,
+    /// включая вложенные контролы и вложенные контейнеры.
+    /// <para>
+    /// Событие возникает только при фактической смене набора или primary target.
+    /// Перетаскивание и изменение размера его не поднимают, хотя внутренний снимок
+    /// пересобирается на каждом кадре.
+    /// </para>
+    /// </remarks>
+    public event EventHandler<DesignSelectionChangedEventArgs>? DesignSelectionChanged;
+
+    /// <summary>
     /// Получает или задает presenter контекстных действий.
     /// </summary>
     public IDesignEditorContextPresenter ContextPresenter { get; set; } = new ContextMenuContextPresenter();
@@ -1245,8 +1260,7 @@ public class DesignEditor : SelectingItemsControl
             HasMultipleContainerSelection = hasMultipleContainerSelection;
             _primarySelectionItem = primaryItem;
             _primarySelectionControl = primaryControl;
-            SelectedDesignTargets = CreateSelectionTargetsSnapshot(primaryItem, primaryControl);
-            PrimarySelectionTarget = SelectedDesignTargets.Count > 0 ? SelectedDesignTargets[0] : null;
+            ApplySelectionSnapshot(CreateSelectionTargetsSnapshot(primaryItem, primaryControl));
             SyncSelectedTargetSubscriptions();
             UpdateSelectionAdornerPolicies();
             return;
@@ -1261,8 +1275,7 @@ public class DesignEditor : SelectingItemsControl
         HasMultipleContainerSelection = false;
         _primarySelectionItem = null;
         _primarySelectionControl = null;
-        SelectedDesignTargets = Array.Empty<DesignSelectionTarget>();
-        PrimarySelectionTarget = null;
+        ApplySelectionSnapshot(Array.Empty<DesignSelectionTarget>());
         SyncSelectedTargetSubscriptions();
         UpdateSelectionAdornerPolicies();
     }
@@ -2650,6 +2663,87 @@ public class DesignEditor : SelectingItemsControl
         }
 
         return owned ?? (IReadOnlyList<Control>)new[] { ResolveDefaultSelectionTarget(item) };
+    }
+
+    /// <summary>
+    /// Публикует новый снимок выделения, если он действительно отличается от текущего.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="UpdateSelectionOverlayState"/> вызывается из двух десятков мест,
+    /// в том числе на каждом кадре перетаскивания и на каждое изменение геометрии.
+    /// Снимок при этом пересобирается всегда, но выделение меняется редко, поэтому
+    /// без этой проверки и свойства, и событие срабатывали бы на изменение геометрии.
+    /// </remarks>
+    private void ApplySelectionSnapshot(IReadOnlyList<DesignSelectionTarget> next)
+    {
+        var previous = _selectedDesignTargets;
+        if (AreSameTargets(previous, next))
+            return;
+
+        var previousPrimary = _primarySelectionTarget;
+
+        SelectedDesignTargets = next;
+        PrimarySelectionTarget = next.Count > 0 ? next[0] : null;
+
+        var handler = DesignSelectionChanged;
+        if (handler == null)
+            return;
+
+        handler(this, new DesignSelectionChangedEventArgs(
+            previous,
+            next,
+            Difference(next, previous),
+            Difference(previous, next),
+            previousPrimary,
+            PrimarySelectionTarget));
+    }
+
+    /// <summary>
+    /// Сравнивает наборы по контролам, а не по обёрткам <see cref="DesignSelectionTarget"/>:
+    /// обёртки пересоздаются на каждой пересборке.
+    /// </summary>
+    private static bool AreSameTargets(
+        IReadOnlyList<DesignSelectionTarget> left,
+        IReadOnlyList<DesignSelectionTarget> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        // Порядок значим: первый элемент — primary target.
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!ReferenceEquals(left[i].Target, right[i].Target))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static IReadOnlyList<DesignSelectionTarget> Difference(
+        IReadOnlyList<DesignSelectionTarget> source,
+        IReadOnlyList<DesignSelectionTarget> exclude)
+    {
+        List<DesignSelectionTarget>? result = null;
+
+        for (var i = 0; i < source.Count; i++)
+        {
+            var candidate = source[i];
+            var found = false;
+
+            for (var j = 0; j < exclude.Count; j++)
+            {
+                if (ReferenceEquals(exclude[j].Target, candidate.Target))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                (result ??= new List<DesignSelectionTarget>()).Add(candidate);
+        }
+
+        return result ?? (IReadOnlyList<DesignSelectionTarget>)Array.Empty<DesignSelectionTarget>();
     }
 
     private IReadOnlyList<DesignSelectionTarget> CreateSelectionTargetsSnapshot(DesignEditorItem? primaryItem, Control? primaryControl)

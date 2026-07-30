@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
@@ -19,6 +20,81 @@ public enum DesignSelectionScope
     /// Выбран nested control внутри <see cref="DesignEditorItem"/>.
     /// </summary>
     NestedTarget = 1
+}
+
+/// <summary>
+/// Аргументы изменения набора выбранных design targets.
+/// </summary>
+/// <remarks>
+/// Событие отличается от <c>SelectingItemsControl.SelectionChanged</c>: тот работает
+/// на уровне элементов <c>ItemsSource</c>, а этот — на уровне design targets, включая
+/// вложенные контролы и вложенные контейнеры.
+/// <para>
+/// Наборы сравниваются по <see cref="DesignSelectionTarget.Target"/>, а не по самим
+/// экземплярам <see cref="DesignSelectionTarget"/>: они пересоздаются при каждой
+/// пересборке overlay и сравнивать их по ссылке бессмысленно.
+/// </para>
+/// </remarks>
+public sealed class DesignSelectionChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignSelectionChangedEventArgs"/>.
+    /// </summary>
+    public DesignSelectionChangedEventArgs(
+        IReadOnlyList<DesignSelectionTarget> oldTargets,
+        IReadOnlyList<DesignSelectionTarget> newTargets,
+        IReadOnlyList<DesignSelectionTarget> added,
+        IReadOnlyList<DesignSelectionTarget> removed,
+        DesignSelectionTarget? oldPrimary,
+        DesignSelectionTarget? newPrimary)
+    {
+        OldTargets = oldTargets ?? throw new ArgumentNullException(nameof(oldTargets));
+        NewTargets = newTargets ?? throw new ArgumentNullException(nameof(newTargets));
+        Added = added ?? throw new ArgumentNullException(nameof(added));
+        Removed = removed ?? throw new ArgumentNullException(nameof(removed));
+        OldPrimary = oldPrimary;
+        NewPrimary = newPrimary;
+    }
+
+    /// <summary>
+    /// Получает набор targets до изменения.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> OldTargets { get; }
+
+    /// <summary>
+    /// Получает набор targets после изменения.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> NewTargets { get; }
+
+    /// <summary>
+    /// Получает targets, появившиеся в выделении.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> Added { get; }
+
+    /// <summary>
+    /// Получает targets, выбывшие из выделения.
+    /// </summary>
+    public IReadOnlyList<DesignSelectionTarget> Removed { get; }
+
+    /// <summary>
+    /// Получает primary target до изменения.
+    /// </summary>
+    public DesignSelectionTarget? OldPrimary { get; }
+
+    /// <summary>
+    /// Получает primary target после изменения.
+    /// </summary>
+    public DesignSelectionTarget? NewPrimary { get; }
+
+    /// <summary>
+    /// Получает значение, указывающее, что сменился именно primary target.
+    /// </summary>
+    /// <remarks>
+    /// Обычный клик по участнику группы не меняет её состав, но переносит target
+    /// в начало — для инспектора свойств это и есть значимое событие.
+    /// </remarks>
+    public bool IsPrimaryChanged =>
+        !ReferenceEquals(OldPrimary?.Target, NewPrimary?.Target);
 }
 
 /// <summary>
