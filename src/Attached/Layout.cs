@@ -29,6 +29,10 @@ public static class Layout
         AvaloniaProperty.RegisterAttached<Control, bool>(
             "IsUpdatingPosition", typeof(Layout), false, inherits: false);
 
+    private static readonly AttachedProperty<bool> IsAwaitingAttachProperty =
+        AvaloniaProperty.RegisterAttached<Control, bool>(
+            "IsAwaitingAttach", typeof(Layout), false, inherits: false);
+
     #region Attached Properties
 
     /// <summary>
@@ -164,9 +168,21 @@ public static class Layout
              // Подписываемся на AttachedToVisualTree и ждем.
              if (!control.IsAttachedToVisualTree() || control.GetVisualParent() is null)
              {
+                 // Подписка ставится ровно одна. Иначе каждая запись DesignX/DesignY
+                 // до попадания в дерево добавляла бы отдельный обработчик, и на attach
+                 // пересчет выполнялся бы столько раз, сколько было записей
+                 // (SetDesignPosition пишет обе координаты подряд — уже две подписки).
+                 // Отложенный пересчет читает актуальные DesignX/DesignY в момент attach,
+                 // поэтому пропущенные записи ничего не теряют.
+                 if (GetIsAwaitingAttach(control))
+                     return;
+
+                 SetIsAwaitingAttach(control, true);
+
                  void OnAttached(object? sender, VisualTreeAttachmentEventArgs e)
                  {
                      control.AttachedToVisualTree -= OnAttached;
+                     SetIsAwaitingAttach(control, false);
                      // Повторный вызов уже с готовым деревом
                      OnDesignPositionChanged(control);
                  }
@@ -284,6 +300,9 @@ public static class Layout
 
     private static bool GetIsUpdatingPosition(AvaloniaObject o) => o.GetValue(IsUpdatingPositionProperty);
     private static void SetIsUpdatingPosition(AvaloniaObject o, bool v) => o.SetValue(IsUpdatingPositionProperty, v);
+
+    private static bool GetIsAwaitingAttach(AvaloniaObject o) => o.GetValue(IsAwaitingAttachProperty);
+    private static void SetIsAwaitingAttach(AvaloniaObject o, bool v) => o.SetValue(IsAwaitingAttachProperty, v);
 
     #endregion
 }

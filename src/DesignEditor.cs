@@ -625,6 +625,11 @@ public class DesignEditor : SelectingItemsControl
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
     private readonly TranslateTransform _dpiTranslateTransform = new TranslateTransform();
 
+    // TopLevel, с которого читается RenderScaling и на который подписан ScalingChanged.
+    // Разрешается один раз при подключении к дереву, чтобы подписка и чтение DPI
+    // не расходились между собой.
+    private TopLevel? _scalingHost;
+
     #endregion
 
     static DesignEditor()
@@ -786,7 +791,9 @@ public class DesignEditor : SelectingItemsControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (e.RootVisual is TopLevel topLevel) topLevel.ScalingChanged += OnScreenScalingChanged;
+        // e.RootVisual в Avalonia 12 не гарантированно TopLevel, поэтому host ищется
+        // подъемом по дереву, а не приведением корня.
+        SetScalingHost(TopLevel.GetTopLevel(this));
         UpdateTransforms();
     }
 
@@ -797,7 +804,21 @@ public class DesignEditor : SelectingItemsControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (e.RootVisual is TopLevel topLevel) topLevel.ScalingChanged -= OnScreenScalingChanged;
+        SetScalingHost(null);
+    }
+
+    private void SetScalingHost(TopLevel? topLevel)
+    {
+        if (ReferenceEquals(_scalingHost, topLevel))
+            return;
+
+        if (_scalingHost != null)
+            _scalingHost.ScalingChanged -= OnScreenScalingChanged;
+
+        _scalingHost = topLevel;
+
+        if (_scalingHost != null)
+            _scalingHost.ScalingChanged += OnScreenScalingChanged;
     }
 
     private void OnScreenScalingChanged(object? sender, EventArgs e) => UpdateTransforms();
@@ -814,7 +835,11 @@ public class DesignEditor : SelectingItemsControl
         _translateTransform.Y = y;
 
         // В Avalonia 12 IRenderRoot больше не публичный: RenderScaling берется с TopLevel.
-        double renderScaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        // Проверка через "не > 0" отсекает и 0, и NaN: иначе деление ниже дало бы
+        // нечисловой transform для фона и сетки.
+        double renderScaling = _scalingHost?.RenderScaling ?? 1.0;
+        if (!(renderScaling > 0))
+            renderScaling = 1.0;
 
         _dpiTranslateTransform.X = Math.Round(x * renderScaling) / renderScaling;
         _dpiTranslateTransform.Y = Math.Round(y * renderScaling) / renderScaling;

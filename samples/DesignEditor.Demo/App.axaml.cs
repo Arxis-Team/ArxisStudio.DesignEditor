@@ -17,10 +17,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // В Avalonia 12 валидация через DataAnnotations стала opt-in
-            // (AppBuilder.WithDataAnnotationsValidation), поэтому ручное снятие
-            // DataAnnotationsValidationPlugin больше не требуется — дублирования
-            // с валидацией CommunityToolkit нет по умолчанию.
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(),

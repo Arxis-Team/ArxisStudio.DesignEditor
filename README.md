@@ -47,7 +47,7 @@
 - insertion markers
 - hover preview и временные измерительные подсказки
 
-Сейчас на нем уже живет прямоугольник marquee-selection. В дальнейшем этот слой будет точкой расширения для guides, snapping и preview overlays.
+Сейчас на нем живет прямоугольник marquee-selection. Слой спроектирован как точка расширения для guides, snapping и preview overlays.
 
 ### `DesignEditorInputGestures`
 
@@ -126,7 +126,7 @@
 - `DesignEditor.ContextMenuResolved` — post-resolution событие для логирования/аналитики
 - `DesignEditor.RequestContextAsync(...)` — программный вызов контекстного меню
 
-Текущий встроенный presenter использует `ContextMenu` (Avalonia). Контракт `Request/Action/Provider` остаётся UI-agnostic, поэтому на следующем этапе можно добавить `MenuFlyout`/`ContextFlyout` без изменения доменного API.
+Текущий встроенный presenter использует `ContextMenu` (Avalonia). Контракт `Request/Action/Provider` остаётся UI-agnostic, поэтому альтернативный presenter (`MenuFlyout`/`ContextFlyout`) добавляется без изменения доменного API.
 
 Базовые правила scope-резолва:
 
@@ -414,39 +414,8 @@ if (editor.ContainerFromItem(viewModel.ActiveItem) is DesignEditorItem container
 
 Следующий этап развития редактора:
 
-1. Расширить selection API событиями и командами высокого уровня.
-Ввести явные события изменения primary target и набора selected targets, чтобы интеграции не зависели от внутренних overlay-обновлений.
-
-2. Довести nested multi-selection interaction.
-Нужно унифицировать поведение primary target, ограничения resize и visual feedback для группы nested controls без возврата к графическому UX.
-
-3. Развить `PART_InteractionOverlayLayer`.
-Следующие кандидаты:
-- snap lines
-- alignment guides
-- drag / resize preview
-- hover outline
-- distance / spacing overlays
-
-4. Ввести editing policies для разных типов контролов.
-Особенно для:
-- layout-driven controls
-- controls без явного size metadata
-- контейнеров, которые должны вести себя как host, а не как свободно ресайзимый target
-
-5. Очистить публичную поверхность библиотеки.
+1. Очистить публичную поверхность библиотеки.
 Скрыть internal state machine и overlay implementation details, оставив стабильный API редактора, viewport navigation, gestures и design target interaction.
-
-6. Завершить Context API presenter-слой.
-Добавить альтернативные presenter'ы `MenuFlyout`/`ContextFlyout`, не меняя контракты `DesignEditorContextRequest`, `DesignEditorContextAction` и `IDesignEditorContextActionProvider`.
-
-7. Подготовить интеграцию с `ArxisStudio.Markup`.
-Подключить `$design`-метаданные как источник designer-only координат и editor flags, не меняя core-архитектуру `DesignEditor`.
-
-8. Расширить `DesignEditorInteractionOptions` и определить финальный публичный контракт runtime-настроек.
-Решение на следующий этап:
-- оставить только options-объект
-- или добавить плоские свойства-алиасы на `DesignEditor`
 
 ## Запуск демо
 
