@@ -12,6 +12,15 @@ public class EditorSelectingState : EditorState
     private Point _startLocationWorld;
 
     /// <summary>
+    /// Режим рамки, зафиксированный в момент нажатия.
+    /// </summary>
+    /// <remarks>
+    /// Модификатор читается один раз: жест не должен менять смысл, если пользователь
+    /// отпустит или нажмёт клавишу посреди протяжки.
+    /// </remarks>
+    private bool _useContainerSelection;
+
+    /// <summary>
     /// Инициализирует новый экземпляр <see cref="EditorSelectingState"/>.
     /// </summary>
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
@@ -22,7 +31,7 @@ public class EditorSelectingState : EditorState
     {
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
-        Editor.BeginMarqueeSelection(Editor.GetPositionForInput(Editor), Editor.LastInputModifiers);
+        _useContainerSelection = Editor.ShouldUseContainerInteraction(Editor.LastInputModifiers);
 
         // 2. Запоминаем точку старта в МИРОВЫХ координатах (с учетом зума и пана)
         _startLocationWorld = Editor.GetWorldPosition(Editor.GetPositionForInput(Editor));
@@ -36,6 +45,7 @@ public class EditorSelectingState : EditorState
         }
 
         Editor.SelectedArea = new Rect(_startLocationWorld, new Size(0, 0));
+        Editor.UpdateMarqueeScope(Editor.SelectedArea, _useContainerSelection);
     }
 
     /// <inheritdoc />
@@ -43,6 +53,7 @@ public class EditorSelectingState : EditorState
     {
         Editor.IsSelecting = false;
         Editor.SelectedArea = new Rect(0, 0, 0, 0);
+        Editor.ClearMarqueeScope();
     }
 
     /// <inheritdoc />
@@ -56,13 +67,20 @@ public class EditorSelectingState : EditorState
         double h = Math.Abs(_startLocationWorld.Y - currentMousePosWorld.Y);
 
         Editor.SelectedArea = new Rect(x, y, w, h);
+
+        // Область действия следует за прямоугольником, а не за точкой нажатия:
+        // по MarqueeScope можно показывать целевой контейнер прямо во время жеста.
+        Editor.UpdateMarqueeScope(Editor.SelectedArea, _useContainerSelection);
     }
 
     /// <inheritdoc />
     public override void OnPointerReleased(PointerReleasedEventArgs e)
     {
-        // Применяем выделение
-        Editor.CommitSelection(Editor.SelectedArea, Editor.ShouldUseAdditiveSelection(e.KeyModifiers));
+        // Применяем выделение. Режим берём зафиксированный, а не текущий.
+        Editor.CommitSelection(
+            Editor.SelectedArea,
+            Editor.ShouldUseAdditiveSelection(e.KeyModifiers),
+            _useContainerSelection);
 
         // Возвращаемся в Idle
         Editor.PopState();

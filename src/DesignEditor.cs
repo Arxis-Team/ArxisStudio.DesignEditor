@@ -217,6 +217,14 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(IsSelecting), o => o.IsSelecting, (o, v) => o.IsSelecting = v);
 
     /// <summary>
+    /// Идентификатор свойства контейнера, в пределах которого работает текущая рамка.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, DesignEditorItem?> MarqueeScopeProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignEditorItem?>(
+            nameof(MarqueeScope),
+            o => o.MarqueeScope);
+
+    /// <summary>
     /// Идентификатор свойства прямоугольника выделения в мировых координатах.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> SelectedAreaProperty =
@@ -473,6 +481,25 @@ public class DesignEditor : SelectingItemsControl
         set => SetAndRaise(SelectedAreaProperty, ref _selectedArea, value);
     }
 
+    private DesignEditorItem? _marqueeScope;
+    /// <summary>
+    /// Получает контейнер, в пределах которого сейчас работает рамка выделения,
+    /// либо <see langword="null"/>, если рамка не активна или работает на уровне контейнеров.
+    /// </summary>
+    /// <remarks>
+    /// Значение пересчитывается на каждом шаге протяжки, поэтому по нему можно
+    /// подсвечивать целевой контейнер прямо во время жеста: пользователь видит,
+    /// что именно попадёт в выборку, ещё до отпускания кнопки.
+    /// <para>
+    /// Библиотека не навязывает визуал подсветки — это решение конкретного продукта.
+    /// </para>
+    /// </remarks>
+    public DesignEditorItem? MarqueeScope
+    {
+        get => _marqueeScope;
+        private set => SetAndRaise(MarqueeScopeProperty, ref _marqueeScope, value);
+    }
+
     private Rect _itemsExtent;
     /// <summary>
     /// Получает или задает прямоугольник, охватывающий все дочерние элементы редактора.
@@ -615,7 +642,6 @@ public class DesignEditor : SelectingItemsControl
     private SelectionAdornerLayer? _secondarySelectionAdornerLayer;
     private DesignEditorItem? _primarySelectionItem;
     private Control? _primarySelectionControl;
-    private DesignEditorItem? _marqueeSelectionOwner;
     // Выбранные design targets в порядке приоритета: первый — primary.
     // Контейнеры и вложенные контролы лежат вместе: контейнер, выбранный целиком,
     // это просто DesignEditorItem в списке. Владелец каждого target вычисляется
@@ -1191,20 +1217,32 @@ public class DesignEditor : SelectingItemsControl
     }
 
     internal void CommitSelection(Rect bounds, bool isCtrlPressed)
+        => CommitSelection(bounds, isCtrlPressed, ShouldUseContainerInteraction(LastInputModifiers));
+
+    /// <summary>
+    /// Применяет выделение по прямоугольнику рамки.
+    /// </summary>
+    /// <param name="bounds">Прямоугольник в мировых координатах.</param>
+    /// <param name="isCtrlPressed">Признак добавления к текущему выделению.</param>
+    /// <param name="useContainerSelection">
+    /// Признак работы на уровне контейнеров. Передаётся явно, а не читается из
+    /// <see cref="LastInputModifiers"/>: режим фиксируется в момент нажатия, иначе
+    /// отпускание модификатора посреди протяжки меняло бы смысл начатого жеста.
+    /// </param>
+    internal void CommitSelection(Rect bounds, bool isCtrlPressed, bool useContainerSelection)
     {
         if (Presenter?.Panel == null) return;
-        var useContainerSelection = ShouldUseContainerInteraction(LastInputModifiers);
-        var marqueeOwner = useContainerSelection ? null : (_marqueeSelectionOwner ?? FindContainerForMarquee(bounds));
+
+        // Владелец определяется итоговым прямоугольником — тем же правилом,
+        // по которому во время протяжки обновлялся MarqueeScope.
+        var marqueeOwner = useContainerSelection ? null : FindContainerForMarquee(bounds);
 
         // Владелец рамки может быть вложенным, а индексный выбор работает только
         // с item'ами верхнего уровня — сверять и выбирать нужно владеющий item.
         var marqueeOwnerItem = marqueeOwner != null ? ResolveOwningItem(marqueeOwner) : null;
 
         if (!useContainerSelection && isCtrlPressed && marqueeOwnerItem != null && !CanAddNestedTargetToContainer(marqueeOwnerItem))
-        {
-            _marqueeSelectionOwner = null;
             return;
-        }
 
         using (Selection.BatchUpdate())
         {
@@ -1256,7 +1294,6 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
-        _marqueeSelectionOwner = null;
         UpdateSelectionOverlayState();
     }
 
@@ -1995,12 +2032,23 @@ public class DesignEditor : SelectingItemsControl
         LastInputModifiers = modifiers;
     }
 
-    internal void BeginMarqueeSelection(Point screenPoint, KeyModifiers modifiers)
+    /// <summary>
+    /// Пересчитывает контейнер, в пределах которого работает текущая рамка выделения.
+    /// </summary>
+    /// <param name="worldBounds">Прямоугольник рамки в мировых координатах.</param>
+    /// <param name="useContainerSelection">Признак работы рамки на уровне контейнеров.</param>
+    /// <remarks>
+    /// Вызывается на каждом шаге протяжки, поэтому <see cref="MarqueeScope"/> отражает
+    /// текущий прямоугольник, а не точку нажатия. Иначе рамка, начатая внутри контейнера,
+    /// оставалась бы привязанной к нему при любой протяжке, и её визуальный охват
+    /// обещал бы выборку, которой не происходит.
+    /// </remarks>
+    internal void UpdateMarqueeScope(Rect worldBounds, bool useContainerSelection)
     {
-        _marqueeSelectionOwner = ShouldUseContainerInteraction(modifiers)
-            ? null
-            : FindContainerAtWorldPoint(GetWorldPosition(screenPoint));
+        MarqueeScope = useContainerSelection ? null : FindContainerForMarquee(worldBounds);
     }
+
+    internal void ClearMarqueeScope() => MarqueeScope = null;
 
     internal Point GetDesignPosition(Control control)
     {

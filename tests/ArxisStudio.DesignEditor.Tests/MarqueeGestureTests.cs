@@ -114,6 +114,81 @@ public class MarqueeGestureTests
     }
 
     [AvaloniaFact]
+    public void Marquee_Scope_Is_Null_When_No_Marquee_Is_Active()
+    {
+        var harness = CreatePlaced();
+
+        Assert.Null(harness.Editor.MarqueeScope);
+    }
+
+    [AvaloniaFact]
+    public void Marquee_Scope_Follows_The_Rectangle_Not_The_Press_Point()
+    {
+        var harness = EditorHarness.Create(nodeCount: 2);
+        harness.PlaceContainer(0, new Point(100, 100), new Size(200, 150));
+        harness.PlaceContainer(1, new Point(400, 100), new Size(200, 150));
+
+        // Старт в пустой области первого контейнера.
+        var from = new Point(290, 240);
+        harness.Window.MouseDown(from, MouseButton.Left);
+        harness.Window.MouseMove(new Point(250, 200));
+        harness.RunLayout();
+
+        // Рамка целиком внутри первого — он и есть область действия.
+        Assert.Same(harness.Container(0), harness.Editor.MarqueeScope);
+
+        // Протяжка через холст ко второму контейнеру: рамка больше не помещается
+        // в первый, а перекрывает преимущественно второй.
+        harness.Window.MouseMove(new Point(600, 110));
+        harness.RunLayout();
+
+        Assert.Same(harness.Container(1), harness.Editor.MarqueeScope);
+
+        harness.Window.MouseUp(new Point(600, 110), MouseButton.Left);
+        harness.RunLayout();
+
+        // После отпускания область действия сбрасывается.
+        Assert.Null(harness.Editor.MarqueeScope);
+    }
+
+    [AvaloniaFact]
+    public void Commit_Follows_The_Final_Rectangle_Not_The_Press_Point()
+    {
+        var harness = EditorHarness.Create(nodeCount: 2);
+        harness.PlaceContainer(0, new Point(100, 100), new Size(200, 150));
+        harness.PlaceContainer(1, new Point(400, 100), new Size(200, 150));
+
+        // Нажатие в первом контейнере, протяжка на второй.
+        harness.Window.MouseDown(new Point(290, 240), MouseButton.Left);
+        harness.Window.MouseMove(new Point(450, 180));
+        harness.Window.MouseMove(new Point(600, 105));
+        harness.Window.MouseUp(new Point(600, 105), MouseButton.Left);
+        harness.RunLayout();
+
+        var targets = harness.Editor.SelectedDesignTargets.Select(t => t.Target).ToList();
+
+        // Выбраны дети второго контейнера — того, что накрыт рамкой,
+        // а не того, где произошло нажатие.
+        Assert.Contains(harness.Nested(1), targets);
+        Assert.DoesNotContain(harness.Nested(0), targets);
+    }
+
+    [AvaloniaFact]
+    public void Container_Level_Marquee_Has_No_Scope()
+    {
+        var harness = CreatePlaced();
+
+        harness.Window.MouseDown(new Point(600, 500), MouseButton.Left, RawInputModifiers.Control);
+        harness.Window.MouseMove(new Point(150, 150), RawInputModifiers.Control);
+        harness.RunLayout();
+
+        // Рамка на уровне контейнеров не ограничена ни одним из них.
+        Assert.Null(harness.Editor.MarqueeScope);
+
+        harness.Window.MouseUp(new Point(150, 150), MouseButton.Left, RawInputModifiers.Control);
+    }
+
+    [AvaloniaFact]
     public void Click_Without_Drag_Still_Selects_The_Container()
     {
         var harness = CreatePlaced();
