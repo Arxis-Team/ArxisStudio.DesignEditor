@@ -1213,7 +1213,12 @@ public class DesignEditor : SelectingItemsControl
         if (Presenter?.Panel == null) return;
         var useContainerSelection = ShouldUseContainerInteraction(LastInputModifiers);
         var marqueeOwner = useContainerSelection ? null : (_marqueeSelectionOwner ?? FindContainerForMarquee(bounds));
-        if (!useContainerSelection && isCtrlPressed && marqueeOwner != null && !CanAddNestedTargetToContainer(marqueeOwner))
+
+        // Владелец рамки может быть вложенным, а индексный выбор работает только
+        // с item'ами верхнего уровня — сверять и выбирать нужно владеющий item.
+        var marqueeOwnerItem = marqueeOwner != null ? ResolveOwningItem(marqueeOwner) : null;
+
+        if (!useContainerSelection && isCtrlPressed && marqueeOwnerItem != null && !CanAddNestedTargetToContainer(marqueeOwnerItem))
         {
             _marqueeSelectionOwner = null;
             return;
@@ -1223,17 +1228,22 @@ public class DesignEditor : SelectingItemsControl
         {
             if (!isCtrlPressed) Selection.Clear();
 
-            foreach (var child in Presenter.Panel.Children)
+            if (marqueeOwner != null)
             {
-                if (child is DesignEditorItem container)
+                // Рамка попала внутрь конкретного контейнера — работаем в его пределах.
+                CommitMarqueeWithinContainer(marqueeOwner, marqueeOwnerItem, bounds, isCtrlPressed);
+            }
+            else
+            {
+                foreach (var child in Presenter.Panel.Children)
                 {
-                    if (marqueeOwner != null && !ReferenceEquals(container, marqueeOwner))
+                    if (child is not DesignEditorItem container)
                         continue;
 
                     if (useContainerSelection)
                     {
-                        var intersectsContainer = bounds.Intersects(new Rect(container.Location, container.Bounds.Size));
-                        if (!intersectsContainer)
+                        if (!TryGetContainerWorldBounds(container, out var containerBounds) ||
+                            !bounds.Intersects(containerBounds))
                             continue;
 
                         _selectionTargets.Remove(container);
@@ -1242,39 +1252,59 @@ public class DesignEditor : SelectingItemsControl
                         continue;
                     }
 
-                    var nestedTargets = new List<Control>();
-                    foreach (var target in EnumerateSelectionCandidates(container))
-                    {
-                        if (!HasDesignerLayoutMetadata(target))
-                            continue;
-
-                        if (TryGetDesignBounds(target, out var targetBounds) && bounds.Intersects(targetBounds))
-                            nestedTargets.Add(target);
-                    }
-
-                    if (nestedTargets.Count == 0)
-                        continue;
-
-                    if (isCtrlPressed &&
-                        _selectionTargets.TryGetValue(container, out var existingTargets) &&
-                        existingTargets.Count > 0)
-                    {
-                        foreach (var target in existingTargets)
-                        {
-                            if (!nestedTargets.Contains(target))
-                                nestedTargets.Add(target);
-                        }
-                    }
-
-                    _containerSelectionTargets.Remove(container);
-                    _selectionTargets[container] = nestedTargets;
-                    Selection.Select(IndexFromContainer(container));
+                    CommitMarqueeWithinContainer(container, container, bounds, isCtrlPressed);
                 }
             }
         }
 
         _marqueeSelectionOwner = null;
         UpdateSelectionOverlayState();
+    }
+
+    /// <summary>
+    /// Выбирает design targets внутри <paramref name="scope"/>, попавшие в рамку.
+    /// </summary>
+    /// <param name="scope">Контейнер, в пределах которого ищутся targets. Может быть вложенным.</param>
+    /// <param name="ownerItem">Item верхнего уровня, на который адресуется индексный выбор.</param>
+    /// <param name="bounds">Прямоугольник рамки в мировых координатах.</param>
+    /// <param name="isAdditive">Признак добавления к текущему выбору.</param>
+    private void CommitMarqueeWithinContainer(
+        DesignEditorItem scope,
+        DesignEditorItem? ownerItem,
+        Rect bounds,
+        bool isAdditive)
+    {
+        ownerItem ??= ResolveOwningItem(scope);
+        if (ownerItem == null)
+            return;
+
+        var nestedTargets = new List<Control>();
+        foreach (var target in EnumerateSelectionCandidates(scope))
+        {
+            if (!HasDesignerLayoutMetadata(target))
+                continue;
+
+            if (TryGetDesignBounds(target, out var targetBounds) && bounds.Intersects(targetBounds))
+                nestedTargets.Add(target);
+        }
+
+        if (nestedTargets.Count == 0)
+            return;
+
+        if (isAdditive &&
+            _selectionTargets.TryGetValue(ownerItem, out var existingTargets) &&
+            existingTargets.Count > 0)
+        {
+            foreach (var target in existingTargets)
+            {
+                if (!nestedTargets.Contains(target))
+                    nestedTargets.Add(target);
+            }
+        }
+
+        _containerSelectionTargets.Remove(ownerItem);
+        _selectionTargets[ownerItem] = nestedTargets;
+        Selection.Select(IndexFromContainer(ownerItem));
     }
 
     private void UpdateSelectionAdornerPolicies()
@@ -1454,8 +1484,11 @@ public class DesignEditor : SelectingItemsControl
             }
         }
 
+        // Container в контракте target — это владеющий item верхнего уровня,
+        // согласованно со snapshot'ом выделения; глубина передаётся через Depth.
         var resolvedTarget = (Control?)bestMatch ?? container;
-        target = new DesignSelectionTarget(container, resolvedTarget);
+        var ownerItem = ResolveOwningItem(container) ?? container;
+        target = new DesignSelectionTarget(ownerItem, resolvedTarget);
         return true;
     }
 
@@ -2437,23 +2470,85 @@ public class DesignEditor : SelectingItemsControl
         }
     }
 
-    private DesignEditorItem? FindContainerAtWorldPoint(Point worldPoint)
+    /// <summary>
+    /// Перечисляет контейнеры редактора на любой глубине вложенности.
+    /// </summary>
+    private IEnumerable<DesignEditorItem> EnumerateContainers()
     {
         if (Presenter?.Panel == null)
-            return null;
-
-        DesignEditorItem? bestMatch = null;
+            yield break;
 
         foreach (var child in Presenter.Panel.Children)
         {
-            if (child is not DesignEditorItem container || container.Bounds.Width <= 0 || container.Bounds.Height <= 0)
+            if (child is not DesignEditorItem container)
                 continue;
 
-            var bounds = new Rect(container.Location, container.Bounds.Size);
-            if (!bounds.Contains(worldPoint))
+            yield return container;
+
+            foreach (var descendant in container.GetVisualDescendants())
+            {
+                if (descendant is DesignEditorItem nested)
+                    yield return nested;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Возвращает геометрию контейнера в мировых координатах.
+    /// </summary>
+    /// <remarks>
+    /// Для вложенных контейнеров <see cref="DesignEditorItem.Location"/> задан
+    /// относительно родительской панели, поэтому позиция берётся из design-геометрии,
+    /// а на неё падает fallback только для контейнеров верхнего уровня.
+    /// </remarks>
+    private bool TryGetContainerWorldBounds(DesignEditorItem container, out Rect bounds)
+    {
+        if (TryGetDesignBounds((Control)container, out bounds))
+            return true;
+
+        if (container.Bounds.Width <= 0 || container.Bounds.Height <= 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        bounds = new Rect(container.Location, container.Bounds.Size);
+        return true;
+    }
+
+    private static int GetContainerDepth(DesignEditorItem container)
+    {
+        var depth = 0;
+        var current = container.GetVisualParent();
+
+        while (current != null)
+        {
+            if (current is DesignEditorItem)
+                depth++;
+
+            current = current.GetVisualParent();
+        }
+
+        return depth;
+    }
+
+    private DesignEditorItem? FindContainerAtWorldPoint(Point worldPoint)
+    {
+        DesignEditorItem? bestMatch = null;
+        var bestDepth = -1;
+
+        foreach (var container in EnumerateContainers())
+        {
+            if (!TryGetContainerWorldBounds(container, out var bounds) || !bounds.Contains(worldPoint))
                 continue;
 
-            bestMatch = container;
+            // Глубочайший контейнер под точкой: вложенный перекрывает владельца.
+            var depth = GetContainerDepth(container);
+            if (depth > bestDepth)
+            {
+                bestMatch = container;
+                bestDepth = depth;
+            }
         }
 
         return bestMatch;
@@ -2461,18 +2556,32 @@ public class DesignEditor : SelectingItemsControl
 
     private DesignEditorItem? FindContainerForMarquee(Rect bounds)
     {
-        if (Presenter?.Panel == null)
-            return null;
+        // Владельцем рамки становится самый глубокий контейнер, который целиком её
+        // содержит: рамка внутри вложенного контейнера работает в его пределах,
+        // а рамка, вышедшая за его границы, поднимается к владельцу.
+        DesignEditorItem? containing = null;
+        var containingDepth = -1;
 
-        DesignEditorItem? bestMatch = null;
+        DesignEditorItem? bestOverlap = null;
         var bestArea = 0.0;
 
-        foreach (var child in Presenter.Panel.Children)
+        foreach (var container in EnumerateContainers())
         {
-            if (child is not DesignEditorItem container || container.Bounds.Width <= 0 || container.Bounds.Height <= 0)
+            if (!TryGetContainerWorldBounds(container, out var containerBounds))
                 continue;
 
-            var containerBounds = new Rect(container.Location, container.Bounds.Size);
+            if (containerBounds.Contains(bounds))
+            {
+                var depth = GetContainerDepth(container);
+                if (depth > containingDepth)
+                {
+                    containing = container;
+                    containingDepth = depth;
+                }
+
+                continue;
+            }
+
             var intersection = containerBounds.Intersect(bounds);
             if (intersection.Width <= 0 || intersection.Height <= 0)
                 continue;
@@ -2481,11 +2590,11 @@ public class DesignEditor : SelectingItemsControl
             if (area > bestArea)
             {
                 bestArea = area;
-                bestMatch = container;
+                bestOverlap = container;
             }
         }
 
-        return bestMatch;
+        return containing ?? bestOverlap;
     }
 
     private bool TryCreateGroupResizeOperation(ResizeDirection direction, out GroupResizeOperation? operation)

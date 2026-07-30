@@ -29,10 +29,16 @@ public class NestedContainerTests
 
     private static readonly Point OuterLocation = new(100, 100);
 
-    /// <summary>Точка внутри вложенного контейнера, в координатах редактора.</summary>
+    /// <summary>
+    /// Точка внутри вложенного контейнера, но вне его ребёнка InnerChild.
+    /// </summary>
+    /// <remarks>
+    /// Inner занимает (120,120)-(200,200), InnerChild — (130,130)-(170,170),
+    /// поэтому попадание в правый нижний угол Inner адресует именно контейнер.
+    /// </remarks>
     private static Point InnerCentre => new(
-        OuterLocation.X + InnerOffset + (InnerSize / 2),
-        OuterLocation.Y + InnerOffset + (InnerSize / 2));
+        OuterLocation.X + InnerOffset + InnerSize - 15,
+        OuterLocation.Y + InnerOffset + InnerSize - 15);
 
     private sealed record Node(string Name);
 
@@ -46,6 +52,13 @@ public class NestedContainerTests
             SelectionMode = SelectionMode.Multiple,
             ItemTemplate = new FuncDataTemplate<Node>((_, _) =>
             {
+                var innerChild = new Border { Name = "InnerChild", Width = 40, Height = 40 };
+                DesignLayout.SetX(innerChild, 10);
+                DesignLayout.SetY(innerChild, 10);
+
+                var innerPanel = new AbsolutePanel();
+                innerPanel.Children.Add(innerChild);
+
                 var inner = new DesignEditorItem
                 {
                     Name = "Inner",
@@ -53,13 +66,19 @@ public class NestedContainerTests
                     Height = InnerSize,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Top,
-                    Content = new Border { Background = null }
+                    Content = innerPanel
                 };
                 DesignLayout.SetX(inner, InnerOffset);
                 DesignLayout.SetY(inner, InnerOffset);
 
+                // Сосед вложенного контейнера, лежащий прямо во внешнем.
+                var outerChild = new Border { Name = "OuterChild", Width = 40, Height = 40 };
+                DesignLayout.SetX(outerChild, 120);
+                DesignLayout.SetY(outerChild, 20);
+
                 var panel = new AbsolutePanel();
                 panel.Children.Add(inner);
+                panel.Children.Add(outerChild);
                 return panel;
             }, supportsRecycling: false)
         };
@@ -88,6 +107,9 @@ public class NestedContainerTests
 
     private static DesignEditorItem Inner(DesignEditor editor) =>
         editor.GetVisualDescendants().OfType<DesignEditorItem>().Single(i => i.Name == "Inner");
+
+    private static Border Named(DesignEditor editor, string name) =>
+        editor.GetVisualDescendants().OfType<Border>().Single(b => b.Name == name);
 
     [AvaloniaFact]
     public void Nested_Container_Is_Realised_Inside_Outer_Container()
@@ -186,6 +208,43 @@ public class NestedContainerTests
 
         Assert.Equal(0, new DesignSelectionTarget(outer, outer).Depth);
         Assert.Equal(1, new DesignSelectionTarget(outer, inner).Depth);
+    }
+
+    [AvaloniaFact]
+    public void Marquee_Contained_By_Nested_Container_Scopes_To_It()
+    {
+        var (window, editor, _) = Create();
+
+        // Рамка целиком внутри вложенного контейнера: (125,125)-(175,175),
+        // при Inner на (120,120)-(200,200).
+        // Вызов напрямую: через UI рамка пока не может начаться внутри контейнера.
+        editor.CommitSelection(new Rect(125, 125, 50, 50), isCtrlPressed: false);
+        RunLayout(window);
+
+        var targets = editor.SelectedDesignTargets.Select(t => t.Target).ToList();
+
+        Assert.Contains(Named(editor, "InnerChild"), targets);
+
+        // Сам вложенный контейнер в область поиска не попадает — рамка работает
+        // в его пределах. До перехода на поиск контейнеров по глубине владельцем
+        // становился внешний item, и Inner выбирался вместе со своим ребёнком.
+        Assert.DoesNotContain(Inner(editor), targets);
+    }
+
+    [AvaloniaFact]
+    public void Marquee_Crossing_Nested_Boundary_Scopes_To_The_Owner()
+    {
+        var (window, editor, _) = Create();
+
+        // Рамка выходит за Inner и накрывает соседа во внешнем контейнере,
+        // поэтому владельцем становится внешний item.
+        editor.CommitSelection(new Rect(125, 125, 125, 50), isCtrlPressed: false);
+        RunLayout(window);
+
+        var targets = editor.SelectedDesignTargets.Select(t => t.Target).ToList();
+
+        Assert.Contains(Named(editor, "OuterChild"), targets);
+        Assert.Contains(Inner(editor), targets);
     }
 
     [AvaloniaFact]
