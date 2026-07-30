@@ -1,0 +1,93 @@
+using Avalonia;
+using Avalonia.Headless.XUnit;
+using Xunit;
+
+namespace ArxisStudio.Tests;
+
+/// <summary>
+/// Перевод координат и навигация viewport.
+/// </summary>
+public class ViewportTests
+{
+    [AvaloniaFact]
+    public void GetWorldPosition_Accounts_For_Zoom_And_Pan()
+    {
+        var editor = new DesignEditor
+        {
+            ViewportZoom = 2.0,
+            ViewportLocation = new Point(100, 50)
+        };
+
+        // (200,100)/2 = (100,50); + ViewportLocation = (200,100)
+        Assert.Equal(new Point(200, 100), editor.GetWorldPosition(new Point(200, 100)));
+    }
+
+    [AvaloniaFact]
+    public void GetWorldPosition_Is_Identity_At_Default_Viewport()
+    {
+        var editor = new DesignEditor();
+
+        Assert.Equal(new Point(42, 17), editor.GetWorldPosition(new Point(42, 17)));
+    }
+
+    [AvaloniaFact]
+    public void CenterOn_Puts_World_Point_In_The_Middle_Of_The_Viewport()
+    {
+        var harness = EditorHarness.Create();
+        var editor = harness.Editor;
+        var target = new Point(500, 400);
+
+        editor.CenterOn(target);
+
+        // Центр видимой области в мировых координатах должен совпасть с target.
+        var centre = editor.ViewportLocation + new Vector(
+            editor.Bounds.Width / editor.ViewportZoom / 2,
+            editor.Bounds.Height / editor.ViewportZoom / 2);
+
+        Assert.Equal(target.X, centre.X, 3);
+        Assert.Equal(target.Y, centre.Y, 3);
+    }
+
+    [AvaloniaFact]
+    public void CenterOn_Does_Not_Change_Zoom()
+    {
+        var harness = EditorHarness.Create();
+        harness.Editor.ViewportZoom = 2.5;
+
+        harness.Editor.CenterOn(new Point(1000, 1000));
+
+        Assert.Equal(2.5, harness.Editor.ViewportZoom, 3);
+    }
+
+    [AvaloniaFact]
+    public void FitToView_Clamps_To_MinZoom_For_Huge_Areas()
+    {
+        var harness = EditorHarness.Create();
+
+        harness.Editor.FitToView(new Rect(0, 0, 100_000, 100_000));
+
+        Assert.Equal(harness.Editor.MinZoom, harness.Editor.ViewportZoom, 6);
+    }
+
+    [AvaloniaFact]
+    public void FitToView_Clamps_To_MaxZoom_For_Tiny_Areas()
+    {
+        var harness = EditorHarness.Create();
+
+        harness.Editor.FitToView(new Rect(0, 0, 1, 1));
+
+        Assert.Equal(harness.Editor.MaxZoom, harness.Editor.ViewportZoom, 6);
+    }
+
+    [AvaloniaFact]
+    public void FitToView_Is_Ignored_When_Editor_Has_No_Size()
+    {
+        // Редактор вне дерева: Bounds пустые, деление на ноль недопустимо.
+        var editor = new DesignEditor();
+        var before = editor.ViewportZoom;
+
+        editor.FitToView(new Rect(0, 0, 100, 100));
+
+        Assert.Equal(before, editor.ViewportZoom, 6);
+    }
+}

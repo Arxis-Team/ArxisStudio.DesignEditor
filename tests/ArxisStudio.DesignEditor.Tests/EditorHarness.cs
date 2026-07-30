@@ -1,0 +1,134 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Templates;
+using Avalonia.Layout;
+using Avalonia.VisualTree;
+using ArxisStudio.Controls;
+using Xunit;
+using DesignLayout = ArxisStudio.Attached.Layout;
+
+namespace ArxisStudio.Tests;
+
+/// <summary>
+/// Узел тестовой модели. Позиция задаётся контейнеру напрямую после реализации,
+/// чтобы не тянуть в тесты биндинги и MVVM.
+/// </summary>
+internal sealed class TestNode
+{
+    public TestNode(string name) => Name = name;
+
+    public string Name { get; }
+
+    public override string ToString() => Name;
+}
+
+/// <summary>
+/// Сборка реализованного <see cref="DesignEditor"/> в headless-окне.
+/// </summary>
+/// <remarks>
+/// Шаблон элемента даёт <see cref="AbsolutePanel"/> с одним вложенным
+/// <see cref="Border"/>, помеченным designer-метаданными <c>Layout.X</c>/<c>Layout.Y</c>.
+/// Только такие контролы редактор считает nested target.
+/// </remarks>
+internal sealed class EditorHarness
+{
+    public const double NestedOffset = 10;
+    public const double NestedWidth = 60;
+    public const double NestedHeight = 40;
+
+    private EditorHarness(Window window, DesignEditor editor, IReadOnlyList<TestNode> nodes)
+    {
+        Window = window;
+        Editor = editor;
+        Nodes = nodes;
+    }
+
+    public Window Window { get; }
+    public DesignEditor Editor { get; }
+    public IReadOnlyList<TestNode> Nodes { get; }
+
+    public static EditorHarness Create(int nodeCount = 1, double width = 800, double height = 600)
+    {
+        var nodes = Enumerable.Range(0, nodeCount)
+            .Select(i => new TestNode("node" + i))
+            .ToList();
+
+        var editor = new DesignEditor
+        {
+            ItemsSource = nodes,
+            SelectionMode = SelectionMode.Multiple,
+            ItemTemplate = new FuncDataTemplate<TestNode>((_, _) =>
+            {
+                var nested = new Border
+                {
+                    Name = "Nested",
+                    Width = NestedWidth,
+                    Height = NestedHeight
+                };
+                DesignLayout.SetX(nested, NestedOffset);
+                DesignLayout.SetY(nested, NestedOffset);
+
+                var panel = new AbsolutePanel();
+                panel.Children.Add(nested);
+                return panel;
+            }, supportsRecycling: false)
+        };
+
+        var window = new Window
+        {
+            Width = width,
+            Height = height,
+            Content = editor
+        };
+
+        window.Show();
+
+        var harness = new EditorHarness(window, editor, nodes);
+        harness.RunLayout();
+        return harness;
+    }
+
+    /// <summary>
+    /// Прогоняет layout: без этого контейнеры не реализованы и Bounds пустые.
+    /// </summary>
+    public void RunLayout()
+    {
+        var manager = Window.GetLayoutManager();
+        manager?.ExecuteInitialLayoutPass();
+        manager?.ExecuteLayoutPass();
+    }
+
+    public DesignEditorItem Container(int index)
+    {
+        var container = Editor.ContainerFromItem(Nodes[index]) as DesignEditorItem;
+        Assert.NotNull(container);
+        return container!;
+    }
+
+    /// <summary>
+    /// Размещает контейнер в мировых координатах и задаёт ему размер.
+    /// </summary>
+    public DesignEditorItem PlaceContainer(int index, Point location, Size size)
+    {
+        var container = Container(index);
+        container.Width = size.Width;
+        container.Height = size.Height;
+        container.HorizontalAlignment = HorizontalAlignment.Left;
+        container.VerticalAlignment = VerticalAlignment.Top;
+        container.Location = location;
+        RunLayout();
+        return container;
+    }
+
+    /// <summary>
+    /// Находит вложенный <see cref="Border"/> внутри контейнера.
+    /// </summary>
+    public Border Nested(int index)
+    {
+        var nested = Container(index).GetVisualDescendants()
+            .OfType<Border>()
+            .FirstOrDefault(b => b.Name == "Nested");
+        Assert.NotNull(nested);
+        return nested!;
+    }
+}
