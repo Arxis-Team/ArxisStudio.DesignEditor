@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tasklist)",
+      "Bash(tasklist *)",
+      "Bash(unzip -l *)",
+      "Bash(unzip -p *)"
+    ]
+  }
+}

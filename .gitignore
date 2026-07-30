@@ -62,3 +62,10 @@ artifacts/
 
 # Visual Studio Code history
 .history/
+
+## --- ФАЙЛЫ АГЕНТОВ ---
+# Только корневой файл: вложенные CLAUDE.md могут быть общими для команды.
+/CLAUDE.md
+# .claude/ коммитится (скиллы и permissions — часть тулинга проекта),
+# кроме личных переопределений.
+.claude/settings.local.json
