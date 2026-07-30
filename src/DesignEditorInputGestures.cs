@@ -4,13 +4,6 @@ using Avalonia.Input;
 namespace ArxisStudio;
 
 /// <summary>
-/// Определяет кнопку указателя, используемую для запуска жестов редактора.
-/// </summary>
-/// <remarks>
-/// Перечисление используется свойствами класса <see cref="DesignEditorInputGestures"/>
-/// и описывает, какая кнопка мыши инициирует соответствующее действие.
-/// </remarks>
-/// <summary>
 /// Определяет смысл перетаскивания, начатого на пустой области контейнера.
 /// </summary>
 /// <remarks>
@@ -36,6 +29,13 @@ public enum ContainerEmptyAreaDragGesture
     Marquee
 }
 
+/// <summary>
+/// Определяет кнопку указателя, используемую для запуска жестов редактора.
+/// </summary>
+/// <remarks>
+/// Перечисление используется свойствами класса <see cref="DesignEditorInputGestures"/>
+/// и описывает, какая кнопка мыши инициирует соответствующее действие.
+/// </remarks>
 public enum DesignEditorPointerButton
 {
     /// <summary>
