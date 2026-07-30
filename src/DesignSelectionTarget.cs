@@ -1,5 +1,7 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 
 namespace ArxisStudio;
 
@@ -33,7 +35,15 @@ public sealed class DesignSelectionTarget
     {
         Container = container ?? throw new ArgumentNullException(nameof(container));
         Target = target ?? throw new ArgumentNullException(nameof(target));
-        Scope = ReferenceEquals(container, target) ? DesignSelectionScope.Container : DesignSelectionScope.NestedTarget;
+
+        // Scope определяется типом самого target, а не совпадением с владельцем:
+        // вложенный DesignEditorItem — это контейнер, даже если владеющий item
+        // верхнего уровня другой.
+        Scope = target is DesignEditorItem
+            ? DesignSelectionScope.Container
+            : DesignSelectionScope.NestedTarget;
+
+        Depth = CalculateDepth(target);
         DisplayName = CreateDisplayName(target);
     }
 
@@ -53,9 +63,39 @@ public sealed class DesignSelectionTarget
     public DesignSelectionScope Scope { get; }
 
     /// <summary>
+    /// Получает глубину вложенности target в дереве контейнеров.
+    /// </summary>
+    /// <remarks>
+    /// Считается число <see cref="DesignEditorItem"/>-предков строго выше target:
+    /// <list type="bullet">
+    /// <item><description><c>0</c> — контейнер верхнего уровня;</description></item>
+    /// <item><description><c>1</c> — контрол внутри контейнера верхнего уровня либо вложенный контейнер;</description></item>
+    /// <item><description><c>2</c> — контрол внутри вложенного контейнера, и так далее.</description></item>
+    /// </list>
+    /// Вместе со <see cref="Scope"/> однозначно описывает положение target в дереве.
+    /// </remarks>
+    public int Depth { get; }
+
+    /// <summary>
     /// Получает краткое диагностическое имя выбранного target.
     /// </summary>
     public string DisplayName { get; }
+
+    private static int CalculateDepth(Control target)
+    {
+        var depth = 0;
+        var current = target.GetVisualParent();
+
+        while (current != null)
+        {
+            if (current is DesignEditorItem)
+                depth++;
+
+            current = current.GetVisualParent();
+        }
+
+        return depth;
+    }
 
     private static string CreateDisplayName(Control control)
     {

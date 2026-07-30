@@ -1111,7 +1111,11 @@ public class DesignEditor : SelectingItemsControl
                 selectedCount++;
                 primaryItem ??= container;
                 primaryControl ??= selectionTarget;
-                if (ReferenceEquals(selectionTarget, container))
+
+                // Контейнером считается любой DesignEditorItem, а не только владелец:
+                // вложенные контейнеры должны попадать в группу контейнеров,
+                // иначе их множественный выбор рисуется как nested-группа.
+                if (selectionTarget is DesignEditorItem)
                     containerTargetCount++;
                 else
                     nestedTargetCount++;
@@ -1858,6 +1862,31 @@ public class DesignEditor : SelectingItemsControl
         }
 
         UpdateSelectionOverlayState();
+    }
+
+    /// <summary>
+    /// Возвращает <see cref="DesignEditorItem"/> верхнего уровня, которому принадлежит
+    /// указанный контейнер, либо <see langword="null"/>, если он не в этом редакторе.
+    /// </summary>
+    /// <remarks>
+    /// Контейнеры могут быть вложены друг в друга, но индексная модель выбора Avalonia
+    /// знает только контейнеры собственного <c>ItemsSource</c>. Поэтому выбор всегда
+    /// маршрутизируется на владеющий item верхнего уровня, а сам вложенный контейнер
+    /// участвует как design target — это и даёт дерево любой глубины без отказа от
+    /// <see cref="SelectingItemsControl"/>.
+    /// </remarks>
+    internal DesignEditorItem? ResolveOwningItem(DesignEditorItem container)
+    {
+        var current = container;
+        while (current != null)
+        {
+            if (IndexFromContainer(current) >= 0)
+                return current;
+
+            current = current.FindAncestorOfType<DesignEditorItem>();
+        }
+
+        return null;
     }
 
     internal Control ResolveInteractionTarget(DesignEditorItem container)

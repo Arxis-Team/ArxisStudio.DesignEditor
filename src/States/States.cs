@@ -153,40 +153,51 @@ public class ItemIdleState : DesignEditorItemState
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor == null) return;
+
+        // Контейнер может быть вложен в другой контейнер. Индексный выбор работает
+        // только с item'ами верхнего уровня, поэтому selection адресуется владельцу,
+        // а сам Container участвует дальше как design target.
+        var owner = editor.ResolveOwningItem(Container);
+        if (owner == null) return;
+
         editor.SetLastInputModifiers(e.KeyModifiers);
         bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
         bool isContainerInteraction = editor.ShouldUseContainerInteraction(e.KeyModifiers);
-        if (isAdditive && !isContainerInteraction && !editor.CanAddNestedTargetToContainer(Container))
+        if (isAdditive && !isContainerInteraction && !editor.CanAddNestedTargetToContainer(owner))
         {
             _shouldSkipSelectionToggle = true;
             return;
         }
 
-        if (!Container.IsSelected)
+        if (!owner.IsSelected)
         {
             if (!isAdditive) editor.Selection.Clear();
-            editor.Selection.Select(editor.IndexFromContainer(Container));
+            editor.Selection.Select(editor.IndexFromContainer(owner));
             _shouldSkipSelectionToggle = true;
         } else _shouldSkipSelectionToggle = false;
 
-        editor.UpdateSelectionTargetFromPoint(Container, e.GetPosition(editor), e.KeyModifiers);
+        editor.UpdateSelectionTargetFromPoint(owner, e.GetPosition(editor), e.KeyModifiers);
     }
 
     private void HandleSelectionOnRelease(PointerReleasedEventArgs e)
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor == null) return;
+
+        var owner = editor.ResolveOwningItem(Container);
+        if (owner == null) return;
+
         bool isAdditive = editor.ShouldUseAdditiveSelection(e.KeyModifiers);
         bool isContainerInteraction = editor.ShouldUseContainerInteraction(e.KeyModifiers);
-        var index = editor.IndexFromContainer(Container);
+        var index = editor.IndexFromContainer(owner);
         if (isAdditive && !isContainerInteraction)
         {
             // Additive click should never remove selection from already selected item.
             // This keeps primary target/adorner stable when retargeting nested controls.
-            if (!_shouldSkipSelectionToggle && !Container.IsSelected)
+            if (!_shouldSkipSelectionToggle && !owner.IsSelected)
                 editor.Selection.Select(index);
         }
-        else if (!isAdditive && Container.IsSelected && editor.Selection.Count > 1)
+        else if (!isAdditive && owner.IsSelected && editor.Selection.Count > 1)
         {
             editor.Selection.Clear();
             editor.Selection.Select(index);
