@@ -135,6 +135,32 @@
                                     </MultiBinding>
                                 </Rectangle.Height>
                             </Rectangle>
+
+                            <!-- Индикатор точки вставки при перестановке среди соседей.
+                                 Толщина задаётся здесь, а не в мировых координатах,
+                                 поэтому линия одинаково тонкая на любом масштабе. -->
+                            <Rectangle Name="PART_ReorderIndicator"
+                                       Fill="{DynamicResource DesignEditor.ReorderIndicatorBrush}"
+                                       MinWidth="2"
+                                       MinHeight="2"
+                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                       RenderTransformOrigin="0,0"
+                                       Canvas.Top="{Binding ReorderIndicator.Y, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Canvas.Left="{Binding ReorderIndicator.X, RelativeSource={RelativeSource TemplatedParent}}"
+                                       IsVisible="{TemplateBinding IsReordering}">
+                                <Rectangle.Width>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="ReorderIndicator.Width" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </Rectangle.Width>
+                                <Rectangle.Height>
+                                    <MultiBinding Converter="{StaticResource ScaleDoubleConverter}">
+                                        <Binding Path="ReorderIndicator.Height" RelativeSource="{RelativeSource TemplatedParent}" />
+                                        <Binding Path="ViewportZoom" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </MultiBinding>
+                                </Rectangle.Height>
+                            </Rectangle>
                         </Canvas>
                     </Grid>
                 </Border>

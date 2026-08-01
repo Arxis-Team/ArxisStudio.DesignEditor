@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using ArxisStudio.Controls;
+using ArxisStudio.Placement;
 
 namespace ArxisStudio.States;
 
@@ -128,6 +129,8 @@ internal class ItemIdleState : DesignEditorItemState
         if (parent == null) return;
 
         var editor = Container.FindAncestorOfType<DesignEditor>();
+        var semantics = DesignMoveSemantics.Reposition;
+
         if (editor != null)
         {
             // Спрашиваем не про родителя контейнера, а про фактическую цель жеста:
@@ -135,7 +138,14 @@ internal class ItemIdleState : DesignEditorItemState
             // Прежний гейт проверял не тот уровень и поэтому пропускал жесты,
             // которые затем молча ничего не делали.
             var moveTarget = editor.ResolveInteractionTarget(Container);
-            if (editor.GetEffectiveMovePolicy(moveTarget) == ArxisStudio.Attached.MovePolicy.None)
+
+            // Пользовательский запрет сильнее любой раскладки — в том числе
+            // сильнее перестановки.
+            if (editor.GetMovePolicy(moveTarget) == ArxisStudio.Attached.MovePolicy.None)
+                return;
+
+            semantics = DesignEditor.GetPlacementStrategy(moveTarget).MoveSemantics;
+            if (semantics == DesignMoveSemantics.None)
                 return;
         }
         else if (parent is not AbsolutePanel)
@@ -151,6 +161,12 @@ internal class ItemIdleState : DesignEditorItemState
         var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
         if (Vector.Distance(_startPoint, currentPoint) > dragStartThreshold)
         {
+            if (semantics == DesignMoveSemantics.Reorder)
+            {
+                Container.PushState(new ItemReorderingState(Container, _startPoint));
+                return;
+            }
+
             if (editor != null && editor.ShouldBlockNestedGroupDrag())
             {
                 e.Handled = true;

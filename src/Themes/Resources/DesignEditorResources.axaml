@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
@@ -12,6 +12,7 @@
             <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#F5F7FA" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#0F6CBD" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -42,6 +43,7 @@
             <SolidColorBrush x:Key="DesignEditor.BackgroundBrush" Color="#1E1E1E" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
+            <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#1E90FF" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0099FF" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />

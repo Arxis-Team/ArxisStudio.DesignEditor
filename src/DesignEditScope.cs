@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -23,6 +23,9 @@ internal sealed class DesignEditScope
 
         public int BeforeZIndex;
         public int ZIndex;
+
+        public int BeforeChildIndex;
+        public int ChildIndex;
     }
 
     private const double Tolerance = 0.01;
@@ -42,6 +45,9 @@ internal sealed class DesignEditScope
 
     public void RecordZIndex(DesignEditor editor, Control target, int zIndex)
         => Touch(editor, target).ZIndex = zIndex;
+
+    public void RecordChildIndex(DesignEditor editor, Control target, int index)
+        => Touch(editor, target).ChildIndex = index;
 
     /// <summary>
     /// Собирает итоговый список изменений, отбрасывая те, что вернулись к исходному.
@@ -66,6 +72,12 @@ internal sealed class DesignEditScope
                 (changes ??= new List<DesignChange>()).Add(
                     new DesignOrderChange(target, entry.BeforeZIndex, entry.ZIndex));
             }
+
+            if (entry.ChildIndex != entry.BeforeChildIndex && entry.BeforeChildIndex >= 0)
+            {
+                (changes ??= new List<DesignChange>()).Add(
+                    new DesignChildOrderChange(target, entry.BeforeChildIndex, entry.ChildIndex));
+            }
         }
 
         return changes ?? (IReadOnlyList<DesignChange>)Array.Empty<DesignChange>();
@@ -85,7 +97,9 @@ internal sealed class DesignEditScope
             Position = position,
             Size = size,
             BeforeZIndex = target.ZIndex,
-            ZIndex = target.ZIndex
+            ZIndex = target.ZIndex,
+            BeforeChildIndex = DesignEditor.GetChildIndex(target),
+            ChildIndex = DesignEditor.GetChildIndex(target)
         };
 
         _entries[target] = entry;

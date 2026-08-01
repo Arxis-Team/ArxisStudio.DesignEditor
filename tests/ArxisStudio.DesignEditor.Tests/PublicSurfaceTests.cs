@@ -53,6 +53,7 @@ public class PublicSurfaceTests
         "ArxisStudio.DesignChange",
         "ArxisStudio.DesignGeometryChange",
         "ArxisStudio.DesignOrderChange",
+        "ArxisStudio.DesignChildOrderChange",
         "ArxisStudio.DesignEditKind",
         "ArxisStudio.DesignEditCompletedEventArgs",
         "ArxisStudio.DesignEditorDeleteRequestedEventArgs",

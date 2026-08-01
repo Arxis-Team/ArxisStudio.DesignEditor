@@ -76,6 +76,46 @@ public sealed class DesignOrderChange : DesignChange
 }
 
 /// <summary>
+/// Описывает изменение порядка контрола среди соседей по родительской панели.
+/// </summary>
+/// <remarks>
+/// Отличается от <see cref="DesignOrderChange"/> уровнем: тот меняет
+/// <c>ZIndex</c>, то есть порядок перекрытия, а этот — позицию в коллекции детей.
+/// В раскладке, которая расставляет детей потоком, только второе и меняет
+/// положение на экране.
+/// <para>
+/// Библиотека правит живое визуальное дерево. Если контейнеры переиспользуются,
+/// порядок нужно сохранять на стороне приложения по <see cref="DesignEditor.EditCompleted"/> —
+/// так же, как это уже сделано для геометрии.
+/// </para>
+/// </remarks>
+public sealed class DesignChildOrderChange : DesignChange
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignChildOrderChange"/>.
+    /// </summary>
+    /// <param name="target">Изменённый контрол.</param>
+    /// <param name="oldIndex">Позиция среди соседей до изменения.</param>
+    /// <param name="newIndex">Позиция среди соседей после изменения.</param>
+    public DesignChildOrderChange(Control target, int oldIndex, int newIndex)
+        : base(target)
+    {
+        OldIndex = oldIndex;
+        NewIndex = newIndex;
+    }
+
+    /// <summary>
+    /// Получает позицию среди соседей до изменения.
+    /// </summary>
+    public int OldIndex { get; }
+
+    /// <summary>
+    /// Получает позицию среди соседей после изменения.
+    /// </summary>
+    public int NewIndex { get; }
+}
+
+/// <summary>
 /// Аргументы запроса на удаление выделения.
 /// </summary>
 /// <remarks>

@@ -224,6 +224,18 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(IsSelecting), o => o.IsSelecting, (o, v) => o.IsSelecting = v);
 
     /// <summary>
+    /// Идентификатор свойства, показывающего активна ли перестановка среди соседей.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> IsReorderingProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(IsReordering), o => o.IsReordering);
+
+    /// <summary>
+    /// Идентификатор свойства индикатора вставки.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, Rect> ReorderIndicatorProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(ReorderIndicator), o => o.ReorderIndicator);
+
+    /// <summary>
     /// Идентификатор свойства контейнера, в пределах которого работает текущая рамка.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, DesignEditorItem?> MarqueeScopeProperty =
@@ -490,6 +502,30 @@ public class DesignEditor : SelectingItemsControl
     {
         get => _isSelecting;
         set => SetAndRaise(IsSelectingProperty, ref _isSelecting, value);
+    }
+
+    private bool _isReordering;
+    /// <summary>
+    /// Получает признак активной перестановки контрола среди соседей.
+    /// </summary>
+    public bool IsReordering
+    {
+        get => _isReordering;
+        private set => SetAndRaise(IsReorderingProperty, ref _isReordering, value);
+    }
+
+    private Rect _reorderIndicator;
+    /// <summary>
+    /// Получает прямоугольник индикатора вставки в мировых координатах.
+    /// </summary>
+    /// <remarks>
+    /// Толщина линии намеренно нулевая: на экране её задаёт шаблон, поэтому
+    /// индикатор остаётся одинаково тонким на любом масштабе.
+    /// </remarks>
+    public Rect ReorderIndicator
+    {
+        get => _reorderIndicator;
+        private set => SetAndRaise(ReorderIndicatorProperty, ref _reorderIndicator, value);
     }
 
     private Rect _selectedArea;
@@ -2368,6 +2404,39 @@ public class DesignEditor : SelectingItemsControl
         return host != null && TryGetDesignBounds((Control)host, out bounds);
     }
 
+    /// <summary>
+    /// Возвращает позицию контрола среди детей его родительской панели или -1.
+    /// </summary>
+    internal static int GetChildIndex(Control control)
+        => control.GetVisualParent() is Panel panel ? panel.Children.IndexOf(control) : -1;
+
+    /// <summary>
+    /// Перемещает контрол на заданную позицию среди соседей.
+    /// </summary>
+    /// <remarks>
+    /// Третий и последний шов записи рядом с <see cref="SetDesignPosition"/> и
+    /// <see cref="SetDesignSize"/>. В раскладке, которая расставляет детей потоком,
+    /// это единственный способ изменить их положение.
+    /// </remarks>
+    internal void SetDesignChildIndex(Control control, int index)
+    {
+        if (control.GetVisualParent() is not Panel panel)
+            return;
+
+        var current = panel.Children.IndexOf(control);
+        if (current < 0)
+            return;
+
+        var clamped = Math.Clamp(index, 0, panel.Children.Count - 1);
+        if (clamped == current)
+            return;
+
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordChildIndex(this, control, clamped);
+
+        panel.Children.Move(current, clamped);
+    }
+
     internal void SetDesignZIndex(Control control, int zIndex)
     {
         if (!_suppressEditRecording)
@@ -2566,6 +2635,10 @@ public class DesignEditor : SelectingItemsControl
             case DesignOrderChange order:
                 ApplyOrder(order.Target, revert ? order.OldZIndex : order.NewZIndex);
                 break;
+
+            case DesignChildOrderChange childOrder:
+                ApplyChildOrder(childOrder.Target, revert ? childOrder.OldIndex : childOrder.NewIndex);
+                break;
         }
     }
 
@@ -2585,6 +2658,29 @@ public class DesignEditor : SelectingItemsControl
         try
         {
             SetDesignZIndex(target, zIndex);
+        }
+        finally
+        {
+            _suppressEditRecording = previous;
+        }
+    }
+
+    /// <summary>
+    /// Задаёт позицию среди соседей, не создавая новой единицы редактирования.
+    /// </summary>
+    /// <param name="target">Контрол, позицию которого нужно задать.</param>
+    /// <param name="index">Новая позиция среди детей родительской панели.</param>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="target"/> равен <see langword="null"/>.</exception>
+    public void ApplyChildOrder(Control target, int index)
+    {
+        if (target == null)
+            throw new ArgumentNullException(nameof(target));
+
+        var previous = _suppressEditRecording;
+        _suppressEditRecording = true;
+        try
+        {
+            SetDesignChildIndex(target, index);
         }
         finally
         {
@@ -3520,6 +3616,49 @@ public class DesignEditor : SelectingItemsControl
     /// Отбрасывает единицу редактирования, не публикуя изменения.
     /// </summary>
     private void CancelEdit() => _activeEdit = null;
+
+    /// <summary>
+    /// Открывает единицу редактирования под перестановку среди соседей.
+    /// </summary>
+    /// <remarks>
+    /// Единицей редактирования по-прежнему владеет редактор, а не состояние:
+    /// так границы жеста остаются в одном месте для всех видов правок.
+    /// </remarks>
+    internal void BeginReorder() => BeginEdit(DesignEditKind.Reorder);
+
+    /// <summary>
+    /// Обновляет индикатор точки вставки.
+    /// </summary>
+    internal void UpdateReorderIndicator(Rect designBounds)
+    {
+        ReorderIndicator = designBounds;
+        IsReordering = true;
+    }
+
+    /// <summary>
+    /// Применяет перестановку и закрывает единицу редактирования.
+    /// </summary>
+    internal void CommitReorder(Control target, int index)
+    {
+        SetDesignChildIndex(target, index);
+        CommitEdit();
+        ClearReorderIndicator();
+    }
+
+    /// <summary>
+    /// Отменяет перестановку, не публикуя изменений.
+    /// </summary>
+    internal void CancelReorder()
+    {
+        CancelEdit();
+        ClearReorderIndicator();
+    }
+
+    private void ClearReorderIndicator()
+    {
+        IsReordering = false;
+        ReorderIndicator = default;
+    }
 
     private void UpdateInteractionOperation(IInteractionOperation operation, Vector worldDelta)
     {
