@@ -15,8 +15,8 @@ namespace ArxisStudio.Tests;
 /// Согласование design-координат с фактической раскладкой и единицы слоя адорнеров.
 /// </summary>
 /// <remarks>
-/// Фиксирует сегодняшнее поведение. Оба утверждения будут перевёрнуты:
-/// согласование должно уступать активному жесту, а экстент слоя — не зависеть от зума.
+/// Оба утверждения выглядели дефектами в аудите и после разбора оказались верным
+/// поведением. Тесты остались, чтобы это не пришлось выяснять заново.
 /// </remarks>
 public class ReconciliationCharacterizationTests
 {
@@ -45,14 +45,15 @@ public class ReconciliationCharacterizationTests
         Dispatcher.UIThread.RunJobs();
         harness.RunLayout();
 
-        // UpdateDesignPosition идёт через dispatcher и пересчитывает DesignX/Y
-        // из фактического положения. Guard IsUpdatingPosition этому не мешает:
-        // он ставится и снимается синхронно, а читается уже в отложенном замыкании.
+        // Так и должно быть: раз позицией распоряжается панель, design-координата
+        // обязана показывать её настоящее положение, а не то, что кто-то попросил.
+        // Редактор сюда больше не пишет — стратегия размещения отсекает попытку
+        // на шве, поэтому «драки» за координату не возникает.
         Assert.Equal(arranged, DesignLayout.GetDesignY(action), 1);
     }
 
     [AvaloniaFact]
-    public void Adorner_Layer_Extent_Depends_On_Zoom()
+    public void Adorner_Layer_Extent_Scales_With_Zoom_By_Design()
     {
         var harness = EditorHarness.Create();
         harness.PlaceContainer(0, ContainerLocation, ContainerSize);
@@ -74,9 +75,11 @@ public class ReconciliationCharacterizationTests
         harness.RunLayout();
         var atTwo = layer.DesiredSize;
 
-        // MeasureOverride складывает мировой X с размером, умноженным на зум,
-        // поэтому экстент «дышит» при масштабировании, хотя слой лежит внутри
-        // уже отмасштабированного Canvas и должен считаться в мировых единицах.
+        // Выглядит как смешение единиц: позиции мировые, размеры умножены на зум.
+        // Это и есть конвенция слоя. Каждому ребёнку вешается обратный масштаб
+        // 1/zoom, чтобы ручки не росли вместе с приближением, а родительский Canvas
+        // масштабирует всё целиком: один зум гасится, второй даёт итог. Убрать
+        // умножение — ручки поедут. Экстент ни на что не влияет: слой не обрезает.
         Assert.NotEqual(atOne.Width, atTwo.Width, 1);
     }
 

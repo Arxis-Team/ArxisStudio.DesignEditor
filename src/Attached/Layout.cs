@@ -158,7 +158,11 @@ public static class Layout
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (GetIsUpdatingPosition(control)) return;
+            // Флаг ставится здесь, а не проверяется: проверять его в отложенном
+            // замыкании бессмысленно — OnDesignPositionChanged снимает его
+            // синхронно, и к моменту запуска он всегда false. Работает он ниже
+            // по стеку: SetDesignX/SetDesignY внутри этого блока разбудили бы
+            // обратный пересчёт, и флаг его останавливает.
             SetIsUpdatingPosition(control, true);
             try
             {

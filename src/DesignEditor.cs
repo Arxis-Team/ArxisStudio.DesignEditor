@@ -224,6 +224,27 @@ public class DesignEditor : SelectingItemsControl
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(IsSelecting), o => o.IsSelecting, (o, v) => o.IsSelecting = v);
 
     /// <summary>
+    /// Идентификатор свойства имени раскладки primary target.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, string?> PrimarySelectionPlacementProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, string?>(
+            nameof(PrimarySelectionPlacement), o => o.PrimarySelectionPlacement);
+
+    /// <summary>
+    /// Идентификатор свойства действующей политики перемещения primary target.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, ArxisStudio.Attached.MovePolicy> PrimarySelectionMovePolicyProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, ArxisStudio.Attached.MovePolicy>(
+            nameof(PrimarySelectionMovePolicy), o => o.PrimarySelectionMovePolicy);
+
+    /// <summary>
+    /// Идентификатор свойства действующей политики изменения размера primary target.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, ArxisStudio.Attached.ResizePolicy> PrimarySelectionResizePolicyProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, ArxisStudio.Attached.ResizePolicy>(
+            nameof(PrimarySelectionResizePolicy), o => o.PrimarySelectionResizePolicy);
+
+    /// <summary>
     /// Идентификатор свойства, показывающего активна ли перестановка среди соседей.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> IsReorderingProperty =
@@ -502,6 +523,51 @@ public class DesignEditor : SelectingItemsControl
     {
         get => _isSelecting;
         set => SetAndRaise(IsSelectingProperty, ref _isSelecting, value);
+    }
+
+    private string? _primarySelectionPlacement;
+    /// <summary>
+    /// Получает имя раскладки, которая распоряжается положением primary target.
+    /// </summary>
+    /// <remarks>
+    /// Отвечает на вопрос «почему этот контрол не двигается»: <c>Stack</c> означает,
+    /// что панель расставляет детей сама и перетаскивание меняет их порядок, а не
+    /// координату; <c>Grid</c> и <c>Dock</c> — что положение задаётся присоединёнными
+    /// свойствами раскладки. <see langword="null"/> — выделения нет.
+    /// </remarks>
+    public string? PrimarySelectionPlacement
+    {
+        get => _primarySelectionPlacement;
+        private set => SetAndRaise(PrimarySelectionPlacementProperty, ref _primarySelectionPlacement, value);
+    }
+
+    private ArxisStudio.Attached.MovePolicy _primarySelectionMovePolicy;
+    /// <summary>
+    /// Получает действующую политику перемещения primary target.
+    /// </summary>
+    /// <remarks>
+    /// Именно действующую, а не заданную: это <c>политика пользователя &amp; возможности
+    /// раскладки</c>, то есть то, что редактор реально позволит сделать.
+    /// </remarks>
+    public ArxisStudio.Attached.MovePolicy PrimarySelectionMovePolicy
+    {
+        get => _primarySelectionMovePolicy;
+        private set => SetAndRaise(PrimarySelectionMovePolicyProperty, ref _primarySelectionMovePolicy, value);
+    }
+
+    private ArxisStudio.Attached.ResizePolicy _primarySelectionResizePolicy;
+    /// <summary>
+    /// Получает действующую политику изменения размера primary target.
+    /// </summary>
+    /// <remarks>
+    /// Раскладка её не сужает: явный размер honours любая панель, потому что
+    /// применяется до выравнивания. Ограничивают размер <c>Min</c>/<c>Max</c>
+    /// самого контрола и границы формы, а не родительская раскладка.
+    /// </remarks>
+    public ArxisStudio.Attached.ResizePolicy PrimarySelectionResizePolicy
+    {
+        get => _primarySelectionResizePolicy;
+        private set => SetAndRaise(PrimarySelectionResizePolicyProperty, ref _primarySelectionResizePolicy, value);
     }
 
     private bool _isReordering;
@@ -1299,6 +1365,7 @@ public class DesignEditor : SelectingItemsControl
             HasMultipleContainerSelection = hasMultipleContainerSelection;
             _primarySelectionItem = primaryItem;
             _primarySelectionControl = primaryControl;
+            UpdatePrimaryPlacementReadout(primaryControl);
             ApplySelectionSnapshot(CreateSelectionTargetsSnapshot(primaryItem, primaryControl));
             SyncSelectedTargetSubscriptions();
             UpdateSelectionAdornerPolicies();
@@ -1314,6 +1381,7 @@ public class DesignEditor : SelectingItemsControl
         HasMultipleContainerSelection = false;
         _primarySelectionItem = null;
         _primarySelectionControl = null;
+        UpdatePrimaryPlacementReadout(null);
         ApplySelectionSnapshot(Array.Empty<DesignSelectionTarget>());
         SyncSelectedTargetSubscriptions();
         UpdateSelectionAdornerPolicies();
@@ -3624,6 +3692,24 @@ public class DesignEditor : SelectingItemsControl
     /// Единицей редактирования по-прежнему владеет редактор, а не состояние:
     /// так границы жеста остаются в одном месте для всех видов правок.
     /// </remarks>
+    /// <summary>
+    /// Обновляет диагностический вывод о размещении primary target.
+    /// </summary>
+    private void UpdatePrimaryPlacementReadout(Control? primaryControl)
+    {
+        if (primaryControl == null)
+        {
+            PrimarySelectionPlacement = null;
+            PrimarySelectionMovePolicy = ArxisStudio.Attached.MovePolicy.None;
+            PrimarySelectionResizePolicy = ArxisStudio.Attached.ResizePolicy.None;
+            return;
+        }
+
+        PrimarySelectionPlacement = GetPlacementStrategy(primaryControl).Name;
+        PrimarySelectionMovePolicy = GetEffectiveMovePolicy(primaryControl);
+        PrimarySelectionResizePolicy = GetResizePolicy(primaryControl);
+    }
+
     internal void BeginReorder() => BeginEdit(DesignEditKind.Reorder);
 
     /// <summary>
