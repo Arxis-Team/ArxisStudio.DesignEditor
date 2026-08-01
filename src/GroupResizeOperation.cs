@@ -37,9 +37,13 @@ internal sealed class GroupResizeOperation
         var scaleY = _initialBounds.Height > 0 ? nextBounds.Height / _initialBounds.Height : 1.0;
 
         // Масштаб группы ограничивается самым «зажатым» target'ом.
-        // Иначе его размер упирается в минимум и перестаёт уменьшаться,
+        // Иначе его размер упирается в предел и перестаёт меняться,
         // а позиция продолжает считаться от неограниченного масштаба —
         // target'ы наезжают друг на друга и вылезают за рамку выделения.
+        // Порядок как в Avalonia: сначала максимум, потом минимум, поэтому
+        // при Max < Min побеждает минимум.
+        scaleX = Math.Min(scaleX, GetMaximumScale(_targets, horizontal: true));
+        scaleY = Math.Min(scaleY, GetMaximumScale(_targets, horizontal: false));
         scaleX = Math.Max(scaleX, GetMinimumScale(_targets, horizontal: true, _minSize));
         scaleY = Math.Max(scaleY, GetMinimumScale(_targets, horizontal: false, _minSize));
 
@@ -84,6 +88,31 @@ internal sealed class GroupResizeOperation
         }
 
         return minScale;
+    }
+
+    /// <summary>
+    /// Возвращает максимальный масштаб, при котором ни один target не превышает
+    /// свой предельный размер.
+    /// </summary>
+    private static double GetMaximumScale(IReadOnlyList<GroupResizeTarget> targets, bool horizontal)
+    {
+        var maxScale = double.PositiveInfinity;
+
+        for (var i = 0; i < targets.Count; i++)
+        {
+            var target = targets[i];
+            var initial = horizontal ? target.InitialBounds.Width : target.InitialBounds.Height;
+            if (initial <= 0)
+                continue;
+
+            var limit = horizontal ? target.Target.MaxWidth : target.Target.MaxHeight;
+            if (double.IsInfinity(limit) || double.IsNaN(limit))
+                continue;
+
+            maxScale = Math.Min(maxScale, limit / initial);
+        }
+
+        return maxScale;
     }
 
     /// <summary>

@@ -2306,12 +2306,40 @@ public class DesignEditor : SelectingItemsControl
 
     internal void SetDesignSize(Control control, Size size)
     {
-        if (!_suppressEditRecording)
-            _activeEdit?.RecordSize(this, control, size);
+        var coerced = CoerceDesignSize(control, size);
 
-        control.Width = size.Width;
-        control.Height = size.Height;
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordSize(this, control, coerced);
+
+        control.Width = coerced.Width;
+        control.Height = coerced.Height;
     }
+
+    /// <summary>
+    /// Приводит запрошенный размер к ограничениям самого контрола.
+    /// </summary>
+    /// <remarks>
+    /// До появления этого метода редактор писал <c>Width</c>/<c>Height</c> мимо
+    /// <c>MinWidth</c>/<c>MaxWidth</c>: раскладка применяла ограничение уже после,
+    /// и запрошенный размер расходился с фактическим — редактор считал от одного,
+    /// а пользователь видел другое.
+    /// <para>
+    /// При <c>Max &lt; Min</c> побеждает минимум — так же, как в самой Avalonia.
+    /// Минимальный размер редактора (<see cref="DesignEditorInteractionOptions.ResizeMinSize"/>)
+    /// участвует наравне с <c>MinWidth</c>, поэтому правило остаётся одно.
+    /// </para>
+    /// </remarks>
+    internal Size CoerceDesignSize(Control control, Size size)
+    {
+        var floor = Math.Max(0.0, InteractionOptions.ResizeMinSize);
+
+        return new Size(
+            ClampSize(size.Width, Math.Max(floor, control.MinWidth), control.MaxWidth),
+            ClampSize(size.Height, Math.Max(floor, control.MinHeight), control.MaxHeight));
+    }
+
+    private static double ClampSize(double value, double min, double max)
+        => Math.Max(Math.Min(value, max), min);
 
     internal void SetDesignZIndex(Control control, int zIndex)
     {

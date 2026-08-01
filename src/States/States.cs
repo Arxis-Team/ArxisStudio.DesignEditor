@@ -407,8 +407,20 @@ internal class ItemResizingState : DesignEditorItemState
                 newH = initialBottom - editor.SnapCoordinate(initialBottom - newH);
         }
 
-        newW = Math.Max(minWidth, newW);
-        newH = Math.Max(minHeight, newH);
+        // Приведение к Min/Max делается здесь, а не только внутри SetDesignSize:
+        // неподвижный край считается из итогового размера, иначе он уплывал бы
+        // на разницу между запрошенным и разрешённым.
+        if (editor != null)
+        {
+            var coerced = editor.CoerceDesignSize(_target, new Size(newW, newH));
+            newW = coerced.Width;
+            newH = coerced.Height;
+        }
+        else
+        {
+            newW = Math.Max(minWidth, newW);
+            newH = Math.Max(minHeight, newH);
+        }
 
         if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
             newX = initialRight - newW;

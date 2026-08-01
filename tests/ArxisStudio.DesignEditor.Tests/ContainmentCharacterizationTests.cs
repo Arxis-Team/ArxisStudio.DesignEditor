@@ -96,7 +96,7 @@ public class ContainmentCharacterizationTests
     }
 
     [AvaloniaFact]
-    public void MaxHeight_Is_Ignored_By_Resize()
+    public void MaxHeight_Clamps_The_Written_Size()
     {
         var harness = EditorHarness.CreateStackHosted();
         var container = harness.PlaceContainer(0, CardLocation, CardSize);
@@ -115,9 +115,9 @@ public class ContainmentCharacterizationTests
             new Vector(0, Overshoot), ResizeDirection.Bottom, DesignEditorItem.ResizeDeltaEvent));
         harness.RunLayout();
 
-        // Редактор пишет Height мимо MaxHeight: сам он ограничение не читает,
-        // а раскладка применяет его уже после — запрошенное и фактическое расходятся.
-        Assert.Equal(Overshoot + 29, action.Height, 1);
+        // Редактор читает MaxHeight сам, поэтому запрошенное и фактическое совпадают.
+        // Раньше он писал 429, раскладка выдавала 60, и дальше всё считалось от 429.
+        Assert.Equal(60, action.Height, 1);
         Assert.Equal(60, action.Bounds.Height, 1);
     }
 }
