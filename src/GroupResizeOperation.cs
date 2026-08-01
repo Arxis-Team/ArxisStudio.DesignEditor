@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -13,7 +13,11 @@ internal sealed class GroupResizeOperation
     private readonly Rect _initialBounds;
     private readonly IReadOnlyList<GroupResizeTarget> _targets;
     private readonly double _minSize;
-    private Vector _accumulatedDelta;
+
+    // Текущая рамка группы. Дельты не накапливаются: Thumb отдаёт смещение
+    // относительно самой ручки, а ручка стоит на применённой рамке, поэтому
+    // всё, что съели привязка или границы формы, вернётся в следующей дельте.
+    private Rect _currentBounds;
 
     public GroupResizeOperation(ResizeDirection direction, Rect initialBounds, IReadOnlyList<GroupResizeTarget> targets, double minSize)
     {
@@ -21,24 +25,29 @@ internal sealed class GroupResizeOperation
         _initialBounds = initialBounds;
         _targets = targets;
         _minSize = minSize;
-        _accumulatedDelta = Vector.Zero;
+        _currentBounds = initialBounds;
     }
 
     public void Update(DesignEditor editor, Vector worldDelta)
     {
-        _accumulatedDelta += worldDelta;
-        var nextBounds = CalculateResizedBounds(_initialBounds, _direction, _accumulatedDelta, _minSize);
+        var nextBounds = CalculateResizedBounds(_currentBounds, _direction, worldDelta, _minSize);
 
         // Для группы привязывается рамка целиком: привязка каждого target'а
         // по отдельности разрушила бы пропорции внутри группы.
         if (editor.ShouldSnap(editor.LastInputModifiers))
-            nextBounds = SnapBounds(editor, nextBounds, _direction, _initialBounds, _minSize);
+            nextBounds = SnapBounds(editor, nextBounds, _direction, _currentBounds, _minSize);
 
         // Ограничение по форме — тоже над рамкой целиком, по тем же причинам,
         // что и привязка: индивидуальный кламп разъехал бы пропорции группы.
         if (_targets.Count > 0 && editor.TryGetContainmentBounds(_targets[0].Target, out var limit))
-            nextBounds = ContainBounds(nextBounds, _direction, _initialBounds, limit, _minSize);
+            nextBounds = ContainBounds(nextBounds, _direction, _currentBounds, limit, _minSize);
 
+        // Запоминаем применённое: следующая дельта придёт относительно ручки,
+        // которая встанет именно на эту рамку.
+        _currentBounds = nextBounds;
+
+        // Масштаб и позиции считаются от ИСХОДНОЙ рамки, иначе округления
+        // копились бы от кадра к кадру и группа расползалась.
         var scaleX = _initialBounds.Width > 0 ? nextBounds.Width / _initialBounds.Width : 1.0;
         var scaleY = _initialBounds.Height > 0 ? nextBounds.Height / _initialBounds.Height : 1.0;
 

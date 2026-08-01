@@ -345,9 +345,8 @@ internal class ItemResizingState : DesignEditorItemState
 {
     private readonly Control _target;
     private readonly ResizeDirection _direction;
-    private Point _initialLocation;
-    private Size _initialSize;
-    private Vector _accumulatedDelta;
+    private Point _location;
+    private Size _size;
 
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemResizingState"/>.
@@ -365,35 +364,40 @@ internal class ItemResizingState : DesignEditorItemState
     public override void Enter(DesignEditorItemState from)
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
-        _initialLocation = editor?.GetDesignPosition(_target) ?? Container.Location;
-        _accumulatedDelta = Vector.Zero;
+        _location = editor?.GetDesignPosition(_target) ?? Container.Location;
 
         var size = editor?.GetDesignSize(_target) ?? new Size(
             double.IsNaN(Container.Width) ? Container.Bounds.Width : Container.Width,
             double.IsNaN(Container.Height) ? Container.Bounds.Height : Container.Height);
 
         editor?.SetDesignSize(_target, size);
-        _initialSize = size;
+        _size = size;
     }
 
     /// <inheritdoc />
     public override void OnResizeDelta(ResizeDeltaEventArgs e)
     {
-        _accumulatedDelta += e.Delta;
-
-        double newW = _initialSize.Width;
-        double newH = _initialSize.Height;
-        double newX = _initialLocation.X;
-        double newY = _initialLocation.Y;
+        // Отсчёт идёт от УЖЕ ПРИМЕНЁННОЙ геометрии, а не от исходной, и дельты
+        // не накапливаются. Thumb отдаёт смещение относительно самой ручки, а
+        // ручка стоит на применённом крае: всё, что съели привязка, Max или
+        // границы формы, вернётся в следующей дельте. Накопление складывало бы
+        // этот остаток снова и снова — рамка и контрол начинали прыгать.
+        double newW = _size.Width;
+        double newH = _size.Height;
+        double newX = _location.X;
+        double newY = _location.Y;
         var editor = Container.FindAncestorOfType<DesignEditor>();
         double editorMinSize = Math.Max(0.0, editor?.InteractionOptions.ResizeMinSize ?? 10.0);
         double minWidth = Math.Max(editorMinSize, _target.MinWidth);
         double minHeight = Math.Max(editorMinSize, _target.MinHeight);
-        double initialRight = _initialLocation.X + _initialSize.Width;
-        double initialBottom = _initialLocation.Y + _initialSize.Height;
 
-        double dx = _accumulatedDelta.X;
-        double dy = _accumulatedDelta.Y;
+        // Неподвижный край берётся из текущей геометрии, поэтому он остаётся
+        // на месте на всём жесте, даже когда размер во что-нибудь упёрся.
+        double fixedRight = _location.X + _size.Width;
+        double fixedBottom = _location.Y + _size.Height;
+
+        double dx = e.Delta.X;
+        double dy = e.Delta.Y;
 
         switch (_direction)
         {
@@ -415,12 +419,12 @@ internal class ItemResizingState : DesignEditorItemState
             if (_direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
                 newW = editor.SnapCoordinate(newX + newW) - newX;
             else if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-                newW = initialRight - editor.SnapCoordinate(initialRight - newW);
+                newW = fixedRight - editor.SnapCoordinate(fixedRight - newW);
 
             if (_direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
                 newH = editor.SnapCoordinate(newY + newH) - newY;
             else if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-                newH = initialBottom - editor.SnapCoordinate(initialBottom - newH);
+                newH = fixedBottom - editor.SnapCoordinate(fixedBottom - newH);
         }
 
         // Приведение к Min/Max делается здесь, а не только внутри SetDesignSize:
@@ -435,7 +439,7 @@ internal class ItemResizingState : DesignEditorItemState
                 if (ChangesWidth(_direction))
                 {
                     var maxW = _direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft
-                        ? initialRight - limit.Left
+                        ? fixedRight - limit.Left
                         : limit.Right - newX;
 
                     if (maxW > 0)
@@ -445,7 +449,7 @@ internal class ItemResizingState : DesignEditorItemState
                 if (ChangesHeight(_direction))
                 {
                     var maxH = _direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight
-                        ? initialBottom - limit.Top
+                        ? fixedBottom - limit.Top
                         : limit.Bottom - newY;
 
                     if (maxH > 0)
@@ -464,10 +468,10 @@ internal class ItemResizingState : DesignEditorItemState
         }
 
         if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-            newX = initialRight - newW;
+            newX = fixedRight - newW;
 
         if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-            newY = initialBottom - newH;
+            newY = fixedBottom - newH;
 
         if (editor != null)
             editor.SetDesignSize(_target, new Size(newW, newH));
@@ -478,13 +482,18 @@ internal class ItemResizingState : DesignEditorItemState
         }
 
         // Обновляем позицию только если она изменилась (при ресайзе слева/сверху)
-        if (Math.Abs(newX - _initialLocation.X) > 0.1 || Math.Abs(newY - _initialLocation.Y) > 0.1)
+        if (Math.Abs(newX - _location.X) > 0.1 || Math.Abs(newY - _location.Y) > 0.1)
         {
             if (editor != null)
                 editor.SetDesignPosition(_target, new Point(newX, newY));
             else
                 Container.Location = new Point(newX, newY);
         }
+
+        // Запоминаем применённое, а не запрошенное: следующая дельта придёт
+        // относительно ручки, которая встанет именно сюда.
+        _location = new Point(newX, newY);
+        _size = new Size(newW, newH);
 
         Container.RaiseEvent(new ResizeDeltaEventArgs(e.Delta, _direction, DesignEditorItem.ResizeDeltaEvent));
     }

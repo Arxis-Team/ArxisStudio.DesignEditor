@@ -1,0 +1,182 @@
+using System.Collections.Generic;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using ArxisStudio.Controls;
+using ArxisStudio.States;
+using Xunit;
+
+namespace ArxisStudio.Tests;
+
+/// <summary>
+/// Устойчивость изменения размера к расхождению запрошенной и применённой геометрии.
+/// </summary>
+/// <remarks>
+/// <c>Thumb.DragDelta</c> отдаёт смещение относительно самой ручки (см.
+/// <c>ThumbDeltaProbeTests</c>). Ручка стоит на краю выделения, то есть на
+/// <b>применённой</b> геометрии. Поэтому непогашенный остаток — всё, что съели
+/// привязка к сетке, <c>Max</c> или границы формы — приходит в следующей дельте
+/// повторно. Накопление таких дельт от исходного размера складывает остаток
+/// снова и снова, и рамка вместе с контролом начинает прыгать.
+/// </remarks>
+public class ResizeStabilityTests
+{
+    private static readonly Point ContainerLocation = new(100, 100);
+    private static readonly Size ContainerSize = new(200, 150);
+
+    private const double SnapStep = 20;
+    private const double PointerStep = 7;
+    private const int StepCount = 10;
+
+    /// <summary>
+    /// Прогоняет протяжку так, как её видит редактор: ручка стоит на применённом
+    /// крае, поэтому дельта считается от него, а не от точки нажатия.
+    /// </summary>
+    private static List<double> DragRightEdge(EditorHarness harness, DesignEditorItem container, Control target)
+    {
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        var widths = new List<double>();
+        var pointerRight = Right(harness, target);
+        var appliedRight = pointerRight;
+
+        for (var i = 0; i < StepCount; i++)
+        {
+            pointerRight += PointerStep;
+
+            state.OnResizeDelta(new ResizeDeltaEventArgs(
+                new Vector(pointerRight - appliedRight, 0),
+                ResizeDirection.Right,
+                DesignEditorItem.ResizeDeltaEvent));
+
+            harness.RunLayout();
+
+            appliedRight = Right(harness, target);
+            widths.Add(harness.Editor.GetDesignSize(target).Width);
+        }
+
+        return widths;
+    }
+
+    private static double Right(EditorHarness harness, Control target)
+        => harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width;
+
+    [AvaloniaFact]
+    public void Width_Never_Goes_Backwards_While_The_Pointer_Moves_Forward()
+    {
+        var harness = EditorHarness.Create(snapToGrid: true);
+        harness.Editor.InteractionOptions.SnapStep = SnapStep;
+        var container = harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+
+        var widths = DragRightEdge(harness, container, harness.Nested(0));
+
+        for (var i = 1; i < widths.Count; i++)
+        {
+            Assert.True(
+                widths[i] >= widths[i - 1] - 0.01,
+                $"ширина откатилась на шаге {i}: {string.Join(", ", widths)}");
+        }
+    }
+
+    [AvaloniaFact]
+    public void Width_Follows_The_Pointer_Within_One_Snap_Step()
+    {
+        var harness = EditorHarness.Create(snapToGrid: true);
+        harness.Editor.InteractionOptions.SnapStep = SnapStep;
+        var container = harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+        var target = harness.Nested(0);
+
+        var expected = harness.Editor.GetDesignSize(target).Width + (PointerStep * StepCount);
+        var widths = DragRightEdge(harness, container, target);
+
+        // Указатель ушёл на 70; итог обязан отличаться не больше чем на шаг сетки.
+        // При накоплении дельт остаток складывался повторно и ширина улетала кратно.
+        Assert.InRange(widths[^1], expected - SnapStep, expected + SnapStep);
+    }
+
+    [AvaloniaFact]
+    public void Group_Width_Never_Goes_Backwards()
+    {
+        var harness = EditorHarness.Create(snapToGrid: true);
+        harness.Editor.InteractionOptions.SnapStep = SnapStep;
+        harness.PlaceContainer(0, ContainerLocation, new Size(400, 300));
+
+        var nested = harness.Nested(0);
+        var sibling = harness.Named(0, "Sibling");
+
+        var nestedBounds = new Rect(110, 110, EditorHarness.NestedWidth, EditorHarness.NestedHeight);
+        var siblingBounds = new Rect(200, 110, EditorHarness.NestedWidth, EditorHarness.NestedHeight);
+        var groupBounds = nestedBounds.Union(siblingBounds);
+
+        var operation = new GroupResizeOperation(
+            ResizeDirection.Right,
+            groupBounds,
+            new[]
+            {
+                new GroupResizeTarget(nested, nestedBounds),
+                new GroupResizeTarget(sibling, siblingBounds)
+            },
+            minSize: 10);
+
+        var widths = new List<double>();
+        var pointerRight = groupBounds.Right;
+        var appliedRight = pointerRight;
+
+        for (var i = 0; i < StepCount; i++)
+        {
+            pointerRight += PointerStep;
+            operation.Update(harness.Editor, new Vector(pointerRight - appliedRight, 0));
+            harness.RunLayout();
+
+            appliedRight = Right(harness, sibling);
+            widths.Add(appliedRight);
+        }
+
+        // Групповая рамка накапливала дельты так же, как одиночная,
+        // поэтому прыгала вместе со всеми target'ами.
+        for (var i = 1; i < widths.Count; i++)
+        {
+            Assert.True(
+                widths[i] >= widths[i - 1] - 0.01,
+                $"правый край группы откатился на шаге {i}: {string.Join(", ", widths)}");
+        }
+    }
+
+    [AvaloniaFact]
+    public void Contained_Resize_Does_Not_Oscillate_At_The_Form_Edge()
+    {
+        var harness = EditorHarness.Create(snapToGrid: false);
+        var container = harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+        var target = harness.Nested(0);
+
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        // Указатель уезжает далеко за форму: применённый край упирается,
+        // и весь остаток приходит обратно в дельте на каждом шаге.
+        var pointerRight = Right(harness, target);
+        var appliedRight = pointerRight;
+        var widths = new List<double>();
+
+        for (var i = 0; i < 6; i++)
+        {
+            pointerRight += 100;
+
+            state.OnResizeDelta(new ResizeDeltaEventArgs(
+                new Vector(pointerRight - appliedRight, 0),
+                ResizeDirection.Right,
+                DesignEditorItem.ResizeDeltaEvent));
+
+            harness.RunLayout();
+            appliedRight = Right(harness, target);
+            widths.Add(harness.Editor.GetDesignSize(target).Width);
+        }
+
+        var limit = ContainerLocation.X + ContainerSize.Width;
+
+        // Упёршись в край формы, размер обязан замереть, а не пульсировать.
+        Assert.Equal(widths[^2], widths[^1], 1);
+        Assert.InRange(appliedRight, limit - 0.01, limit + 0.01);
+    }
+}
