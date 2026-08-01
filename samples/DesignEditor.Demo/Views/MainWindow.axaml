@@ -185,6 +185,29 @@
 
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>
 
+                <!-- Шаг сетки. Привязка следует за ним сама: SnapStep по умолчанию
+                     равен NaN, и редактор берёт шаг у сетки шаблона. -->
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                            ToolTip.Tip="Шаг сетки в мировых единицах. К нему же идёт привязка при перетаскивании и изменении размера.">
+                    <PathIcon Data="M3,3V21H21V3H3M9,19H5V15H9V19M9,13H5V9H9V13M9,7H5V5H9V7M15,19H11V15H15V19M15,13H11V9H15V13M15,7H11V5H15V7M19,19H17V15H19V19M19,13H17V9H19V13M19,7H17V5H19V7Z"
+                              Width="12" Height="12" Foreground="#999"/>
+                    <TextBlock Text="Grid" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
+                    <ComboBox Name="GridStepBox"
+                              MinWidth="64"
+                              FontSize="11"
+                              VerticalAlignment="Center"
+                              ItemsSource="{Binding GridCellSizes}"
+                              SelectedItem="{Binding GridCellSize}"/>
+                    <CheckBox Name="SnapBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="snap"
+                              IsChecked="{Binding #Editor.InteractionOptions.IsSnapToGridEnabled}"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Opacity="0.5">
                     <TextBlock Text="Viewport:" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding #Editor.ViewportLocation.X, StringFormat='{}{0:0}'}" Foreground="#999" FontSize="10"/>

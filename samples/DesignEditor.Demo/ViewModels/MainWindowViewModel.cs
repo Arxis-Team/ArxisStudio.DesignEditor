@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,6 +44,14 @@ public partial class MainWindowViewModel : ObservableObject
     {
         IsGestureHelpExpanded = !IsGestureHelpExpanded;
     }
+
+    /// <summary>
+    /// Шаги сетки, доступные в верхней панели.
+    /// </summary>
+    public IReadOnlyList<double> GridCellSizes { get; } = new double[] { 5, 10, 20, 25, 40, 50 };
+
+    [ObservableProperty]
+    private double _gridCellSize = 20;
 
     public MainWindowViewModel()
     {

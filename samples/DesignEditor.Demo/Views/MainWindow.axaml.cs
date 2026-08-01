@@ -26,6 +26,30 @@ public partial class MainWindow : Window
             _history.Changed += (_, _) => UpdateHistoryButtons();
             UpdateHistoryButtons();
         }
+
+        if (this.FindControl<ComboBox>("GridStepBox") is { } gridStep)
+        {
+            gridStep.SelectionChanged += (_, _) => ApplyGridCellSize();
+            ApplyGridCellSize();
+        }
+    }
+
+    /// <summary>
+    /// Применяет выбранный шаг сетки.
+    /// </summary>
+    /// <remarks>
+    /// Шаг задаётся ресурсом, а не свойством редактора: так его подхватывает
+    /// <c>ControlTheme</c> сетки, и привязка следует за ним сама — по умолчанию
+    /// <c>InteractionOptions.SnapStep</c> равен <see cref="double.NaN"/>, то есть
+    /// «брать шаг у сетки». Одна настройка меняет и то, что нарисовано,
+    /// и то, к чему притягивается.
+    /// </remarks>
+    private void ApplyGridCellSize()
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        Resources["DesignEditor.Grid.CellSize"] = viewModel.GridCellSize;
     }
 
     private void UpdateHistoryButtons()
