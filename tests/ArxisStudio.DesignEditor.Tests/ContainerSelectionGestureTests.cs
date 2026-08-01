@@ -1,0 +1,74 @@
+using Avalonia;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Xunit;
+
+namespace ArxisStudio.Tests;
+
+/// <summary>
+/// Набор группы контейнеров кликами.
+/// </summary>
+/// <remarks>
+/// Фиксирует сегодняшнее поведение: <c>Ctrl</c> переводит клик на уровень
+/// контейнера, но добавление вторым <c>Ctrl+Shift</c>-кликом на этот уровень
+/// не попадает — выбирается вложенный контрол. Рабочий путь набрать группу
+/// контейнеров сейчас один: <c>Ctrl+A</c> либо рамка с <c>Ctrl</c>.
+/// </remarks>
+public class ContainerSelectionGestureTests
+{
+    private static readonly Size ContainerSize = new(200, 150);
+
+    private static EditorHarness Create()
+    {
+        var harness = EditorHarness.Create(nodeCount: 2);
+        harness.PlaceContainer(0, new Point(100, 100), ContainerSize);
+        harness.PlaceContainer(1, new Point(400, 100), ContainerSize);
+        return harness;
+    }
+
+    private static void Click(EditorHarness harness, int index, RawInputModifiers modifiers)
+    {
+        var centre = harness.CentreOf(harness.Container(index));
+        harness.Window.MouseDown(centre, MouseButton.Left, modifiers);
+        harness.Window.MouseUp(centre, MouseButton.Left, modifiers);
+        harness.RunLayout();
+    }
+
+    [AvaloniaFact]
+    public void Control_Click_Selects_The_Container_Itself()
+    {
+        var harness = Create();
+
+        Click(harness, 0, RawInputModifiers.Control);
+
+        Assert.Equal(DesignSelectionScope.Container, harness.Editor.PrimarySelectionTarget!.Scope);
+    }
+
+    [AvaloniaFact]
+    public void Additive_Control_Click_Falls_Back_To_The_Nested_Level()
+    {
+        var harness = Create();
+
+        Click(harness, 0, RawInputModifiers.Control);
+        Click(harness, 1, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+        // Оба контейнера попали в выбор, но второй — своим вложенным контролом,
+        // поэтому группа получается смешанной и групповой адорнер не появляется.
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Equal(DesignSelectionScope.NestedTarget, harness.Editor.PrimarySelectionTarget!.Scope);
+        Assert.False(harness.Editor.HasMultipleContainerSelection);
+    }
+
+    [AvaloniaFact]
+    public void Select_All_Gives_A_Container_Group()
+    {
+        var harness = Create();
+
+        harness.Editor.Focus();
+        harness.Window.KeyPressQwerty(PhysicalKey.A, RawInputModifiers.Control);
+        harness.RunLayout();
+
+        Assert.True(harness.Editor.HasMultipleContainerSelection);
+    }
+}

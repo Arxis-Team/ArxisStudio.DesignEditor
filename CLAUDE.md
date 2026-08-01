@@ -268,6 +268,7 @@ Design-координаты вложенного контрола считают
 
 ## Известные дефекты
 
+- **`Ctrl + Shift + Click` не добавляет контейнер в выделение**, хотя панель жестов демо это обещает: второй клик уходит на уровень вложенного контрола, и группа получается смешанной — ни `HasMultipleContainerSelection`, ни `HasMultipleNestedSelection`. Рабочие пути набрать группу контейнеров: `Ctrl + A` и рамка с `Ctrl`. Закреплено в `ContainerSelectionGestureTests`.
 - **`OnPointerWheelChanged` ставит `e.Handled = true` безусловно** — даже когда `ShouldHandleZoom` вернул `false` (заданы `ZoomModifiers`, но не нажаты). Колесо не доходит до внешнего `ScrollViewer`.
 
 ## Состояние и что дальше

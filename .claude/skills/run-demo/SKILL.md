@@ -64,6 +64,18 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 
 `-Modifier` принимает `None` (по умолчанию), `Ctrl`, `Shift`, `Alt`.
 
+```bash
+# клавиатура: стрелки, Shift+стрелки, Delete, Escape
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key Right -Notches 5
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key Down -Modifier Shift -Notches 2
+```
+
+Клавиатура идёт через `SendKeys`, а не `keybd_event`: последний до приложения не доходит, хотя окно и foreground. Мышь работает иначе, потому что `mouse_event` адресуется точкой экрана, а не фокусом.
+
+Перед клавиатурным жестом нужно что-нибудь выделить кликом — иначе у редактора нет фокуса.
+
+Известное ограничение обвязки: `Ctrl + A` через `SendKeys` до редактора не доходит, хотя `Escape`, `Delete` и стрелки доходят. Само поведение закрыто headless-тестом `KeyboardTests`.
+
 `-Action status` печатает pid, responding, заголовок и прямоугольник окна.
 
 ### 5. Закрыть

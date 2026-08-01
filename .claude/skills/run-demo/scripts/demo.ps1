@@ -16,13 +16,14 @@ demo.ps1 -Action shot  -Out C:\tmp\1.png
 demo.ps1 -Action click -X 706 -Y 453
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500 -Modifier Alt
+demo.ps1 -Action key   -Key Right -Notches 5
 demo.ps1 -Action wheel -X 300 -Y 200 -Notches 4
 demo.ps1 -Action stop
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'wheel', 'stop', 'status')]
+    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'wheel', 'key', 'stop', 'status')]
     [string]$Action,
 
     [string]$Out,
@@ -32,6 +33,10 @@ param(
     [int]$ToY = 0,
     [ValidateSet('None', 'Ctrl', 'Shift', 'Alt')]
     [string]$Modifier = 'None',
+
+    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A')]
+    [string]$Key = 'Right',
+
     [int]$Notches = 3,
     [int]$TimeoutSec = 20
 )
@@ -241,6 +246,37 @@ switch ($Action) {
         $p = Require-Demo
         [DemoDriver]::Drag($p.MainWindowHandle, $X, $Y, $ToX, $ToY, $Modifier)
         "dragged window-relative $X,$Y -> $ToX,$ToY modifier=$Modifier"
+    }
+
+    'key' {
+        $p = Require-Demo
+
+        # Именно SendKeys, а не keybd_event: последний до приложения не доходит,
+        # хотя окно и foreground. Мышь работает иначе, потому что mouse_event
+        # адресуется точкой экрана, а не фокусом.
+        $token = switch ($Key) {
+            'Left'   { '{LEFT}' }
+            'Right'  { '{RIGHT}' }
+            'Up'     { '{UP}' }
+            'Down'   { '{DOWN}' }
+            'Delete' { '{DELETE}' }
+            'Escape' { '{ESC}' }
+            'A'      { 'a' }
+        }
+
+        $prefix = switch ($Modifier) {
+            'Ctrl'  { '^' }
+            'Shift' { '+' }
+            'Alt'   { '%' }
+            default { '' }
+        }
+
+        $shell = New-Object -ComObject WScript.Shell
+        $null = $shell.AppActivate($p.Id)
+        Start-Sleep -Milliseconds 400
+        $shell.SendKeys(($prefix + $token) * [Math]::Max(1, $Notches))
+        Start-Sleep -Milliseconds 900
+        "key $Key modifier=$Modifier repeat=$Notches"
     }
 
     'wheel' {
