@@ -46,18 +46,45 @@ public class ContainerSelectionGestureTests
     }
 
     [AvaloniaFact]
-    public void Additive_Control_Click_Falls_Back_To_The_Nested_Level()
+    public void Additive_Control_Click_Adds_The_Container()
     {
         var harness = Create();
 
         Click(harness, 0, RawInputModifiers.Control);
         Click(harness, 1, RawInputModifiers.Control | RawInputModifiers.Shift);
 
-        // Оба контейнера попали в выбор, но второй — своим вложенным контролом,
-        // поэтому группа получается смешанной и групповой адорнер не появляется.
         Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
-        Assert.Equal(DesignSelectionScope.NestedTarget, harness.Editor.PrimarySelectionTarget!.Scope);
-        Assert.False(harness.Editor.HasMultipleContainerSelection);
+        Assert.True(harness.Editor.HasMultipleContainerSelection);
+        Assert.All(harness.Editor.SelectedDesignTargets,
+            t => Assert.Equal(DesignSelectionScope.Container, t.Scope));
+    }
+
+    [AvaloniaFact]
+    public void Repeated_Additive_Click_Removes_The_Container()
+    {
+        var harness = Create();
+
+        Click(harness, 0, RawInputModifiers.Control);
+        Click(harness, 1, RawInputModifiers.Control | RawInputModifiers.Shift);
+        Click(harness, 1, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+        // Повторный additive-клик снимает контейнер, но не опустошает выделение —
+        // то же правило, что и для вложенных target'ов.
+        Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Same(harness.Container(0), harness.Editor.PrimarySelectionTarget!.Target);
+    }
+
+    [AvaloniaFact]
+    public void Additive_Click_Keeps_The_Item_Selection_In_Sync()
+    {
+        var harness = Create();
+
+        Click(harness, 0, RawInputModifiers.Control);
+        Click(harness, 1, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+        // Индексная модель Avalonia обязана согласоваться со слоем design target'ов:
+        // иначе контейнер без своего target'а подменяется вложенным по умолчанию.
+        Assert.Equal(2, harness.Editor.Selection.Count);
     }
 
     [AvaloniaFact]

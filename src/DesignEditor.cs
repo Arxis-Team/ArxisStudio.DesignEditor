@@ -1580,6 +1580,46 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
+    /// Добавляет target в выделение или убирает его оттуда.
+    /// </summary>
+    /// <remarks>
+    /// Повторный additive-клик снимает target, но не даёт опустошить выделение
+    /// полностью: пустой выбор — это результат клика по холсту, а не по элементу.
+    /// </remarks>
+    private void ToggleTargetInSelection(Control target)
+    {
+        if (!_selectedTargets.Contains(target))
+        {
+            _selectedTargets.Add(target);
+            return;
+        }
+
+        if (_selectedTargets.Count > 1)
+            _selectedTargets.Remove(target);
+    }
+
+    /// <summary>
+    /// Приводит индексную модель Avalonia в соответствие со слоем design target'ов.
+    /// </summary>
+    /// <remarks>
+    /// Оверлей обходит <c>SelectedItems</c> и для каждого item'а спрашивает его
+    /// targets. Контейнер, попавший в <c>Selection</c> без собственного target'а,
+    /// подменяется вложенным по умолчанию — и группа контейнеров превращается
+    /// в смешанную. Поэтому оба слоя обязаны меняться вместе.
+    /// </remarks>
+    private void SyncContainerItemSelection(DesignEditorItem container)
+    {
+        var index = IndexFromContainer(container);
+        if (index < 0)
+            return;
+
+        if (_selectedTargets.Contains(container))
+            Selection.Select(index);
+        else
+            Selection.Deselect(index);
+    }
+
+    /// <summary>
     /// Возвращает item верхнего уровня, которому принадлежит target.
     /// </summary>
     private DesignEditorItem? ResolveOwningItemForTarget(Control target)
@@ -2264,7 +2304,19 @@ public class DesignEditor : SelectingItemsControl
     {
         if (ShouldUseContainerInteraction(modifiers))
         {
-            SetSingleSelectedTarget(container);
+            if (ShouldUseAdditiveSelection(modifiers))
+            {
+                // Группа контейнеров набирается тем же правилом, что и группа
+                // вложенных target'ов. Раньше эта ветка всегда заменяла выбор,
+                // и добавить второй контейнер кликом было нельзя вовсе.
+                ToggleTargetInSelection(container);
+                SyncContainerItemSelection(container);
+            }
+            else
+            {
+                SetSingleSelectedTarget(container);
+            }
+
             UpdateSelectionOverlayState();
             return;
         }
@@ -2287,17 +2339,7 @@ public class DesignEditor : SelectingItemsControl
 
         if (isAdditive)
         {
-            if (_selectedTargets.Contains(target))
-            {
-                // Повторный additive-клик снимает target из группы,
-                // но не даёт опустошить выделение полностью.
-                if (_selectedTargets.Count > 1)
-                    _selectedTargets.Remove(target);
-            }
-            else
-            {
-                _selectedTargets.Add(target);
-            }
+            ToggleTargetInSelection(target);
         }
         else
         {

@@ -31,7 +31,7 @@ param(
     [int]$Y = 0,
     [int]$ToX = 0,
     [int]$ToY = 0,
-    [ValidateSet('None', 'Ctrl', 'Shift', 'Alt')]
+    [ValidateSet('None', 'Ctrl', 'Shift', 'Alt', 'CtrlShift')]
     [string]$Modifier = 'None',
 
     [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A')]
@@ -68,12 +68,28 @@ public static class DemoDriver
 
     private static void ModifierDown(string modifier)
     {
+        if (modifier == "CtrlShift")
+        {
+            keybd_event(0x11, 0, 0, IntPtr.Zero);
+            keybd_event(0x10, 0, 0, IntPtr.Zero);
+            System.Threading.Thread.Sleep(60);
+            return;
+        }
+
         byte vk = Vk(modifier);
         if (vk != 0) { keybd_event(vk, 0, 0, IntPtr.Zero); System.Threading.Thread.Sleep(60); }
     }
 
     private static void ModifierUp(string modifier)
     {
+        if (modifier == "CtrlShift")
+        {
+            keybd_event(0x10, 0, 0x0002, IntPtr.Zero);
+            keybd_event(0x11, 0, 0x0002, IntPtr.Zero);
+            System.Threading.Thread.Sleep(60);
+            return;
+        }
+
         byte vk = Vk(modifier);
         if (vk != 0) { keybd_event(vk, 0, 0x0002, IntPtr.Zero); System.Threading.Thread.Sleep(60); }
     }
@@ -98,15 +114,17 @@ public static class DemoDriver
     }
 
     // wx/wy - координаты относительно окна
-    public static void Click(IntPtr h, int wx, int wy)
+    public static void Click(IntPtr h, int wx, int wy, string modifier)
     {
         Focus(h);
         RECT r = Rect(h);
         SetCursorPos(r.Left + wx, r.Top + wy);
         System.Threading.Thread.Sleep(250);
+        ModifierDown(modifier);
         mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
         System.Threading.Thread.Sleep(80);
         mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
+        ModifierUp(modifier);
         System.Threading.Thread.Sleep(900);
     }
 
@@ -232,8 +250,8 @@ switch ($Action) {
 
     'click' {
         $p = Require-Demo
-        [DemoDriver]::Click($p.MainWindowHandle, $X, $Y)
-        "clicked window-relative $X,$Y"
+        [DemoDriver]::Click($p.MainWindowHandle, $X, $Y, $Modifier)
+        "clicked window-relative $X,$Y modifier=$Modifier"
     }
 
     'rightclick' {

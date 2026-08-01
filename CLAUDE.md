@@ -72,6 +72,8 @@ Group drag намеренно считается по **накопленной w
 
 Отсюда следует, что **`SelectedItems.Count` ≠ `SelectedDesignTargetsCount`**: один выбранный контейнер может содержать несколько выбранных nested targets. Публичный контракт выбора — `DesignSelectionTarget` (`Container`, `Target`, `Scope`, `DisplayName`); `Scope` различает `Container` и `NestedTarget`.
 
+Два слоя выбора обязаны меняться вместе. `_selectedTargets` держит design target'ы, а `Selection` — индексы item'ов, и оверлей обходит именно `SelectedItems`, спрашивая у каждого его targets. Контейнер, попавший в `Selection` без собственной записи в `_selectedTargets`, подменяется вложенным target'ом по умолчанию — и группа контейнеров молча превращается в смешанную. Именно так и ломался `Ctrl + Shift + Click`: ветка контейнера всегда заменяла выбор, второй контейнер вытеснял первый, а первый возвращался в оверлей уже своим вложенным контролом. Правки в одном слое без другого делать нельзя — см. `SyncContainerItemSelection`.
+
 Nested target'ом может стать только контрол с designer-метаданными — см. `HasDesignerLayoutMetadata` (наличие `Layout.X/Y` или `Layout.IsTracked`). Клик по «нетрекаемой» области внутри контейнера сбрасывает nested target и переводит выбор на уровень контейнера; fallback-выбора «первого tracked контрола» больше нет — это осознанное поведение, не баг.
 
 Вся пересборка состояния выделения проходит через `UpdateSelectionOverlayState()` → `TryGetSelectedDesignBounds(...)`. Это единственная точка, где обновляются `SelectionBounds`, `SecondarySelectionAdorners`, `HasSingle/Multiple*Selection` и `SelectedDesignTargets`.
@@ -268,7 +270,6 @@ Design-координаты вложенного контрола считают
 
 ## Известные дефекты
 
-- **`Ctrl + Shift + Click` не добавляет контейнер в выделение**, хотя панель жестов демо это обещает: второй клик уходит на уровень вложенного контрола, и группа получается смешанной — ни `HasMultipleContainerSelection`, ни `HasMultipleNestedSelection`. Рабочие пути набрать группу контейнеров: `Ctrl + A` и рамка с `Ctrl`. Закреплено в `ContainerSelectionGestureTests`.
 - **`OnPointerWheelChanged` ставит `e.Handled = true` безусловно** — даже когда `ShouldHandleZoom` вернул `false` (заданы `ZoomModifiers`, но не нажаты). Колесо не доходит до внешнего `ScrollViewer`.
 
 ## Состояние и что дальше

@@ -62,7 +62,13 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 
 Промежуточные move в `drag` обязательны: один прыжок из точки в точку не переводит контейнер в состояние перетаскивания — редактору нужен сдвиг больше `DragStartThreshold`, а затем сами move-события.
 
-`-Modifier` принимает `None` (по умолчанию), `Ctrl`, `Shift`, `Alt`.
+`-Modifier` принимает `None` (по умолчанию), `Ctrl`, `Shift`, `Alt`, `CtrlShift` и работает для `click`, `drag` и `key`.
+
+```bash
+# выбор контейнера и добавление второго
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action click -X 578 -Y 650 -Modifier Ctrl
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action click -X 560 -Y 990 -Modifier CtrlShift
+```
 
 ```bash
 # клавиатура: стрелки, Shift+стрелки, Delete, Escape
