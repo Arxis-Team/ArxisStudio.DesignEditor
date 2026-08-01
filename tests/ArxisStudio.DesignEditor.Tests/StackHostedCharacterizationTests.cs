@@ -61,7 +61,7 @@ public class StackHostedCharacterizationTests
     }
 
     [AvaloniaFact]
-    public void Drag_Of_A_Stack_Child_Records_A_Move_That_Did_Not_Happen()
+    public void Drag_Of_A_Stack_Child_Records_Nothing()
     {
         var (harness, edits) = Create();
         var action = harness.Find<Button>(0, "Action");
@@ -74,15 +74,11 @@ public class StackHostedCharacterizationTests
         var boundsBefore = harness.Editor.SelectionBounds;
         Drag(harness, centre, DragDelta);
 
-        // Самое неприятное следствие: контрол не сдвинулся, а стек отмены
-        // получил запись о перемещении. DesignEditScope пишет задаваемые значения,
-        // а не перечитывает состояние, поэтому фильтр no-op здесь не срабатывает.
-        var edit = Assert.Single(edits);
-        Assert.Equal(DesignEditKind.Move, edit.Kind);
-        var change = Assert.IsType<DesignGeometryChange>(Assert.Single(edit.Changes));
-        Assert.NotEqual(change.OldBounds.X, change.NewBounds.X);
-
-        // При этом на экране не изменилось ничего.
+        // Раньше стек отмены получал перемещение, которого не было: политика
+        // разрешала жест, запись уходила в пустоту, а DesignEditScope фиксировал
+        // задаваемое значение. Теперь раскладка обнуляет смещение до записи,
+        // и фильтр no-op отбрасывает изменение целиком.
+        Assert.Empty(edits);
         Assert.Equal(boundsBefore, harness.Editor.SelectionBounds);
     }
 

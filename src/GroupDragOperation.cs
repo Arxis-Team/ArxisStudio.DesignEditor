@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 
@@ -41,7 +41,7 @@ internal sealed class GroupDragOperation
             {
                 if (ReferenceEquals(container, sourceContainer) && ReferenceEquals(target, sourceTarget))
                     continue;
-                if (editor.GetMovePolicy(target) == ArxisStudio.Attached.MovePolicy.None)
+                if (editor.GetEffectiveMovePolicy(target) == ArxisStudio.Attached.MovePolicy.None)
                     continue;
 
                 targets.Add(new GroupDragTarget(target, editor.GetDesignPosition(target)));

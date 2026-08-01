@@ -127,11 +127,24 @@ internal class ItemIdleState : DesignEditorItemState
         var parent = Container.GetVisualParent();
         if (parent == null) return;
 
-        // ВАЖНО: Разрешаем драг, если родитель - AbsolutePanel (в т.ч. DesignSurface) или Canvas.
-        bool isAbsolute = parent is AbsolutePanel || parent is Canvas;
-        if (!isAbsolute) return;
-
         var editor = Container.FindAncestorOfType<DesignEditor>();
+        if (editor != null)
+        {
+            // Спрашиваем не про родителя контейнера, а про фактическую цель жеста:
+            // двигаться будет именно она, и решает её собственная раскладка.
+            // Прежний гейт проверял не тот уровень и поэтому пропускал жесты,
+            // которые затем молча ничего не делали.
+            var moveTarget = editor.ResolveInteractionTarget(Container);
+            if (editor.GetEffectiveMovePolicy(moveTarget) == ArxisStudio.Attached.MovePolicy.None)
+                return;
+        }
+        else if (parent is not AbsolutePanel)
+        {
+            // Без редактора остаётся только fallback-ветка, а она пишет
+            // Container.Location, которую читает лишь AbsolutePanel.
+            return;
+        }
+
         var currentPoint = editor != null
             ? e.GetPosition(editor)
             : e.GetPosition((Visual)parent);

@@ -16,6 +16,7 @@ using Avalonia.VisualTree;
 using DesignLayout = ArxisStudio.Attached.Layout;
 using DesignInteraction = ArxisStudio.Attached.DesignInteraction;
 using ArxisStudio.Controls;
+using ArxisStudio.Placement;
 using ArxisStudio.States;
 
 namespace ArxisStudio;
@@ -1202,7 +1203,7 @@ public class DesignEditor : SelectingItemsControl
                     Bounds = itemBounds,
                     Role = SelectionAdornerRole.Secondary,
                     ResizePolicy = GetResizePolicy(selectionTarget),
-                    MovePolicy = GetMovePolicy(selectionTarget)
+                    MovePolicy = GetEffectiveMovePolicy(selectionTarget)
                 });
 
                 if (!hasBounds)
@@ -1489,7 +1490,7 @@ public class DesignEditor : SelectingItemsControl
             ? GetResizePolicy(_primarySelectionControl)
             : ArxisStudio.Attached.ResizePolicy.None;
         var primaryMovePolicy = _primarySelectionControl != null
-            ? GetMovePolicy(_primarySelectionControl)
+            ? GetEffectiveMovePolicy(_primarySelectionControl)
             : ArxisStudio.Attached.MovePolicy.None;
 
         if (_selectionAdorner != null)
@@ -1508,7 +1509,7 @@ public class DesignEditor : SelectingItemsControl
             foreach (var selectedTarget in SelectedDesignTargets)
             {
                 groupResizePolicy &= GetResizePolicy(selectedTarget.Target);
-                groupMovePolicy &= GetMovePolicy(selectedTarget.Target);
+                groupMovePolicy &= GetEffectiveMovePolicy(selectedTarget.Target);
             }
         }
 
@@ -1928,7 +1929,7 @@ public class DesignEditor : SelectingItemsControl
         }
 
         var sourceTarget = ResolveInteractionTarget(sourceContainer);
-        var sourceMovePolicy = GetMovePolicy(sourceTarget);
+        var sourceMovePolicy = GetEffectiveMovePolicy(sourceTarget);
         if (sourceMovePolicy == ArxisStudio.Attached.MovePolicy.None)
         {
             e.Handled = true;
@@ -1958,7 +1959,7 @@ public class DesignEditor : SelectingItemsControl
             }
 
             var sourceTarget = ResolveInteractionTarget(source);
-            if (GetMovePolicy(sourceTarget) == ArxisStudio.Attached.MovePolicy.None)
+            if (GetEffectiveMovePolicy(sourceTarget) == ArxisStudio.Attached.MovePolicy.None)
             {
                 e.Handled = true;
                 return;
@@ -2274,30 +2275,26 @@ public class DesignEditor : SelectingItemsControl
     internal void ClearMarqueeScope() => MarqueeScope = null;
 
     internal Point GetDesignPosition(Control control)
-    {
-        if (control is DesignEditorItem item)
-            return item.Location;
+        => GetPlacementStrategy(control).GetPosition(control, this);
 
-        if (TryGetDesignBounds(control, out var bounds))
-            return bounds.Position;
-
-        return new Point(DesignLayout.GetDesignX(control), DesignLayout.GetDesignY(control));
-    }
-
+    /// <summary>
+    /// Задаёт позицию target'а в design-координатах.
+    /// </summary>
+    /// <remarks>
+    /// Раскладка, которая владеет позицией ребёнка, отсекается здесь, а не выше:
+    /// это единственная точка записи, поэтому только тут можно гарантировать,
+    /// что в контракт изменений не попадёт перемещение, которого не произошло.
+    /// </remarks>
     internal void SetDesignPosition(Control control, Point position)
     {
+        var strategy = GetPlacementStrategy(control);
+        if (strategy.MoveSemantics != DesignMoveSemantics.Reposition)
+            return;
+
         if (!_suppressEditRecording)
             _activeEdit?.RecordPosition(this, control, position);
 
-        if (control is DesignEditorItem item)
-        {
-            item.Location = position;
-            return;
-        }
-
-        EnsureTracked(control);
-        DesignLayout.SetDesignX(control, position.X);
-        DesignLayout.SetDesignY(control, position.Y);
+        strategy.SetPosition(control, position, this);
     }
 
     internal Size GetDesignSize(Control control)
@@ -2587,9 +2584,34 @@ public class DesignEditor : SelectingItemsControl
         return DesignInteraction.GetMovePolicy(control);
     }
 
+    /// <summary>
+    /// Возвращает стратегию размещения контрола.
+    /// </summary>
+    internal static IDesignPlacementStrategy GetPlacementStrategy(Control control)
+        => DesignPlacementResolver.Resolve(control);
+
+    /// <summary>
+    /// Возвращает политику перемещения с учётом того, что реально умеет родительская раскладка.
+    /// </summary>
+    /// <remarks>
+    /// Правило одно: <c>effective = user &amp; layout</c>. Раскладка задаёт потолок —
+    /// что физически работает; политика пользователя только сужает. Ни одна не расширяет
+    /// другую, иначе редактор снова начал бы предлагать жест, который ничего не делает.
+    /// </remarks>
+    internal ArxisStudio.Attached.MovePolicy GetEffectiveMovePolicy(Control control)
+    {
+        var user = GetMovePolicy(control);
+        if (user == ArxisStudio.Attached.MovePolicy.None)
+            return ArxisStudio.Attached.MovePolicy.None;
+
+        return GetPlacementStrategy(control).MoveSemantics == DesignMoveSemantics.Reposition
+            ? user
+            : ArxisStudio.Attached.MovePolicy.None;
+    }
+
     internal Vector ApplyMovePolicy(Control control, Vector delta)
     {
-        return ApplyMovePolicy(delta, GetMovePolicy(control));
+        return ApplyMovePolicy(delta, GetEffectiveMovePolicy(control));
     }
 
     internal bool IsResizeAllowed(Control control, ResizeDirection direction)
@@ -2607,7 +2629,7 @@ public class DesignEditor : SelectingItemsControl
 
         for (var i = 0; i < selectedTargetCount; i++)
         {
-            var movePolicy = GetMovePolicy(selectedTargets[i].Target);
+            var movePolicy = GetEffectiveMovePolicy(selectedTargets[i].Target);
             if (movePolicy == ArxisStudio.Attached.MovePolicy.None)
                 hasAnyMoveLockedTarget = true;
             else
@@ -2675,7 +2697,7 @@ public class DesignEditor : SelectingItemsControl
         return TryGetDesignBounds(ResolveSelectionTarget(item), out bounds);
     }
 
-    private bool TryGetDesignBounds(Control control, out Rect bounds)
+    internal bool TryGetDesignBounds(Control control, out Rect bounds)
     {
         if (!ReferenceEquals(control.FindAncestorOfType<DesignEditor>(), this))
         {
@@ -2823,7 +2845,7 @@ public class DesignEditor : SelectingItemsControl
             || !double.IsNaN(DesignLayout.GetY(control));
     }
 
-    private static void EnsureTracked(Control control)
+    internal static void EnsureTracked(Control control)
     {
         // Track идемпотентен. Прежний guard по GetIsTracked не работал:
         // Track не выставляет публичное IsTracked, поэтому для контролов

@@ -120,6 +120,19 @@ public class PublicSurfaceTests
     }
 
     [Fact]
+    public void Placement_Strategies_Are_Not_Public()
+    {
+        // Форму стратегий ещё рано фиксировать: она должна отлежаться внутри
+        // библиотеки. Добавить публичный тип позже — аддитивно, опубликовать
+        // неверный сейчас — ломающе.
+        var leaked = ActualSurface()
+            .Where(name => name.StartsWith("ArxisStudio.Placement.", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(leaked.Count == 0, "Стратегии размещения должны быть internal:\n" + string.Join("\n", leaked));
+    }
+
+    [Fact]
     public void Overlay_Implementation_Is_Not_Public()
     {
         var leaked = ActualSurface()
