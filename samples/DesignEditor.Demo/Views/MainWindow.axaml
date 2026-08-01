@@ -10,6 +10,7 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="DesignEditor.Demo"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen">
 
     <Design.DataContext>
