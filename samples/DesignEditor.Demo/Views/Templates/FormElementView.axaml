@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:attached1="clr-namespace:ArxisStudio.Attached;assembly=ArxisStudio.DesignEditor"
+             x:Class="DesignEditor.Demo.Views.Templates.FormElementView">
+
+    <!-- Третье семейство раскладки в демо: положением детей распоряжается Grid.
+         Перетаскивание им недоступно, изменение размера — да. -->
+    <Border Background="#202020"
+            BorderBrush="#383838"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="24"
+            attached1:Layout.IsTracked="True">
+        <Grid ColumnDefinitions="Auto,*"
+              RowDefinitions="Auto,Auto,Auto"
+              attached1:Layout.IsTracked="True">
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                       IsHitTestVisible="False"
+                       attached1:Layout.IsTracked="True"
+                       Text="Grid Form"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       Margin="0,0,0,20"
+                       HorizontalAlignment="Center" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0"
+                       IsHitTestVisible="False"
+                       attached1:Layout.IsTracked="True"
+                       Text="Name"
+                       Foreground="#AAA"
+                       VerticalAlignment="Center"
+                       Margin="0,0,12,10" />
+
+            <TextBox Grid.Row="1" Grid.Column="1"
+                     IsHitTestVisible="False"
+                     attached1:Layout.IsTracked="True"
+                     CornerRadius="6"
+                     Background="#2D2D2D"
+                     Foreground="White"
+                     Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0"
+                       IsHitTestVisible="False"
+                       attached1:Layout.IsTracked="True"
+                       Text="Email"
+                       Foreground="#AAA"
+                       VerticalAlignment="Center"
+                       Margin="0,0,12,0" />
+
+            <TextBox Grid.Row="2" Grid.Column="1"
+                     IsHitTestVisible="False"
+                     attached1:Layout.IsTracked="True"
+                     CornerRadius="6"
+                     Background="#2D2D2D"
+                     Foreground="White" />
+        </Grid>
+    </Border>
+</UserControl>

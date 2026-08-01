@@ -72,6 +72,10 @@
                 <DataTemplate DataType="{x:Type vm:DashboardElementViewModel}">
                     <templates:DashboardElementView />
                 </DataTemplate>
+
+                <DataTemplate DataType="{x:Type vm:FormElementViewModel}">
+                    <templates:FormElementView />
+                </DataTemplate>
             </arxisStudio:DesignEditor.DataTemplates>
 
         </arxisStudio:DesignEditor>
@@ -116,6 +120,24 @@
                                FontSize="11"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
+
+                    <!-- Чья раскладка распоряжается положением и что из этого следует.
+                         Отвечает на «почему этот контрол не двигается» без отладчика. -->
+                    <TextBlock Text="Layout:"
+                               Foreground="#666"
+                               FontSize="10"
+                               Margin="10,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.PrimarySelectionPlacement}"
+                               Foreground="#C792EA"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.PrimarySelectionMovePolicy, StringFormat='move {0}'}"
+                               Foreground="#7F849C"
+                               FontSize="10"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="Действующая политика: политика пользователя, пересечённая с возможностями раскладки"/>
                 </StackPanel>
 
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>

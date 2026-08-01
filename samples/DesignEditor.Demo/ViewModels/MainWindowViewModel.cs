@@ -47,8 +47,10 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         // Заполняем демо-данными
+        // Три семейства раскладки разом: абсолютное позиционирование, поток и Grid.
         Elements.Add(new LoginElementViewModel(400, 300));
         Elements.Add(new DashboardElementViewModel(800, 300));
+        Elements.Add(new FormElementViewModel(400, 760));
 
         SelectedElements.CollectionChanged += OnSelectedElementsCollectionChanged;
     }

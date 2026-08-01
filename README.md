@@ -1,4 +1,4 @@
-# ArxisStudio.DesignEditor
+﻿# ArxisStudio.DesignEditor
 
 `ArxisStudio.DesignEditor` — это библиотека для Avalonia UI, предназначенная для построения визуальных редакторов, form designer'ов, layout editor'ов и других IDE-подобных инструментов.
 
@@ -15,7 +15,7 @@
 
 ## Публичная поверхность
 
-Библиотека экспортирует 38 типов. Всё остальное — реализация и может меняться без предупреждения.
+Библиотека экспортирует 39 типов. Всё остальное — реализация и может меняться без предупреждения.
 
 | Область | Типы |
 |---|---|
@@ -24,14 +24,15 @@
 | Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
 | Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
-| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs`, `DesignEditorDeleteRequestedEventArgs` |
+| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignChildOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs`, `DesignEditorDeleteRequestedEventArgs` |
 | События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
 | Контекстные действия | `IDesignEditorContextActionProvider`, `IDesignEditorContextPresenter`, `ContextMenuContextPresenter`, `DesignEditorContextAction`, `DesignEditorContextRequest`, `DesignEditorContextScope`, `DesignEditorContextSource`, `DesignEditorContextRequestingEventArgs`, `DesignEditorContextRequestedEventArgs` |
 
 Скрыты намеренно:
 
 - **машины состояний** — `EditorState`, `DesignEditorItemState` и наследники вместе с `CurrentState`, `PushState`, `PopState`;
-- **детали overlay** — `SelectionAdornerLayer`, `SelectionAdornerInfo`, `DesignSurface`, свойства `SecondarySelectionAdorners`.
+- **детали overlay** — `SelectionAdornerLayer`, `SelectionAdornerInfo`, `DesignSurface`, свойства `SecondarySelectionAdorners`;
+- **стратегии размещения** — `ArxisStudio.Placement.*`: форма ещё должна отлежаться внутри библиотеки, добавить публичный тип позже можно аддитивно.
 
 Поверхность закреплена тестом: новый публичный тип роняет сборку тестов, пока его не внесут в список осознанно либо не сделают `internal`.
 
@@ -70,7 +71,7 @@
 - insertion markers
 - hover preview и временные измерительные подсказки
 
-Сейчас на нем живет прямоугольник marquee-selection. Слой спроектирован как точка расширения для guides, snapping и preview overlays.
+Сейчас на нём живут прямоугольник marquee-selection и индикатор точки вставки при перестановке среди соседей. Слой спроектирован как точка расширения для guides, snapping и preview overlays.
 
 ### `DesignGrid`
 
@@ -107,6 +108,8 @@
 Внутри группы `ZIndex` нормализуется в последовательность `0..n-1`. Без этого перестановка на одну позицию была бы невыполнима: по умолчанию у всех соседей `ZIndex` равен нулю, и менять местами нечего. Поэтому первая операция затрагивает всю группу, а последующие — только сдвинутые элементы: совпавшие отбрасывает фильтр no-op.
 
 Изменение порядка проходит через тот же контракт, что и геометрия — с `Kind = Reorder` и записями `DesignOrderChange`, — поэтому попадает в стек отмены наравне с перемещением.
+
+Порядок перекрытия — это `ZIndex`. Порядок среди детей панели — другое: он описывается `DesignChildOrderChange` и в потоковой раскладке единственный меняет положение на экране (см. «Перестановка среди соседей»).
 
 ### События выделения
 
@@ -166,6 +169,67 @@ editor.DeleteRequested += (_, e) =>
 ```
 
 Пока запрос не помечен `Handled`, нажатие считается необработанным и продолжает всплывать — приложение может повесить на `Delete` собственную логику выше по дереву.
+
+### Осведомлённость о раскладке
+
+Редактор знает, какая панель является родителем вложенного контрола, и не предлагает жест, который эта панель не выполнит.
+
+Таблица снята с реальной Avalonia 12 (`LayoutHonourProbeTests`):
+
+| Родитель | Явный `Width`/`Height` | `Layout.X`/`Y` | Перетаскивание |
+|---|---|---|---|
+| `AbsolutePanel` | honours | honours | задаёт позицию |
+| `Canvas` | honours | игнорирует | задаёт `Canvas.Left`/`Top` |
+| `StackPanel`, `WrapPanel` | honours | игнорирует | **меняет порядок среди соседей** |
+| `Grid`, `DockPanel`, контент-хосты | honours | игнорирует | недоступно |
+
+Явный размер honours любая панель — он применяется до выравнивания, поэтому `HorizontalAlignment="Stretch"` его не съедает. Изменение размера осмысленно везде; ограничивают его `Min`/`Max` контрола и границы формы, а не родительская раскладка.
+
+Действующая политика считается как **политика пользователя ∧ возможности раскладки**. Раскладка задаёт потолок, политика пользователя сужает; ни одна не расширяет другую. Заблокированный жест не выполняется молча — контрол теряет соответствующий affordance.
+
+Причину видно из кода приложения:
+
+```csharp
+editor.DesignSelectionChanged += (_, _) =>
+{
+    status.Text = $"{editor.PrimarySelectionPlacement}: move {editor.PrimarySelectionMovePolicy}";
+};
+```
+
+- `PrimarySelectionPlacement` — имя раскладки (`Absolute`, `Canvas`, `Stack`, `Grid`, `Dock`, `ContentHost`)
+- `PrimarySelectionMovePolicy` / `PrimarySelectionResizePolicy` — **действующие** политики
+
+### Перестановка среди соседей
+
+В раскладке, которая расставляет детей потоком, перетаскивание меняет их порядок — единственное, что вообще меняет там положение. Во время протяжки показывается индикатор точки вставки, перестановка применяется на отпускании.
+
+Изменение приходит тем же потоком, что и геометрия:
+
+```csharp
+editor.EditCompleted += (_, e) =>
+{
+    foreach (var change in e.Changes.OfType<DesignChildOrderChange>())
+        history.Push(change);   // OldIndex -> NewIndex
+};
+```
+
+Отмена — через `Revert`, применение — через `ApplyChildOrder`.
+
+Библиотека правит живое визуальное дерево. Если контейнеры переиспользуются, порядок нужно сохранять на стороне приложения по `EditCompleted` — так же, как это уже сделано для геометрии.
+
+### Ограничение размера контейнером
+
+```xml
+<design:DesignEditorInteractionOptions IsResizeContainedToParent="True" />
+```
+
+Включено по умолчанию: контрол не выходит за границы владеющей формы (`DesignEditorItem`). Без ограничения он продолжает расти, форма его обрезает, а ручки выделения оказываются на пустом холсте.
+
+Границей выбрана именно форма, а не прямой родитель: панель, которая растёт по содержимому, границей быть не может — ограничивать ребёнка высотой, которую он же и задаёт, это рассуждение по кругу. Контейнер верхнего уровня владельца не имеет и не ограничен.
+
+Учитываются также `MinWidth` / `MaxWidth` / `MinHeight` / `MaxHeight` самого контрола. При конфликте побеждает минимум — как и в самой Avalonia.
+
+Выключать имеет смысл там, где overflow задуман: бейдж или тень, намеренно выступающие за край карточки.
 
 ### Привязка к сетке
 
@@ -251,6 +315,7 @@ foreach (var change in edit.Changes)
 - `ZoomStep` — шаг wheel-zoom
 - `DragStartThreshold` — порог старта drag в пикселях
 - `ResizeMinSize` — минимальный размер при resize
+- `IsResizeContainedToParent` — не давать контролу выйти за границы своей формы
 - `NudgeStep` / `LargeNudgeStep` — шаги смещения стрелками
 - `IsSnapToGridEnabled` — привязка к сетке при drag и resize
 - `SnapStep` — шаг привязки; `NaN` (по умолчанию) означает «брать у сетки»
