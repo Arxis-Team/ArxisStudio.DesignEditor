@@ -77,6 +77,33 @@ public class DesignEditorInteractionOptions : AvaloniaObject
             true);
 
     /// <summary>
+    /// Идентификатор свойства ограничения размера границами владеющего контейнера.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsResizeContainedToParentProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, bool>(
+            nameof(IsResizeContainedToParent),
+            true);
+
+    /// <summary>
+    /// Получает или задает признак ограничения изменения размера границами
+    /// владеющего <see cref="DesignEditorItem"/>.
+    /// </summary>
+    /// <remarks>
+    /// Включено по умолчанию: в дизайнере форм контрол, вылезший за свою форму, —
+    /// почти всегда ошибка ввода. Без ограничения он продолжает расти, форма его
+    /// обрезает, и ручки выделения оказываются на пустом холсте.
+    /// <para>
+    /// Выключать имеет смысл там, где overflow задуман — например, бейдж или тень,
+    /// намеренно выступающие за край карточки.
+    /// </para>
+    /// </remarks>
+    public bool IsResizeContainedToParent
+    {
+        get => GetValue(IsResizeContainedToParentProperty);
+        set => SetValue(IsResizeContainedToParentProperty, value);
+    }
+
+    /// <summary>
     /// Идентификатор свойства шага привязки.
     /// </summary>
     public static readonly StyledProperty<double> SnapStepProperty =

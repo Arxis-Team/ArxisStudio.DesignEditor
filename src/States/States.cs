@@ -412,6 +412,31 @@ internal class ItemResizingState : DesignEditorItemState
         // на разницу между запрошенным и разрешённым.
         if (editor != null)
         {
+            // Ограничение по форме применяется до Min/Max: минимум обязан
+            // побеждать, иначе контрол схлопнулся бы в ноль у края формы.
+            if (editor.TryGetContainmentBounds(_target, out var limit))
+            {
+                if (ChangesWidth(_direction))
+                {
+                    var maxW = _direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft
+                        ? initialRight - limit.Left
+                        : limit.Right - newX;
+
+                    if (maxW > 0)
+                        newW = Math.Min(newW, maxW);
+                }
+
+                if (ChangesHeight(_direction))
+                {
+                    var maxH = _direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight
+                        ? initialBottom - limit.Top
+                        : limit.Bottom - newY;
+
+                    if (maxH > 0)
+                        newH = Math.Min(newH, maxH);
+                }
+            }
+
             var coerced = editor.CoerceDesignSize(_target, new Size(newW, newH));
             newW = coerced.Width;
             newH = coerced.Height;
@@ -447,4 +472,24 @@ internal class ItemResizingState : DesignEditorItemState
 
         Container.RaiseEvent(new ResizeDeltaEventArgs(e.Delta, _direction, DesignEditorItem.ResizeDeltaEvent));
     }
+
+    /// <summary>
+    /// Определяет, меняет ли направление ширину.
+    /// </summary>
+    /// <remarks>
+    /// Ограничение применяется только к той оси, которую тянут: иначе оно задним
+    /// числом ужимало бы уже вылезший контрол при перетаскивании соседнего края.
+    /// </remarks>
+    private static bool ChangesWidth(ResizeDirection direction)
+        => direction is ResizeDirection.Left or ResizeDirection.Right
+            or ResizeDirection.TopLeft or ResizeDirection.TopRight
+            or ResizeDirection.BottomLeft or ResizeDirection.BottomRight;
+
+    /// <summary>
+    /// Определяет, меняет ли направление высоту.
+    /// </summary>
+    private static bool ChangesHeight(ResizeDirection direction)
+        => direction is ResizeDirection.Top or ResizeDirection.Bottom
+            or ResizeDirection.TopLeft or ResizeDirection.TopRight
+            or ResizeDirection.BottomLeft or ResizeDirection.BottomRight;
 }

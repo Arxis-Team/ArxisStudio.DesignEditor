@@ -62,7 +62,46 @@ public class ContainmentCharacterizationTests
         harness.Window.MouseUp(centre, MouseButton.Left);
         harness.RunLayout();
 
-        var before = action.Bounds.Height;
+        var state = new ItemResizingState(container, action, ResizeDirection.Bottom);
+        container.PushState(state);
+        state.OnResizeDelta(new ResizeDeltaEventArgs(
+            new Vector(0, Overshoot), ResizeDirection.Bottom, DesignEditorItem.ResizeDeltaEvent));
+        harness.RunLayout();
+
+        // Запрошенный и фактический размеры совпадают...
+        Assert.Equal(action.Height, action.Bounds.Height, 1);
+
+        // ...и рамка равна фактическому. Расхождения понятий размера нет —
+        // именно поэтому чинить надо было не рамку.
+        Assert.Equal(action.Bounds.Height, harness.Editor.SelectionBounds.Height, 1);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Stops_At_The_Card_Edge()
+    {
+        var (harness, _) = ResizeBeyondCard();
+
+        var cardBottom = CardLocation.Y + CardSize.Height;
+
+        // То, ради чего всё затевалось: контрол упирается в свою форму, и рамка
+        // останавливается вместе с ним. Раньше он уходил на 139 единиц ниже,
+        // форма его обрезала, а ручки оставались на пустом холсте.
+        Assert.Equal(cardBottom, harness.Editor.SelectionBounds.Bottom, 1);
+    }
+
+    [AvaloniaFact]
+    public void Containment_Can_Be_Disabled()
+    {
+        var harness = EditorHarness.CreateStackHosted();
+        harness.Editor.InteractionOptions.IsResizeContainedToParent = false;
+
+        var container = harness.PlaceContainer(0, CardLocation, CardSize);
+        var action = harness.Find<Button>(0, "Action");
+
+        var centre = harness.CentreOf(action);
+        harness.Window.MouseDown(centre, MouseButton.Left);
+        harness.Window.MouseUp(centre, MouseButton.Left);
+        harness.RunLayout();
 
         var state = new ItemResizingState(container, action, ResizeDirection.Bottom);
         container.PushState(state);
@@ -70,29 +109,51 @@ public class ContainmentCharacterizationTests
             new Vector(0, Overshoot), ResizeDirection.Bottom, DesignEditorItem.ResizeDeltaEvent));
         harness.RunLayout();
 
-        // Раскладка отдала ровно столько, сколько попросили: StackPanel не зажимает ребёнка.
-        Assert.Equal(before + Overshoot, action.Bounds.Height, 1);
-
-        // Запрошенный и фактический размеры совпадают...
-        Assert.Equal(action.Height, action.Bounds.Height, 1);
-
-        // ...и рамка равна фактическому. Расхождения понятий размера нет.
-        Assert.Equal(action.Bounds.Height, harness.Editor.SelectionBounds.Height, 1);
+        // Намеренный overflow остаётся возможен — но по явному решению, а не по умолчанию.
+        Assert.True(harness.Editor.SelectionBounds.Bottom > CardLocation.Y + CardSize.Height);
     }
 
     [AvaloniaFact]
-    public void Resize_Is_Not_Constrained_By_The_Owning_Card()
+    public void Group_Resize_Stops_At_The_Card_Edge()
     {
-        var (harness, _) = ResizeBeyondCard();
+        var harness = EditorHarness.Create();
+        var container = harness.PlaceContainer(0, new Point(100, 100), new Size(300, 200));
+        var nested = harness.Nested(0);
+        var sibling = harness.Named(0, "Sibling");
 
-        var cardBottom = CardLocation.Y + CardSize.Height;
+        var nestedBounds = new Rect(110, 110, EditorHarness.NestedWidth, EditorHarness.NestedHeight);
+        var siblingBounds = new Rect(200, 110, EditorHarness.NestedWidth, EditorHarness.NestedHeight);
+        var groupBounds = nestedBounds.Union(siblingBounds);
 
-        // Это и есть дефект: у resize нет верхней границы вообще — ни MaxHeight,
-        // ни контейнера. Контрол уходит на 139 единиц ниже карточки, карточка его
-        // обрезает, и ручки выделения оказываются на пустом холсте.
-        Assert.True(
-            harness.Editor.SelectionBounds.Bottom > cardBottom,
-            $"ожидался выход за карточку: рамка {harness.Editor.SelectionBounds}, низ карточки {cardBottom}");
+        var operation = new GroupResizeOperation(
+            ResizeDirection.Right,
+            groupBounds,
+            new[]
+            {
+                new GroupResizeTarget(nested, nestedBounds),
+                new GroupResizeTarget(sibling, siblingBounds)
+            },
+            minSize: 10);
+
+        operation.Update(harness.Editor, new Vector(500, 0));
+        harness.RunLayout();
+
+        var right = harness.Editor.GetDesignPosition(sibling).X + harness.Editor.GetDesignSize(sibling).Width;
+
+        // Ограничение применяется к рамке группы целиком, поэтому пропорции внутри
+        // сохраняются, а крайний target останавливается ровно на границе формы.
+        Assert.Equal(container.Location.X + 300, right, 1);
+    }
+
+    [AvaloniaFact]
+    public void Top_Level_Container_Is_Not_Contained()
+    {
+        var harness = EditorHarness.CreateStackHosted();
+        var container = harness.PlaceContainer(0, CardLocation, CardSize);
+
+        // У формы верхнего уровня владельца нет: она лежит на бесконечном холсте,
+        // и ограничивать её нечем.
+        Assert.False(harness.Editor.TryGetContainmentBounds(container, out _));
     }
 
     [AvaloniaFact]

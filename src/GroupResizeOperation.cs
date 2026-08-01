@@ -33,6 +33,12 @@ internal sealed class GroupResizeOperation
         // по отдельности разрушила бы пропорции внутри группы.
         if (editor.ShouldSnap(editor.LastInputModifiers))
             nextBounds = SnapBounds(editor, nextBounds, _direction, _initialBounds, _minSize);
+
+        // Ограничение по форме — тоже над рамкой целиком, по тем же причинам,
+        // что и привязка: индивидуальный кламп разъехал бы пропорции группы.
+        if (_targets.Count > 0 && editor.TryGetContainmentBounds(_targets[0].Target, out var limit))
+            nextBounds = ContainBounds(nextBounds, _direction, _initialBounds, limit, _minSize);
+
         var scaleX = _initialBounds.Width > 0 ? nextBounds.Width / _initialBounds.Width : 1.0;
         var scaleY = _initialBounds.Height > 0 ? nextBounds.Height / _initialBounds.Height : 1.0;
 
@@ -113,6 +119,38 @@ internal sealed class GroupResizeOperation
         }
 
         return maxScale;
+    }
+
+    /// <summary>
+    /// Удерживает те края рамки группы, которые тянет пользователь, внутри формы.
+    /// </summary>
+    private static Rect ContainBounds(Rect bounds, ResizeDirection direction, Rect initialBounds, Rect limit, double minSize)
+    {
+        var left = bounds.X;
+        var top = bounds.Y;
+        var right = bounds.Right;
+        var bottom = bounds.Bottom;
+
+        if (direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
+            right = Math.Min(right, limit.Right);
+        else if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            left = Math.Max(left, limit.Left);
+
+        if (direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
+            bottom = Math.Min(bottom, limit.Bottom);
+        else if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            top = Math.Max(top, limit.Top);
+
+        var width = Math.Max(minSize, right - left);
+        var height = Math.Max(minSize, bottom - top);
+
+        if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
+            left = initialBounds.Right - width;
+
+        if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
+            top = initialBounds.Bottom - height;
+
+        return new Rect(left, top, width, height);
     }
 
     /// <summary>

@@ -2341,6 +2341,33 @@ public class DesignEditor : SelectingItemsControl
     private static double ClampSize(double value, double min, double max)
         => Math.Max(Math.Min(value, max), min);
 
+    /// <summary>
+    /// Возвращает прямоугольник, за который target не должен выходить при изменении размера.
+    /// </summary>
+    /// <remarks>
+    /// Границей выбран владеющий <see cref="DesignEditorItem"/>, а не прямой родитель.
+    /// Панель, которая растёт по содержимому, границей быть не может: ограничивать
+    /// ребёнка её же высотой — рассуждение по кругу. Форма же всегда имеет размер,
+    /// и правило формулируется одной фразой: контрол не выходит за свою форму.
+    /// <para>
+    /// У контейнера верхнего уровня владельца нет, поэтому его размер не ограничен —
+    /// он лежит на бесконечном холсте.
+    /// </para>
+    /// </remarks>
+    internal bool TryGetContainmentBounds(Control target, out Rect bounds)
+    {
+        bounds = default;
+
+        if (!InteractionOptions.IsResizeContainedToParent)
+            return false;
+
+        var host = FindDesignHost(target);
+
+        // Приведение к Control обязательно: перегрузка для DesignEditorItem
+        // возвращает границы выбранного внутри него target'а, а не самой формы.
+        return host != null && TryGetDesignBounds((Control)host, out bounds);
+    }
+
     internal void SetDesignZIndex(Control control, int zIndex)
     {
         if (!_suppressEditRecording)
