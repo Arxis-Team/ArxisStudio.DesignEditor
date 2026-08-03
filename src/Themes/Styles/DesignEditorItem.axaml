@@ -72,5 +72,16 @@
              <Setter Property="Opacity" Value="1"/>
         </Style>
 
+        <!--
+            Загруженная форма не должна жить своей жизнью: кнопка съедала бы
+            нажатие, а текстовое поле забирало фокус и принимало текст.
+            Выделение от этого не страдает — редактор считает попадание
+            по прямоугольникам в мировых координатах, а не через hit-testing,
+            и у самого контейнера фон Transparent на всю площадь.
+        -->
+        <Style Selector="^[ContentMode=Loaded] /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+
     </ControlTheme>
 </ResourceDictionary>

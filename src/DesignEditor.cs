@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
@@ -1489,7 +1490,7 @@ public class DesignEditor : SelectingItemsControl
         var nestedTargets = new List<Control>();
         foreach (var target in EnumerateSelectionCandidates(scope))
         {
-            if (!HasDesignerLayoutMetadata(target))
+            if (!IsSelectableTarget(target, scope))
                 continue;
 
             // Рамка выбирает соседей внутри одного host'а, а не смесь уровней:
@@ -1788,7 +1789,7 @@ public class DesignEditor : SelectingItemsControl
 
         foreach (var control in EnumerateSelectionCandidates(container))
         {
-            if (!HasDesignerLayoutMetadata(control))
+            if (!IsSelectableTarget(control, container))
                 continue;
 
             if (!TryGetDesignBounds(control, out var bounds) || !bounds.Contains(worldPoint))
@@ -3025,7 +3026,7 @@ public class DesignEditor : SelectingItemsControl
     {
         foreach (var control in EnumerateSelectionCandidates(item))
         {
-            if (HasDesignerLayoutMetadata(control))
+            if (IsSelectableTarget(control, item))
                 return control;
         }
 
@@ -3058,7 +3059,7 @@ public class DesignEditor : SelectingItemsControl
 
         foreach (var control in EnumerateSelectionCandidates(item))
         {
-            if (!HasDesignerLayoutMetadata(control))
+            if (!IsSelectableTarget(control, item))
                 continue;
 
             if (!TryGetDesignBounds(control, out var bounds) || !bounds.Contains(worldPoint))
@@ -3097,6 +3098,26 @@ public class DesignEditor : SelectingItemsControl
         }
 
         return root;
+    }
+
+    /// <summary>
+    /// Определяет, может ли контрол быть design target внутри указанного контейнера.
+    /// </summary>
+    /// <remarks>
+    /// В режиме <see cref="DesignContentMode.Loaded"/> размечать содержимое некому,
+    /// поэтому редактируется всё, что автор написал в разметке. Внутренности
+    /// контролов при этом отсекает <c>TemplatedParent</c>: у частей шаблона он задан,
+    /// у элементов из <c>.axaml</c> — нет. Иначе клик по кнопке выбирал бы её
+    /// внутренний <c>TextBlock</c>.
+    /// </remarks>
+    private static bool IsSelectableTarget(Control control, DesignEditorItem owner)
+    {
+        if (owner.ContentMode != DesignContentMode.Loaded)
+            return HasDesignerLayoutMetadata(control);
+
+        // Внутренности контролов отсекает уже сам обход авторской разметки,
+        // здесь остаётся только не залезть в чужой контейнер.
+        return ReferenceEquals(FindDesignHost(control), owner);
     }
 
     private static bool HasDesignerLayoutMetadata(Control control)
@@ -3511,6 +3532,14 @@ public class DesignEditor : SelectingItemsControl
 
     private static IEnumerable<Control> EnumerateSelectionCandidates(DesignEditorItem item)
     {
+        if (item.ContentMode == DesignContentMode.Loaded)
+            return EnumerateAuthoredContent(item);
+
+        return EnumerateVisualCandidates(item);
+    }
+
+    private static IEnumerable<Control> EnumerateVisualCandidates(DesignEditorItem item)
+    {
         foreach (var descendant in item.GetVisualDescendants())
         {
             if (descendant is Control control &&
@@ -3519,6 +3548,61 @@ public class DesignEditor : SelectingItemsControl
             {
                 yield return control;
             }
+        }
+    }
+
+    /// <summary>
+    /// Перечисляет элементы, написанные в разметке, не спускаясь во внутренности контролов.
+    /// </summary>
+    /// <remarks>
+    /// Обход идёт по тем связям, которые автор задал сам: дети панели, ребёнок
+    /// декоратора, контент — если это контрол. У кнопки с текстовым контентом
+    /// спускаться некуда, поэтому она остаётся листом.
+    /// <para>
+    /// Проверки <c>TemplatedParent</c> здесь недостаточно: презентер порождает
+    /// из строкового контента <c>AccessText</c>, у которого <c>TemplatedParent</c>
+    /// пуст, и клик по кнопке выбирал бы её надпись.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<Control> EnumerateAuthoredContent(DesignEditorItem item)
+    {
+        var root = (item.Presenter as Control)?.GetVisualChildren().OfType<Control>().FirstOrDefault()
+                   ?? item.Content as Control;
+
+        return root == null ? Array.Empty<Control>() : Descend(root);
+
+        static IEnumerable<Control> Descend(Control control)
+        {
+            yield return control;
+
+            foreach (var child in AuthoredChildren(control))
+            {
+                foreach (var nested in Descend(child))
+                    yield return nested;
+            }
+        }
+    }
+
+    private static IEnumerable<Control> AuthoredChildren(Control control)
+    {
+        switch (control)
+        {
+            case Panel panel:
+                foreach (var child in panel.Children)
+                    yield return child;
+                break;
+
+            case Decorator { Child: { } decorated }:
+                yield return decorated;
+                break;
+
+            case ContentControl { Content: Control content }:
+                yield return content;
+                break;
+
+            case ContentPresenter { Content: Control presented }:
+                yield return presented;
+                break;
         }
     }
 

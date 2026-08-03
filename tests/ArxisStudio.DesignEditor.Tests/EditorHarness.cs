@@ -183,6 +183,12 @@ internal sealed class EditorHarness
     }
 
     /// <summary>
+    /// Оборачивает уже собранный редактор, когда тесту нужен собственный шаблон элемента.
+    /// </summary>
+    public static EditorHarness Adopt(Window window, DesignEditor editor, IReadOnlyList<TestNode> nodes)
+        => new(window, editor, nodes);
+
+    /// <summary>
     /// Прогоняет layout: без этого контейнеры не реализованы и Bounds пустые.
     /// </summary>
     public void RunLayout()

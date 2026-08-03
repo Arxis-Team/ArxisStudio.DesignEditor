@@ -16,6 +16,8 @@
         <!-- Avalonia.Headless.XUnit 12.1.1 завязан на xunit.v3, не на v2. -->
         <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1"/>
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1"/>
+        <!-- Загрузка .axaml в рантайме: тот же путь, которым пользуется хост-приложение. -->
+        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="12.1.1"/>
         <PackageReference Include="xunit.v3" Version="3.2.2"/>
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1"/>

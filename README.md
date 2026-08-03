@@ -15,7 +15,7 @@
 
 ## Публичная поверхность
 
-Библиотека экспортирует 39 типов. Всё остальное — реализация и может меняться без предупреждения.
+Библиотека экспортирует 40 типов. Всё остальное — реализация и может меняться без предупреждения.
 
 | Область | Типы |
 |---|---|
@@ -23,6 +23,7 @@
 | Контролы для шаблонов и тем | `AbsolutePanel`, `DesignGrid`, `SelectionAdorner`, `SelectionAdornerRole`, `ResizeDirection`, `ResizeDeltaEventArgs`, `ResizeStartedEventArgs` |
 | Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
+| Содержимое контейнера | `DesignContentMode` |
 | Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
 | Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignChildOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs`, `DesignEditorDeleteRequestedEventArgs` |
 | События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
@@ -169,6 +170,30 @@ editor.DeleteRequested += (_, e) =>
 ```
 
 Пока запрос не помечен `Handled`, нажатие считается необработанным и продолжает всплывать — приложение может повесить на `Delete` собственную логику выше по дереву.
+
+### Контейнер как хост загруженной формы
+
+`DesignEditorItem` — это контейнер, в который помещается редактируемое содержимое. Откуда оно взялось, задаётся свойством `ContentMode`.
+
+```xml
+<design:DesignEditorItem ContentMode="Loaded" Content="{Binding LoadedForm}" />
+```
+
+| Режим | Что редактируется | Когда |
+|---|---|---|
+| `Annotated` (по умолчанию) | только контролы с `Layout.IsTracked` или `Layout.X`/`Y` | шаблон написан вместе с приложением, автор сам решает, что править |
+| `Loaded` | вся авторская разметка; содержимое не реагирует на ввод | форма пришла целиком — например, загружена из `.axaml` |
+
+```csharp
+var form = (Control)AvaloniaRuntimeXamlLoader.Load(File.ReadAllText(path));
+Elements.Add(new FormViewModel { Content = form });   // ContentMode="Loaded" в стиле контейнера
+```
+
+Размечать загруженную форму некому, поэтому в режиме `Loaded` target'ом становится любой её элемент. Внутренности контролов при этом не выбираются: обход идёт по авторским связям — дети панели, ребёнок декоратора, контент, если это контрол. У кнопки с текстовым контентом спускаться некуда, и она остаётся листом.
+
+Ввод гасится контейнером: иначе форма живёт своей жизнью — кнопка съедает нажатие, текстовое поле забирает фокус и принимает текст, и выделения не возникает вовсе. Выделение от этого не страдает: попадание считается по прямоугольникам в мировых координатах, а не через hit-testing.
+
+Стратегии размещения работают с загруженной формой без изменений — корень её разметки это обычная панель Avalonia.
 
 ### Осведомлённость о раскладке
 

@@ -74,6 +74,28 @@ public class DesignEditorItem : ContentControl, ISelectable
     }
 
     /// <summary>
+    /// Идентификатор свойства режима содержимого.
+    /// </summary>
+    public static readonly StyledProperty<DesignContentMode> ContentModeProperty =
+        AvaloniaProperty.Register<DesignEditorItem, DesignContentMode>(
+            nameof(ContentMode), DesignContentMode.Annotated);
+
+    /// <summary>
+    /// Получает или задает способ поиска редактируемых элементов внутри контейнера.
+    /// </summary>
+    /// <remarks>
+    /// По умолчанию <see cref="DesignContentMode.Annotated"/> — совместимо с шаблонами,
+    /// размеченными вручную. Для формы, загруженной из <c>.axaml</c>, задайте
+    /// <see cref="DesignContentMode.Loaded"/>: контейнер сам погасит ввод и откроет
+    /// на редактирование всё дерево разметки.
+    /// </remarks>
+    public DesignContentMode ContentMode
+    {
+        get => GetValue(ContentModeProperty);
+        set => SetValue(ContentModeProperty, value);
+    }
+
+    /// <summary>
     /// Идентификатор свойства, определяющего возможность перетаскивания элемента.
     /// </summary>
     public static readonly StyledProperty<bool> IsDraggableProperty =
