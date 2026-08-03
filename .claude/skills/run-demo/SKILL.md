@@ -1,4 +1,4 @@
----
+﻿---
 name: run-demo
 description: Собрать, запустить и подвигать DesignEditor.Demo, чтобы визуально проверить правку в редакторе. Умеет скриншот, клик и зум колесом по координатам окна. Использовать, когда нужно убедиться, что изменение работает в живом приложении — выделение, адорнеры, drag/resize, viewport, темы — а не только компилируется. Компиляции недостаточно: это UI-библиотека, большинство регрессий видно только в интерактиве.
 ---
@@ -60,6 +60,12 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action drag -X 951 -Y 441 -ToX 988 -ToY 464 -Modifier Alt
 ```
 
+Оверлеи, которые живут только внутри жеста — направляющие выравнивания, marquee, индикатор точки вставки, — обычным `drag` не поймать: к моменту скриншота кнопка уже отпущена и слой очищен. Для них есть `dragshot`: он снимает кадр **до** отпускания.
+
+```bash
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action dragshot -X 518 -Y 290 -ToX 518 -ToY 430 -Out "$TMP/mid.png"
+```
+
 Промежуточные move в `drag` обязательны: один прыжок из точки в точку не переводит контейнер в состояние перетаскивания — редактору нужен сдвиг больше `DragStartThreshold`, а затем сами move-события.
 
 `-Modifier` принимает `None` (по умолчанию), `Ctrl`, `Shift`, `Alt`, `CtrlShift` и работает для `click`, `drag` и `key`.
@@ -83,6 +89,8 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 Известное ограничение обвязки: `Ctrl + A` через `SendKeys` до редактора не доходит, хотя `Escape`, `Delete` и стрелки доходят. Само поведение закрыто headless-тестом `KeyboardTests`.
 
 `-Action status` печатает pid, responding, заголовок и прямоугольник окна.
+
+Направляющие тонкие — одна линия в физический пиксель, — поэтому на полном скриншоте их легко не заметить. Смотреть надо увеличенный фрагмент: вырезать область через `System.Drawing` с `InterpolationMode = NearestNeighbor` и масштабом 3–6x. При обычном ресайзе однопиксельная линия размывается и по ней уже не сказать, пиксельная она или нет.
 
 ### 5. Закрыть
 

@@ -16,6 +16,7 @@ demo.ps1 -Action shot  -Out C:\tmp\1.png
 demo.ps1 -Action click -X 706 -Y 453
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500 -Modifier Alt
+demo.ps1 -Action dragshot -X 706 -Y 453 -ToX 760 -ToY 500 -Out C:	mp\mid.png
 demo.ps1 -Action key   -Key Right -Notches 5
 demo.ps1 -Action wheel -X 300 -Y 200 -Notches 4
 demo.ps1 -Action stop
@@ -23,7 +24,7 @@ demo.ps1 -Action stop
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'wheel', 'key', 'stop', 'status')]
+    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'dragshot', 'wheel', 'key', 'stop', 'status')]
     [string]$Action,
 
     [string]$Out,
@@ -169,6 +170,36 @@ public static class DemoDriver
         System.Threading.Thread.Sleep(900);
     }
 
+    // Снимок в середине жеста, до отпускания кнопки. Нужен для оверлеев,
+    // которые живут только внутри жеста: направляющие, marquee, индикатор
+    // вставки. Обычный drag их не покажет - к моменту скриншота они убраны.
+    public static void DragShot(IntPtr h, int wx, int wy, int tx, int ty, string modifier, string path)
+    {
+        Focus(h);
+        RECT r = Rect(h);
+        SetCursorPos(r.Left + wx, r.Top + wy);
+        System.Threading.Thread.Sleep(250);
+        ModifierDown(modifier);
+        mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(150);
+
+        const int steps = 12;
+        for (int i = 1; i <= steps; i++)
+        {
+            int x = wx + ((tx - wx) * i / steps);
+            int y = wy + ((ty - wy) * i / steps);
+            SetCursorPos(r.Left + x, r.Top + y);
+            System.Threading.Thread.Sleep(40);
+        }
+
+        System.Threading.Thread.Sleep(400);
+        Shot(h, path);
+
+        mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
+        ModifierUp(modifier);
+        System.Threading.Thread.Sleep(900);
+    }
+
     public static void Wheel(IntPtr h, int wx, int wy, int notches)
     {
         Focus(h);
@@ -264,6 +295,14 @@ switch ($Action) {
         $p = Require-Demo
         [DemoDriver]::Drag($p.MainWindowHandle, $X, $Y, $ToX, $ToY, $Modifier)
         "dragged window-relative $X,$Y -> $ToX,$ToY modifier=$Modifier"
+    }
+
+    'dragshot' {
+        $p = Require-Demo
+        if (-not $Out) { throw "dragshot требует -Out" }
+        $full = [System.IO.Path]::GetFullPath($Out)
+        [DemoDriver]::DragShot($p.MainWindowHandle, $X, $Y, $ToX, $ToY, $Modifier, $full)
+        "dragshot window-relative $X,$Y -> $ToX,$ToY modifier=$Modifier saved $full"
     }
 
     'key' {
