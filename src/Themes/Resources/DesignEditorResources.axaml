@@ -13,6 +13,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#0F6CBD" />
+            <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#D6006C" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -44,6 +45,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeStrokeBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#1E90FF" />
+            <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#FF4FA3" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0099FF" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -79,6 +81,9 @@
     <x:Int32 x:Key="DesignEditor.Grid.MajorInterval">5</x:Int32>
     <x:Double x:Key="DesignEditor.Grid.LineThickness">1</x:Double>
     <x:Double x:Key="DesignEditor.Grid.MinCellSize">6</x:Double>
+
+    <!-- Направляющие. Толщина задана в пикселях устройства, как и у сетки. -->
+    <x:Double x:Key="DesignEditor.SnapGuide.Thickness">1</x:Double>
 
     <Thickness x:Key="DesignEditorItem.BorderThickness">0</Thickness>
     <CornerRadius x:Key="DesignEditorItem.CornerRadius">0</CornerRadius>

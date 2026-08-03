@@ -139,6 +139,51 @@ public class DesignEditorInteractionOptions : AvaloniaObject
     }
 
     /// <summary>
+    /// Идентификатор свойства привязки к направляющим.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsSnapToGuidesEnabledProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, bool>(
+            nameof(IsSnapToGuidesEnabled),
+            true);
+
+    /// <summary>
+    /// Идентификатор свойства радиуса захвата направляющей, в пикселях экрана.
+    /// </summary>
+    public static readonly StyledProperty<double> SnapGuideToleranceProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, double>(
+            nameof(SnapGuideTolerance),
+            6.0);
+
+    /// <summary>
+    /// Получает или задает признак выравнивания по краям и центрам соседей
+    /// при перетаскивании.
+    /// </summary>
+    /// <remarks>
+    /// Направляющая сильнее сетки на той оси, которую она заняла: сетка задаёт
+    /// регулярность, а направляющая — отношение к конкретному соседу, и оно точнее.
+    /// Ось, где направляющей не нашлось, по-прежнему идёт на сетку.
+    /// </remarks>
+    public bool IsSnapToGuidesEnabled
+    {
+        get => GetValue(IsSnapToGuidesEnabledProperty);
+        set => SetValue(IsSnapToGuidesEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает радиус захвата направляющей в пикселях экрана.
+    /// </summary>
+    /// <remarks>
+    /// Значение задано в пикселях экрана, а не в мировых единицах, и делится на
+    /// <see cref="DesignEditor.ViewportZoom"/>. Иначе на отдалении направляющая
+    /// хватала бы элемент с расстояния, на котором пользователь её не видит.
+    /// </remarks>
+    public double SnapGuideTolerance
+    {
+        get => GetValue(SnapGuideToleranceProperty);
+        set => SetValue(SnapGuideToleranceProperty, value);
+    }
+
+    /// <summary>
     /// Идентификатор свойства шага смещения стрелками.
     /// </summary>
     public static readonly StyledProperty<double> NudgeStepProperty =

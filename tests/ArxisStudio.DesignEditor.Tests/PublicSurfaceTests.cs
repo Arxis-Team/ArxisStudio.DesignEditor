@@ -135,6 +135,20 @@ public class PublicSurfaceTests
     }
 
     [Fact]
+    public void Snap_Guides_Are_Not_Public()
+    {
+        // Направляющие только появились: их форма должна отлежаться внутри
+        // библиотеки. Шаблон привязывается к ним и так — AXAML компилируется
+        // в ту же сборку.
+        var leaked = ActualSurface()
+            .Where(name => name.StartsWith("ArxisStudio.Guides.", StringComparison.Ordinal)
+                           || name.Contains("SnapGuideLayer", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(leaked.Count == 0, "Направляющие должны быть internal:\n" + string.Join("\n", leaked));
+    }
+
+    [Fact]
     public void Overlay_Implementation_Is_Not_Public()
     {
         var leaked = ActualSurface()

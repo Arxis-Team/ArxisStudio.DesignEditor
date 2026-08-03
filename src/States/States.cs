@@ -274,6 +274,11 @@ internal class ItemDraggingState : DesignEditorItemState
         _dragTarget = editor?.ResolveInteractionTarget(Container) ?? Container;
         _elementStartLocation = editor?.GetDesignPosition(_dragTarget) ?? Container.Location;
         _previousAppliedDelta = Vector.Zero;
+
+        // Соседи снимаются здесь, до первого кадра: во время жеста они не двигаются,
+        // и направляющая обязана стоять там, где пользователь её увидел.
+        editor?.BeginSnapGuides(_dragTarget);
+
         Container.RaiseEvent(new DragStartedEventArgs(_initialPointerPosition.X, _initialPointerPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
     }
 
@@ -281,6 +286,8 @@ internal class ItemDraggingState : DesignEditorItemState
     public override void Exit()
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
+        editor?.EndSnapGuides();
+
         var total = editor != null
             ? new Point(_previousAppliedDelta.X, _previousAppliedDelta.Y)
             : _previousPointerPosition - _initialPointerPosition;
@@ -299,7 +306,8 @@ internal class ItemDraggingState : DesignEditorItemState
 
             // Привязывается результат, а не дельта: иначе элемент сохранил бы
             // исходное смещение относительно сетки и на узел бы не встал.
-            var snapped = editor.SnapPosition(_elementStartLocation + appliedTotalDelta, e.KeyModifiers);
+            // Направляющие занимают свою ось первыми, сетка получает остальные.
+            var snapped = editor.ResolveDragPosition(_dragTarget, _elementStartLocation + appliedTotalDelta, e.KeyModifiers);
 
             // Дальше по группе идёт уже привязанное смещение, поэтому соседи
             // двигаются ровно на столько же и взаимное расположение сохраняется.

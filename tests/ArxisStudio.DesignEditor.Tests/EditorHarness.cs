@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
@@ -60,7 +60,13 @@ internal sealed class EditorHarness
     /// Сам факт того, что в боевой конфигурации она включена, закреплён отдельно
     /// в <c>SnapToGridTests</c>.
     /// </param>
-    public static EditorHarness Create(int nodeCount = 1, double width = 800, double height = 600, bool snapToGrid = false)
+    /// <param name="snapToGuides">
+    /// Выравнивание по краям и центрам соседей. Выключено по тем же причинам:
+    /// в шаблоне рядом с <c>Nested</c> стоит <c>Sibling</c>, и любой сдвиг,
+    /// подошедший к нему ближе радиуса захвата, менял бы результат тестов,
+    /// проверяющих совсем другое. Умолчание закреплено в <c>SnapGuideTests</c>.
+    /// </param>
+    public static EditorHarness Create(int nodeCount = 1, double width = 800, double height = 600, bool snapToGrid = false, bool snapToGuides = false)
     {
         var nodes = Enumerable.Range(0, nodeCount)
             .Select(i => new TestNode("node" + i))
@@ -106,6 +112,7 @@ internal sealed class EditorHarness
         };
 
         editor.InteractionOptions.IsSnapToGridEnabled = snapToGrid;
+        editor.InteractionOptions.IsSnapToGuidesEnabled = snapToGuides;
 
         window.Show();
 
@@ -123,7 +130,7 @@ internal sealed class EditorHarness
     /// владеет позицией ребёнка. У всех контролов только <c>Layout.IsTracked</c>
     /// и никаких <c>Layout.X</c>/<c>Y</c> — ровно как в демо.
     /// </remarks>
-    public static EditorHarness CreateStackHosted(bool snapToGrid = false)
+    public static EditorHarness CreateStackHosted(bool snapToGrid = false, bool snapToGuides = false)
     {
         var nodes = new List<TestNode> { new("stack0") };
 
@@ -175,6 +182,7 @@ internal sealed class EditorHarness
 
         var window = new Window { Width = 800, Height = 600, Content = editor };
         editor.InteractionOptions.IsSnapToGridEnabled = snapToGrid;
+        editor.InteractionOptions.IsSnapToGuidesEnabled = snapToGuides;
         window.Show();
 
         var harness = new EditorHarness(window, editor, nodes);

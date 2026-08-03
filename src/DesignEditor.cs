@@ -17,6 +17,7 @@ using Avalonia.VisualTree;
 using DesignLayout = ArxisStudio.Attached.Layout;
 using DesignInteraction = ArxisStudio.Attached.DesignInteraction;
 using ArxisStudio.Controls;
+using ArxisStudio.Guides;
 using ArxisStudio.Placement;
 using ArxisStudio.States;
 
@@ -256,6 +257,18 @@ public class DesignEditor : SelectingItemsControl
     /// </summary>
     public static readonly DirectProperty<DesignEditor, Rect> ReorderIndicatorProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, Rect>(nameof(ReorderIndicator), o => o.ReorderIndicator);
+
+    /// <summary>
+    /// Идентификатор свойства набора активных направляющих.
+    /// </summary>
+    /// <remarks>
+    /// Свойство internal: форму направляющих ещё рано фиксировать публично, а шаблон
+    /// библиотеки компилируется в ту же сборку и привязывается к нему без ограничений.
+    /// </remarks>
+    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSnapGuide>> SnapGuidesProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSnapGuide>>(
+            nameof(SnapGuides),
+            o => o.SnapGuides);
 
     /// <summary>
     /// Идентификатор свойства контейнера, в пределах которого работает текущая рамка.
@@ -595,6 +608,20 @@ public class DesignEditor : SelectingItemsControl
         private set => SetAndRaise(ReorderIndicatorProperty, ref _reorderIndicator, value);
     }
 
+    private IReadOnlyList<DesignSnapGuide> _snapGuides = Array.Empty<DesignSnapGuide>();
+    /// <summary>
+    /// Получает направляющие, действующие в текущем жесте, в мировых координатах.
+    /// </summary>
+    /// <remarks>
+    /// Набор пуст вне жеста и всегда, когда выравнивания не нашлось. Публикуется он
+    /// только при фактическом изменении — см. <see cref="PublishSnapGuides"/>.
+    /// </remarks>
+    internal IReadOnlyList<DesignSnapGuide> SnapGuides
+    {
+        get => _snapGuides;
+        private set => SetAndRaise(SnapGuidesProperty, ref _snapGuides, value);
+    }
+
     private Rect _selectedArea;
     /// <summary>
     /// Получает или задает текущий прямоугольник выделения в мировых координатах.
@@ -835,6 +862,10 @@ public class DesignEditor : SelectingItemsControl
     // Подавляет запись на время программного применения геометрии,
     // чтобы отмена не превращалась в новое изменение.
     private bool _suppressEditRecording;
+
+    // Соседи, к которым идёт выравнивание в текущем жесте. Снимаются один раз
+    // на входе в жест; null означает, что жест не идёт.
+    private IReadOnlyList<Rect>? _snapGuideNeighbours;
 
     private readonly TranslateTransform _translateTransform = new TranslateTransform();
     private readonly ScaleTransform _scaleTransform = new ScaleTransform();
@@ -3436,11 +3467,24 @@ public class DesignEditor : SelectingItemsControl
         if (!InteractionOptions.IsSnapToGridEnabled)
             return false;
 
-        var bypass = InputGestures.SnapBypassModifiers;
-        if (bypass != KeyModifiers.None && modifiers.HasFlag(bypass))
+        if (IsSnapBypassed(modifiers))
             return false;
 
         return ResolveSnapStep() > 0;
+    }
+
+    /// <summary>
+    /// Определяет, отключил ли пользователь привязку модификатором.
+    /// </summary>
+    /// <remarks>
+    /// Модификатор отключает привязку целиком — и к сетке, и к направляющим.
+    /// Обещание одно: «держу нажатым — ставлю куда хочу», и делить его между
+    /// двумя видами привязки было бы нечестно.
+    /// </remarks>
+    private bool IsSnapBypassed(KeyModifiers modifiers)
+    {
+        var bypass = InputGestures.SnapBypassModifiers;
+        return bypass != KeyModifiers.None && modifiers.HasFlag(bypass);
     }
 
     /// <summary>
@@ -3488,6 +3532,217 @@ public class DesignEditor : SelectingItemsControl
             return new Point(Math.Round(position.X), Math.Round(position.Y));
 
         return new Point(SnapCoordinate(position.X), SnapCoordinate(position.Y));
+    }
+
+    /// <summary>
+    /// Снимает соседей, к которым будет идти выравнивание, на время жеста.
+    /// </summary>
+    /// <param name="movingTarget">Target, который ведёт жест.</param>
+    /// <remarks>
+    /// Соседи снимаются один раз, а не пересчитываются покадрово, и это не
+    /// оптимизация: во время жеста они не двигаются, а вот layout-проход внутри
+    /// жеста мог бы сдвинуть те самые линии, в которые пользователь целится.
+    /// Снимок делает направляющую неподвижной ровно настолько, насколько она
+    /// выглядит неподвижной.
+    /// </remarks>
+    internal void BeginSnapGuides(Control movingTarget)
+    {
+        _snapGuideNeighbours = InteractionOptions.IsSnapToGuidesEnabled
+            ? CollectSnapGuideNeighbours(movingTarget)
+            : Array.Empty<Rect>();
+    }
+
+    /// <summary>
+    /// Закрывает жест: сбрасывает снимок соседей и убирает линии.
+    /// </summary>
+    internal void EndSnapGuides()
+    {
+        _snapGuideNeighbours = null;
+        PublishSnapGuides(Array.Empty<DesignSnapGuide>());
+    }
+
+    /// <summary>
+    /// Возвращает позицию перетаскиваемого target'а с учётом направляющих и сетки.
+    /// </summary>
+    /// <param name="target">Перетаскиваемый target.</param>
+    /// <param name="proposed">Позиция, предложенная жестом.</param>
+    /// <param name="modifiers">Модификаторы текущего ввода.</param>
+    /// <remarks>
+    /// Композиция та же, что у остальных правил редактора: направляющая занимает ось,
+    /// сетка получает всё остальное. Оси независимы — элемент может встать на край
+    /// соседа по X и на узел сетки по Y, и это ровно то, чего ждёт пользователь.
+    /// <para>
+    /// Как и привязка к сетке, направляющие работают с <b>результатом</b>, а не с
+    /// дельтой: смещение считается от предложенной позиции, поэтому элемент встаёт
+    /// на линию, а не сохраняет прежний зазор до неё.
+    /// </para>
+    /// </remarks>
+    internal Point ResolveDragPosition(Control target, Point proposed, KeyModifiers modifiers)
+    {
+        var neighbours = _snapGuideNeighbours;
+
+        if (neighbours is not { Count: > 0 } || IsSnapBypassed(modifiers))
+        {
+            PublishSnapGuides(Array.Empty<DesignSnapGuide>());
+            return SnapPosition(proposed, modifiers);
+        }
+
+        var size = GetDesignSize(target);
+        var snapToGrid = ShouldSnap(modifiers);
+
+        DesignSnapGuideResolver.TryResolveOffset(
+            new Rect(proposed, size),
+            neighbours,
+            ResolveSnapGuideTolerance(),
+            out var offset,
+            out var snappedX,
+            out var snappedY);
+
+        var x = snappedX ? proposed.X + offset.X : GridCoordinate(proposed.X, snapToGrid);
+        var y = snappedY ? proposed.Y + offset.Y : GridCoordinate(proposed.Y, snapToGrid);
+
+        var result = new Point(x, y);
+        PublishSnapGuides(DesignSnapGuideResolver.CollectGuides(new Rect(result, size), neighbours));
+        return result;
+
+        double GridCoordinate(double value, bool snap) => snap ? SnapCoordinate(value) : Math.Round(value);
+    }
+
+    /// <summary>
+    /// Возвращает радиус захвата направляющей в мировых единицах.
+    /// </summary>
+    internal double ResolveSnapGuideTolerance()
+    {
+        var tolerance = InteractionOptions.SnapGuideTolerance;
+        if (!(tolerance > 0))
+            return 0;
+
+        var zoom = ViewportZoom;
+        return zoom > 0 ? tolerance / zoom : tolerance;
+    }
+
+    /// <summary>
+    /// Собирает прямоугольники, по которым идёт выравнивание.
+    /// </summary>
+    /// <remarks>
+    /// Соседями считается то же, что редактор разрешает выбрать: правило одно,
+    /// и выровняться можно ровно по тому, что видно как отдельный элемент.
+    /// К ним добавляются границы самой формы — по её краям и центру выравнивают чаще
+    /// всего, а отдельным элементом она не является.
+    /// </remarks>
+    private IReadOnlyList<Rect> CollectSnapGuideNeighbours(Control movingTarget)
+    {
+        var neighbours = new List<Rect>();
+        var host = FindDesignHost(movingTarget);
+
+        if (host == null)
+        {
+            // Двигают контейнер верхнего уровня: соседи — остальные контейнеры.
+            foreach (var container in EnumerateContainers())
+            {
+                if (IsExcludedFromSnapGuides(container, movingTarget))
+                    continue;
+
+                if (TryGetDesignBounds((Control)container, out var containerBounds))
+                    neighbours.Add(containerBounds);
+            }
+
+            return neighbours;
+        }
+
+        foreach (var candidate in EnumerateSelectionCandidates(host))
+        {
+            if (!IsSelectableTarget(candidate, host))
+                continue;
+
+            if (IsExcludedFromSnapGuides(candidate, movingTarget))
+                continue;
+
+            if (TryGetDesignBounds(candidate, out var bounds))
+                neighbours.Add(bounds);
+        }
+
+        // Приведение к Control обязательно: перегрузка для DesignEditorItem
+        // вернула бы геометрию его выбранного target'а, а не самой формы.
+        if (TryGetDesignBounds((Control)host, out var hostBounds))
+            neighbours.Add(hostBounds);
+
+        return neighbours;
+    }
+
+    /// <summary>
+    /// Определяет, участвует ли кандидат в выравнивании.
+    /// </summary>
+    /// <remarks>
+    /// Исключается всё, что двигается вместе с жестом, — сам target, остальное
+    /// выделение при групповом перетаскивании и их родня по дереву. Иначе элемент
+    /// выравнивался бы сам по себе и линия висела бы на нём всю протяжку.
+    /// </remarks>
+    private bool IsExcludedFromSnapGuides(Control candidate, Control movingTarget)
+    {
+        if (IsSameOrRelated(candidate, movingTarget))
+            return true;
+
+        foreach (var selected in _selectedTargets)
+        {
+            if (IsSameOrRelated(candidate, selected))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsSameOrRelated(Control first, Control second)
+    {
+        if (ReferenceEquals(first, second))
+            return true;
+
+        foreach (var ancestor in first.GetVisualAncestors())
+        {
+            if (ReferenceEquals(ancestor, second))
+                return true;
+        }
+
+        foreach (var ancestor in second.GetVisualAncestors())
+        {
+            if (ReferenceEquals(ancestor, first))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Публикует набор направляющих, если он действительно изменился.
+    /// </summary>
+    /// <remarks>
+    /// Та же дисциплина, что у <see cref="ApplySelectionSnapshot"/>: метод вызывается
+    /// на каждом кадре протяжки, а линии меняются редко. Без сравнения слой
+    /// перерисовывался бы каждый кадр впустую.
+    /// </remarks>
+    private void PublishSnapGuides(IReadOnlyList<DesignSnapGuide> guides)
+    {
+        if (AreSameGuides(_snapGuides, guides))
+            return;
+
+        SnapGuides = guides;
+    }
+
+    private static bool AreSameGuides(IReadOnlyList<DesignSnapGuide> first, IReadOnlyList<DesignSnapGuide> second)
+    {
+        if (ReferenceEquals(first, second))
+            return true;
+
+        if (first.Count != second.Count)
+            return false;
+
+        for (var i = 0; i < first.Count; i++)
+        {
+            if (!first[i].Equals(second[i]))
+                return false;
+        }
+
+        return true;
     }
 
     internal bool ShouldStartMarquee(PointerPointProperties pointerProperties, KeyModifiers modifiers)

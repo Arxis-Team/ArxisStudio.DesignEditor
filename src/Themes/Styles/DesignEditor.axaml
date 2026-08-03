@@ -162,6 +162,19 @@
                                 </Rectangle.Height>
                             </Rectangle>
                         </Canvas>
+
+                        <!--
+                            Направляющие. Как и сетка, слой рисует в экранных координатах
+                            и получает viewport напрямую: линия остаётся пиксельной на
+                            любом масштабе, а растущая вместе с зумом закрывала бы макет.
+                        -->
+                        <controls:SnapGuideLayer Name="PART_SnapGuideLayer"
+                                                 IsHitTestVisible="False"
+                                                 Guides="{TemplateBinding SnapGuides}"
+                                                 LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"
+                                                 LineThickness="{DynamicResource DesignEditor.SnapGuide.Thickness}"
+                                                 ViewportLocation="{TemplateBinding ViewportLocation}"
+                                                 ViewportZoom="{TemplateBinding ViewportZoom}" />
                     </Grid>
                 </Border>
             </ControlTemplate>
