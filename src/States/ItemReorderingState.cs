@@ -51,7 +51,6 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         _initialIndex = _panel?.Children.IndexOf(_target) ?? -1;
         _insertBefore = _initialIndex;
 
-        editor.BeginReorder();
         UpdateIndicator(editor, _initialPointerPosition);
     }
 

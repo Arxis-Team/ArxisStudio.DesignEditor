@@ -773,6 +773,16 @@ public class DesignEditor : SelectingItemsControl
     public event EventHandler<DesignEditorDeleteRequestedEventArgs>? DeleteRequested;
 
     /// <summary>
+    /// Возникает, когда пользователь перетащил контрол на новое место среди соседей.
+    /// </summary>
+    /// <remarks>
+    /// Деревом контролов редактор не владеет: структурную правку выполняет
+    /// библиотека разметки. Обработчик должен переставить контрол сам и выставить
+    /// <see cref="DesignEditorReorderRequestedEventArgs.Handled"/>.
+    /// </remarks>
+    public event EventHandler<DesignEditorReorderRequestedEventArgs>? ReorderRequested;
+
+    /// <summary>
     /// Возникает при изменении набора выбранных design targets.
     /// </summary>
     /// <remarks>
@@ -2522,30 +2532,33 @@ public class DesignEditor : SelectingItemsControl
         => control.GetVisualParent() is Panel panel ? panel.Children.IndexOf(control) : -1;
 
     /// <summary>
-    /// Перемещает контрол на заданную позицию среди соседей.
+    /// Просит приложение переставить контрол на заданную позицию среди соседей.
     /// </summary>
+    /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
     /// <remarks>
-    /// Третий и последний шов записи рядом с <see cref="SetDesignPosition"/> и
-    /// <see cref="SetDesignSize"/>. В раскладке, которая расставляет детей потоком,
-    /// это единственный способ изменить их положение.
+    /// Редактор сам дерево не правит: он распознаёт жест и сообщает намерение.
+    /// Структурная правка, её запись и отмена — зона библиотеки разметки.
     /// </remarks>
-    internal void SetDesignChildIndex(Control control, int index)
+    internal bool RequestChildIndex(Control control, int index)
     {
         if (control.GetVisualParent() is not Panel panel)
-            return;
+            return false;
 
         var current = panel.Children.IndexOf(control);
         if (current < 0)
-            return;
+            return false;
 
         var clamped = Math.Clamp(index, 0, panel.Children.Count - 1);
         if (clamped == current)
-            return;
+            return false;
 
-        if (!_suppressEditRecording)
-            _activeEdit?.RecordChildIndex(this, control, clamped);
+        var handler = ReorderRequested;
+        if (handler == null)
+            return false;
 
-        panel.Children.Move(current, clamped);
+        var args = new DesignEditorReorderRequestedEventArgs(control, current, clamped);
+        handler(this, args);
+        return args.Handled;
     }
 
     internal void SetDesignZIndex(Control control, int zIndex)
@@ -2747,9 +2760,6 @@ public class DesignEditor : SelectingItemsControl
                 ApplyOrder(order.Target, revert ? order.OldZIndex : order.NewZIndex);
                 break;
 
-            case DesignChildOrderChange childOrder:
-                ApplyChildOrder(childOrder.Target, revert ? childOrder.OldIndex : childOrder.NewIndex);
-                break;
         }
     }
 
@@ -2769,29 +2779,6 @@ public class DesignEditor : SelectingItemsControl
         try
         {
             SetDesignZIndex(target, zIndex);
-        }
-        finally
-        {
-            _suppressEditRecording = previous;
-        }
-    }
-
-    /// <summary>
-    /// Задаёт позицию среди соседей, не создавая новой единицы редактирования.
-    /// </summary>
-    /// <param name="target">Контрол, позицию которого нужно задать.</param>
-    /// <param name="index">Новая позиция среди детей родительской панели.</param>
-    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="target"/> равен <see langword="null"/>.</exception>
-    public void ApplyChildOrder(Control target, int index)
-    {
-        if (target == null)
-            throw new ArgumentNullException(nameof(target));
-
-        var previous = _suppressEditRecording;
-        _suppressEditRecording = true;
-        try
-        {
-            SetDesignChildIndex(target, index);
         }
         finally
         {
@@ -3812,13 +3799,6 @@ public class DesignEditor : SelectingItemsControl
     private void CancelEdit() => _activeEdit = null;
 
     /// <summary>
-    /// Открывает единицу редактирования под перестановку среди соседей.
-    /// </summary>
-    /// <remarks>
-    /// Единицей редактирования по-прежнему владеет редактор, а не состояние:
-    /// так границы жеста остаются в одном месте для всех видов правок.
-    /// </remarks>
-    /// <summary>
     /// Обновляет диагностический вывод о размещении primary target.
     /// </summary>
     private void UpdatePrimaryPlacementReadout(Control? primaryControl)
@@ -3836,8 +3816,6 @@ public class DesignEditor : SelectingItemsControl
         PrimarySelectionResizePolicy = GetResizePolicy(primaryControl);
     }
 
-    internal void BeginReorder() => BeginEdit(DesignEditKind.Reorder);
-
     /// <summary>
     /// Обновляет индикатор точки вставки.
     /// </summary>
@@ -3847,24 +3825,20 @@ public class DesignEditor : SelectingItemsControl
         IsReordering = true;
     }
 
+
     /// <summary>
-    /// Применяет перестановку и закрывает единицу редактирования.
+    /// Сообщает намерение переставить контрол и убирает индикатор.
     /// </summary>
     internal void CommitReorder(Control target, int index)
     {
-        SetDesignChildIndex(target, index);
-        CommitEdit();
+        RequestChildIndex(target, index);
         ClearReorderIndicator();
     }
 
     /// <summary>
-    /// Отменяет перестановку, не публикуя изменений.
+    /// Прерывает перестановку, ничего не сообщая.
     /// </summary>
-    internal void CancelReorder()
-    {
-        CancelEdit();
-        ClearReorderIndicator();
-    }
+    internal void CancelReorder() => ClearReorderIndicator();
 
     private void ClearReorderIndicator()
     {

@@ -13,26 +13,47 @@ namespace ArxisStudio.Tests;
 /// Перестановка контрола среди соседей в раскладке, которая владеет позицией.
 /// </summary>
 /// <remarks>
-/// Там, где координату задать нельзя, перетаскивание меняет порядок детей —
-/// единственное, что вообще меняет их положение в такой панели.
+/// Деревом контролов редактор не владеет: он распознаёт жест, показывает точку
+/// вставки и поднимает <c>ReorderRequested</c>. Саму перестановку выполняет
+/// приложение — здесь его роль играет обработчик в тесте.
 /// </remarks>
 public class ReorderTests
 {
     private static readonly Point CardLocation = new(100, 100);
     private static readonly Size CardSize = new(340, 400);
 
-    private static (EditorHarness Harness, List<DesignEditCompletedEventArgs> Edits) Create()
+    private static readonly Vector DragDelta = new(60, 40);
+
+    private sealed record Request(Control Target, int OldIndex, int NewIndex);
+
+    /// <summary>
+    /// Собирает стенд и подключает обработчик, который выполняет перестановку.
+    /// </summary>
+    private static (EditorHarness Harness, List<Request> Requests) Create(bool handle = true)
     {
         var harness = EditorHarness.CreateStackHosted();
         harness.PlaceContainer(0, CardLocation, CardSize);
 
-        var edits = new List<DesignEditCompletedEventArgs>();
-        harness.Editor.EditCompleted += (_, e) => edits.Add(e);
-        return (harness, edits);
+        var requests = new List<Request>();
+        harness.Editor.ReorderRequested += (_, e) =>
+        {
+            requests.Add(new Request(e.Target, e.OldIndex, e.NewIndex));
+
+            if (!handle)
+                return;
+
+            // Роль библиотеки разметки: структурную правку делает она.
+            if (e.Target.GetVisualParent() is Panel panel)
+            {
+                panel.Children.Move(e.OldIndex, e.NewIndex);
+                e.Handled = true;
+            }
+        };
+
+        return (harness, requests);
     }
 
-    private static Panel PanelOf(EditorHarness harness, Control child)
-        => (Panel)child.GetVisualParent()!;
+    private static Panel PanelOf(Control child) => (Panel)child.GetVisualParent()!;
 
     private static void Drag(EditorHarness harness, Point from, Vector delta)
     {
@@ -44,84 +65,89 @@ public class ReorderTests
     }
 
     [AvaloniaFact]
-    public void Dragging_A_Stack_Child_Upwards_Changes_Its_Order()
+    public void Gesture_Asks_To_Reorder_And_Reports_Both_Indices()
+    {
+        var (harness, requests) = Create();
+        var action = harness.Find<Button>(0, "Action");
+
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        var request = Assert.Single(requests);
+        Assert.Same(action, request.Target);
+        Assert.Equal(1, request.OldIndex);
+        Assert.Equal(0, request.NewIndex);
+    }
+
+    [AvaloniaFact]
+    public void Handled_Request_Changes_The_Order()
     {
         var (harness, _) = Create();
         var action = harness.Find<Button>(0, "Action");
         var field = harness.Find<TextBox>(0, "Field");
-        var panel = PanelOf(harness, action);
+        var panel = PanelOf(action);
 
         Assert.Equal(0, panel.Children.IndexOf(field));
         Assert.Equal(1, panel.Children.IndexOf(action));
 
-        var centre = harness.CentreOf(action);
-        Drag(harness, centre, new Vector(0, -60));
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
 
-        // Кнопка перетащена выше середины поля, значит встаёт перед ним.
         Assert.Equal(0, panel.Children.IndexOf(action));
         Assert.Equal(1, panel.Children.IndexOf(field));
     }
 
     [AvaloniaFact]
-    public void Reorder_Produces_One_Edit_With_Both_Indices()
+    public void Unhandled_Request_Leaves_The_Tree_Alone()
     {
-        var (harness, edits) = Create();
+        var (harness, requests) = Create(handle: false);
         var action = harness.Find<Button>(0, "Action");
+        var panel = PanelOf(action);
 
         Drag(harness, harness.CentreOf(action), new Vector(0, -60));
 
-        var edit = Assert.Single(edits);
-        Assert.Equal(DesignEditKind.Reorder, edit.Kind);
-        var change = Assert.IsType<DesignChildOrderChange>(Assert.Single(edit.Changes));
-        Assert.Same(action, change.Target);
-        Assert.Equal(1, change.OldIndex);
-        Assert.Equal(0, change.NewIndex);
-    }
-
-    [AvaloniaFact]
-    public void Reorder_Is_Revertible()
-    {
-        var (harness, edits) = Create();
-        var action = harness.Find<Button>(0, "Action");
-        var panel = PanelOf(harness, action);
-
-        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
-        Assert.Equal(0, panel.Children.IndexOf(action));
-
-        harness.Editor.Revert(edits.Single().Changes.Single());
-        harness.RunLayout();
-
+        // Редактор сообщил намерение, но сам ничего не тронул.
+        Assert.Single(requests);
         Assert.Equal(1, panel.Children.IndexOf(action));
-
-        // Отмена не порождает новой записи, иначе стек никогда не пустел бы.
-        Assert.Single(edits);
     }
 
     [AvaloniaFact]
-    public void Gesture_Returning_To_The_Original_Slot_Records_Nothing()
+    public void Reorder_Stays_Out_Of_The_Edit_Contract()
     {
-        var (harness, edits) = Create();
+        var (harness, _) = Create();
+        var action = harness.Find<Button>(0, "Action");
+
+        var edits = new List<DesignEditCompletedEventArgs>();
+        harness.Editor.EditCompleted += (_, e) => edits.Add(e);
+
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        // Структурная правка не принадлежит редактору, поэтому и в его поток
+        // изменений не попадает: там живут геометрия и порядок перекрытия.
+        Assert.Empty(edits);
+    }
+
+    [AvaloniaFact]
+    public void Gesture_Returning_To_The_Original_Slot_Asks_For_Nothing()
+    {
+        var (harness, requests) = Create();
         var action = harness.Find<Button>(0, "Action");
 
         // Смещение меньше половины соседа: точка вставки не меняется.
         Drag(harness, harness.CentreOf(action), new Vector(0, -4));
 
-        Assert.Empty(edits);
+        Assert.Empty(requests);
     }
 
     [AvaloniaFact]
     public void User_Lock_Blocks_Reorder()
     {
-        var (harness, edits) = Create();
+        var (harness, requests) = Create();
         var action = harness.Find<Button>(0, "Action");
-        var panel = PanelOf(harness, action);
         DesignInteraction.SetMovePolicy(action, MovePolicy.None);
 
         Drag(harness, harness.CentreOf(action), new Vector(0, -60));
 
         // Запрет пользователя сильнее любой раскладки, включая перестановку.
-        Assert.Equal(1, panel.Children.IndexOf(action));
-        Assert.Empty(edits);
+        Assert.Empty(requests);
     }
 
     [AvaloniaFact]
@@ -155,9 +181,10 @@ public class ReorderTests
         var edits = new List<DesignEditCompletedEventArgs>();
         harness.Editor.EditCompleted += (_, e) => edits.Add(e);
 
-        Drag(harness, harness.CentreOf(nested), new Vector(40, 30));
+        Drag(harness, harness.CentreOf(nested), DragDelta);
 
-        // Раскладка с абсолютным позиционированием не превращается в перестановку.
+        // Раскладка с абсолютным позиционированием не превращается в перестановку,
+        // и перемещение остаётся зоной редактора.
         var edit = Assert.Single(edits);
         Assert.Equal(DesignEditKind.Move, edit.Kind);
         Assert.IsType<DesignGeometryChange>(Assert.Single(edit.Changes));

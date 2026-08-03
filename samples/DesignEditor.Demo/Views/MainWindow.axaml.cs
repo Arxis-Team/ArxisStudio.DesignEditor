@@ -1,5 +1,6 @@
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using ArxisStudio;
 using DesignEditor.Demo.Context;
 using DesignEditor.Demo.ViewModels;
@@ -20,6 +21,11 @@ public partial class MainWindow : Window
 
             // Редактор не владеет коллекцией, поэтому Delete приходит запросом.
             editor.DeleteRequested += Editor_OnDeleteRequested;
+
+            // Деревом контролов он тоже не владеет: перестановка — структурная
+            // правка, и её выполняет владелец разметки. Здесь эту роль временно
+            // играет само демо, в продукте её возьмёт ArxisStudio.Markup.
+            editor.ReorderRequested += Editor_OnReorderRequested;
 
             // Отмена строится поверх DesignEditor.EditCompleted и ApplyGeometry.
             _history = new EditHistory(editor);
@@ -83,6 +89,15 @@ public partial class MainWindow : Window
         foreach (var index in indexes)
             viewModel.Elements.RemoveAt(index);
 
+        e.Handled = true;
+    }
+
+    private void Editor_OnReorderRequested(object? sender, DesignEditorReorderRequestedEventArgs e)
+    {
+        if (e.Target.GetVisualParent() is not Panel panel)
+            return;
+
+        panel.Children.Move(e.OldIndex, e.NewIndex);
         e.Handled = true;
     }
 

@@ -76,43 +76,52 @@ public sealed class DesignOrderChange : DesignChange
 }
 
 /// <summary>
-/// Описывает изменение порядка контрола среди соседей по родительской панели.
+/// Аргументы запроса на перестановку контрола среди соседей.
 /// </summary>
 /// <remarks>
-/// Отличается от <see cref="DesignOrderChange"/> уровнем: тот меняет
-/// <c>ZIndex</c>, то есть порядок перекрытия, а этот — позицию в коллекции детей.
-/// В раскладке, которая расставляет детей потоком, только второе и меняет
-/// положение на экране.
+/// Деревом контролов редактор не владеет: он распознаёт жест, показывает точку
+/// вставки и сообщает намерение. Саму перестановку, её запись и отмену выполняет
+/// библиотека разметки. Пока запрос не помечен <see cref="Handled"/>,
+/// порядок остаётся прежним.
 /// <para>
-/// Библиотека правит живое визуальное дерево. Если контейнеры переиспользуются,
-/// порядок нужно сохранять на стороне приложения по <see cref="DesignEditor.EditCompleted"/> —
-/// так же, как это уже сделано для геометрии.
+/// Это структурная правка, поэтому она не попадает в <see cref="DesignEditor.EditCompleted"/>:
+/// там живёт геометрия и порядок перекрытия — то, чем редактор распоряжается сам.
 /// </para>
 /// </remarks>
-public sealed class DesignChildOrderChange : DesignChange
+public sealed class DesignEditorReorderRequestedEventArgs : EventArgs
 {
     /// <summary>
-    /// Инициализирует новый экземпляр <see cref="DesignChildOrderChange"/>.
+    /// Инициализирует новый экземпляр <see cref="DesignEditorReorderRequestedEventArgs"/>.
     /// </summary>
-    /// <param name="target">Изменённый контрол.</param>
-    /// <param name="oldIndex">Позиция среди соседей до изменения.</param>
-    /// <param name="newIndex">Позиция среди соседей после изменения.</param>
-    public DesignChildOrderChange(Control target, int oldIndex, int newIndex)
-        : base(target)
+    /// <param name="target">Контрол, который требуется переставить.</param>
+    /// <param name="oldIndex">Текущая позиция среди соседей.</param>
+    /// <param name="newIndex">Запрошенная позиция среди соседей.</param>
+    public DesignEditorReorderRequestedEventArgs(Control target, int oldIndex, int newIndex)
     {
+        Target = target ?? throw new ArgumentNullException(nameof(target));
         OldIndex = oldIndex;
         NewIndex = newIndex;
     }
 
     /// <summary>
-    /// Получает позицию среди соседей до изменения.
+    /// Получает контрол, который требуется переставить.
+    /// </summary>
+    public Control Target { get; }
+
+    /// <summary>
+    /// Получает текущую позицию среди соседей.
     /// </summary>
     public int OldIndex { get; }
 
     /// <summary>
-    /// Получает позицию среди соседей после изменения.
+    /// Получает запрошенную позицию среди соседей.
     /// </summary>
     public int NewIndex { get; }
+
+    /// <summary>
+    /// Получает или задает признак того, что перестановка выполнена приложением.
+    /// </summary>
+    public bool Handled { get; set; }
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace ArxisStudio.Tests;
 
@@ -53,7 +53,7 @@ public class PublicSurfaceTests
         "ArxisStudio.DesignChange",
         "ArxisStudio.DesignGeometryChange",
         "ArxisStudio.DesignOrderChange",
-        "ArxisStudio.DesignChildOrderChange",
+        "ArxisStudio.DesignEditorReorderRequestedEventArgs",
         "ArxisStudio.DesignContentMode",
         "ArxisStudio.DesignEditKind",
         "ArxisStudio.DesignEditCompletedEventArgs",

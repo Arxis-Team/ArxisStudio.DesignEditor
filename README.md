@@ -24,8 +24,9 @@
 | Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
 | Содержимое контейнера | `DesignContentMode` |
+| Запросы к приложению | `DesignEditorDeleteRequestedEventArgs`, `DesignEditorReorderRequestedEventArgs` |
 | Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
-| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignChildOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs`, `DesignEditorDeleteRequestedEventArgs` |
+| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs` |
 | События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
 | Контекстные действия | `IDesignEditorContextActionProvider`, `IDesignEditorContextPresenter`, `ContextMenuContextPresenter`, `DesignEditorContextAction`, `DesignEditorContextRequest`, `DesignEditorContextScope`, `DesignEditorContextSource`, `DesignEditorContextRequestingEventArgs`, `DesignEditorContextRequestedEventArgs` |
 
@@ -36,6 +37,22 @@
 - **стратегии размещения** — `ArxisStudio.Placement.*`: форма ещё должна отлежаться внутри библиотеки, добавить публичный тип позже можно аддитивно.
 
 Поверхность закреплена тестом: новый публичный тип роняет сборку тестов, пока его не внесут в список осознанно либо не сделают `internal`.
+
+## Границы ответственности
+
+`ArxisStudio.DesignEditor` и `ArxisStudio.Markup` — две самостоятельные библиотеки, каждая со своим API.
+
+| | Редактор | Разметка |
+|---|---|---|
+| поверхность, viewport, сетка | ✔ | |
+| выделение, рамки, ручки | ✔ | |
+| распознавание жестов | ✔ | |
+| геометрия: позиция, размер, `ZIndex` | ✔ | |
+| структура дерева: создание, удаление, порядок, перенос | | ✔ |
+
+Редактор **читает** дерево контролов — иначе ему нечего показывать, — но не правит его. Структурные намерения он выражает запросами: `DeleteRequested`, `ReorderRequested`. Пока приложение не пометило запрос `Handled`, ничего не происходит.
+
+Отсюда и деление контракта изменений: `EditCompleted` описывает только правки самого редактора. Запись и отмена структурных правок принадлежат тому, кто ими владеет.
 
 ## Структура решения
 
@@ -110,7 +127,7 @@
 
 Изменение порядка проходит через тот же контракт, что и геометрия — с `Kind = Reorder` и записями `DesignOrderChange`, — поэтому попадает в стек отмены наравне с перемещением.
 
-Порядок перекрытия — это `ZIndex`. Порядок среди детей панели — другое: он описывается `DesignChildOrderChange` и в потоковой раскладке единственный меняет положение на экране (см. «Перестановка среди соседей»).
+Порядок перекрытия — это `ZIndex`, свойство контрола, поэтому им редактор распоряжается сам. Порядок среди детей панели — уже структура дерева, и она принадлежит другой библиотеке (см. «Границы ответственности»).
 
 ### События выделения
 
@@ -226,21 +243,20 @@ editor.DesignSelectionChanged += (_, _) =>
 
 ### Перестановка среди соседей
 
-В раскладке, которая расставляет детей потоком, перетаскивание меняет их порядок — единственное, что вообще меняет там положение. Во время протяжки показывается индикатор точки вставки, перестановка применяется на отпускании.
-
-Изменение приходит тем же потоком, что и геометрия:
+В раскладке, которая расставляет детей потоком, перетаскивание меняет их порядок — единственное, что вообще меняет там положение. Во время протяжки показывается индикатор точки вставки, а на отпускании редактор поднимает запрос:
 
 ```csharp
-editor.EditCompleted += (_, e) =>
+editor.ReorderRequested += (_, e) =>
 {
-    foreach (var change in e.Changes.OfType<DesignChildOrderChange>())
-        history.Push(change);   // OldIndex -> NewIndex
+    // Структурную правку выполняет владелец разметки.
+    markup.Move(e.Target, e.OldIndex, e.NewIndex);
+    e.Handled = true;
 };
 ```
 
-Отмена — через `Revert`, применение — через `ApplyChildOrder`.
+Пока запрос не помечен `Handled`, порядок остаётся прежним: редактор дерево не трогает.
 
-Библиотека правит живое визуальное дерево. Если контейнеры переиспользуются, порядок нужно сохранять на стороне приложения по `EditCompleted` — так же, как это уже сделано для геометрии.
+Это не попадает в `EditCompleted` — там живёт только то, чем редактор распоряжается сам: геометрия и порядок перекрытия. Запись и отмена структурной правки принадлежат тому, кто её выполнил.
 
 ### Ограничение размера контейнером
 
