@@ -1,7 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DesignEditor.Demo.ViewModels"
-        xmlns:templates="using:DesignEditor.Demo.Views.Templates"
+        xmlns:screens="using:DesignEditor.Demo.Views.Screens"
         xmlns:arxisStudio="clr-namespace:ArxisStudio;assembly=ArxisStudio.DesignEditor"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -65,16 +65,24 @@
             </arxisStudio:DesignEditor.InteractionOptions>
 
             <arxisStudio:DesignEditor.DataTemplates>
-                <DataTemplate DataType="{x:Type vm:LoginElementViewModel}">
-                    <templates:LoginElementView />
+                <DataTemplate DataType="{x:Type vm:HomeScreenViewModel}">
+                    <screens:HomeScreenView />
                 </DataTemplate>
 
-                <DataTemplate DataType="{x:Type vm:DashboardElementViewModel}">
-                    <templates:DashboardElementView />
+                <DataTemplate DataType="{x:Type vm:ThermostatScreenViewModel}">
+                    <screens:ThermostatScreenView />
                 </DataTemplate>
 
-                <DataTemplate DataType="{x:Type vm:FormElementViewModel}">
-                    <templates:FormElementView />
+                <DataTemplate DataType="{x:Type vm:AddDeviceDialogViewModel}">
+                    <screens:AddDeviceDialogView />
+                </DataTemplate>
+
+                <DataTemplate DataType="{x:Type vm:AutomationScreenViewModel}">
+                    <screens:AutomationScreenView />
+                </DataTemplate>
+
+                <DataTemplate DataType="{x:Type vm:ComponentLibraryViewModel}">
+                    <screens:ComponentLibraryView />
                 </DataTemplate>
             </arxisStudio:DesignEditor.DataTemplates>
 
@@ -138,6 +146,23 @@
                                FontSize="10"
                                VerticalAlignment="Center"
                                ToolTip.Tip="Действующая политика: политика пользователя, пересечённая с возможностями раскладки"/>
+
+                    <!-- Геометрия самого выбранного элемента в design-координатах.
+                         Блок ниже показывает контейнер, а этот — то, что выделено. -->
+                    <TextBlock Text="Sel:" Foreground="#666" FontSize="10"
+                               Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.SelectionBounds.X, StringFormat='{}{0:0}'}"
+                               Foreground="#CCC" FontSize="11" FontFamily="Consolas, Monospace"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.SelectionBounds.Y, StringFormat='{}{0:0}'}"
+                               Foreground="#CCC" FontSize="11" FontFamily="Consolas, Monospace"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.SelectionBounds.Width, StringFormat='{}{0:0}'}"
+                               Foreground="#7F849C" FontSize="11" FontFamily="Consolas, Monospace"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding #Editor.SelectionBounds.Height, StringFormat='{}{0:0}'}"
+                               Foreground="#7F849C" FontSize="11" FontFamily="Consolas, Monospace"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>

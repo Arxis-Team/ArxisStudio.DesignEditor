@@ -3,7 +3,13 @@
         xmlns:vm="using:DesignEditor.Demo.ViewModels"
         xmlns:design="clr-namespace:ArxisStudio;assembly=ArxisStudio.DesignEditor">
 
+    <!--
+        ContentMode="Loaded" — экраны написаны как обычная разметка приложения,
+        без designer-метаданных. Контейнер сам открывает их на редактирование
+        и гасит ввод, поэтому кнопки не нажимаются, а поля не принимают текст.
+    -->
     <Style Selector="design|DesignEditorItem" x:DataType="vm:DesignItemViewModel">
+        <Setter Property="ContentMode" Value="Loaded" />
         <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
         <Setter Property="Width" Value="{Binding Width, Mode=TwoWay}" />
         <Setter Property="Height" Value="{Binding Height, Mode=TwoWay}" />

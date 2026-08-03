@@ -56,10 +56,14 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel()
     {
         // Заполняем демо-данными
-        // Три семейства раскладки разом: абсолютное позиционирование, поток и Grid.
-        Elements.Add(new LoginElementViewModel(400, 300));
-        Elements.Add(new DashboardElementViewModel(800, 300));
-        Elements.Add(new FormElementViewModel(400, 760));
+        // Экраны и формы будущего приложения: каждый лежит в своём контейнере,
+        // а корень его разметки — обычная панель Avalonia, поэтому редактор сам
+        // определяет, что с ним можно делать.
+        Elements.Add(new HomeScreenViewModel(80, 80));
+        Elements.Add(new ThermostatScreenViewModel(820, 80));
+        Elements.Add(new AddDeviceDialogViewModel(1180, 80));
+        Elements.Add(new AutomationScreenViewModel(820, 580));
+        Elements.Add(new ComponentLibraryViewModel(80, 580));
 
         SelectedElements.CollectionChanged += OnSelectedElementsCollectionChanged;
     }

@@ -41,8 +41,9 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
     {
         return new[]
         {
-            Action("surface.add-login", "Добавить Login UI-элемент", () => AddElement(editor, new LoginElementViewModel(500, 300))),
-            Action("surface.add-dashboard", "Добавить Dashboard UI-элемент", () => AddElement(editor, new DashboardElementViewModel(900, 300))),
+            Action("surface.add-device", "Добавить экран устройства", () => AddElement(editor, new ThermostatScreenViewModel(500, 300))),
+            Action("surface.add-dialog", "Добавить диалог", () => AddElement(editor, new AddDeviceDialogViewModel(900, 300))),
+            Action("surface.add-automation", "Добавить сценарий", () => AddElement(editor, new AutomationScreenViewModel(900, 660))),
             Separator("surface.sep1"),
             Action("surface.reset-zoom", "Сбросить масштаб", () => editor.ViewportZoom = 1.0),
         };
