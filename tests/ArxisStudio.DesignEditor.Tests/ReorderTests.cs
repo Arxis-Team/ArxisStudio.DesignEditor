@@ -424,6 +424,35 @@ public class ReorderTests
     }
 
     [AvaloniaFact]
+    public void A_Stale_Insertion_Point_Is_Refused_Instead_Of_Coerced()
+    {
+        var (harness, requests) = CreateWrapped();
+        var panel = harness.Find<WrapPanel>(0, "Cells");
+        var first = harness.Named(0, "Cell0");
+        var from = harness.CentreOf(first);
+
+        // Целимся за последнюю ячейку: точка вставки — «в конец», то есть 6.
+        harness.Window.MouseDown(from, MouseButton.Left);
+        harness.Window.MouseMove(from + new Vector(6, 4));
+        harness.Window.MouseMove(from + new Vector(240, 40));
+        harness.RunLayout();
+
+        // Дерево изменилось внутри жеста — так вправе поступить владелец разметки.
+        panel.Children.RemoveAt(5);
+        panel.Children.RemoveAt(4);
+        harness.RunLayout();
+
+        harness.Window.MouseUp(from + new Vector(240, 40), MouseButton.Left);
+        harness.RunLayout();
+
+        // Точка вставки описывает панель, которой больше нет. Подогнать её под
+        // новый размер — значит поставить контрол туда, куда пользователь не
+        // целился, и промолчать об этом. Запрос не отправляется вовсе.
+        Assert.Empty(requests);
+        Assert.Equal(0, panel.Children.IndexOf(first));
+    }
+
+    [AvaloniaFact]
     public void A_Drop_Into_The_Second_Row_Stays_In_That_Row()
     {
         var (harness, requests) = CreateWrapped();

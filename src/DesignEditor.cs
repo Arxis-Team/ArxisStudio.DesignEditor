@@ -2572,7 +2572,8 @@ public class DesignEditor : SelectingItemsControl
     /// <param name="control">Контрол, который требуется переставить.</param>
     /// <param name="insertBefore">
     /// Позиция вставки в <b>текущем</b> списке детей; значение, равное их числу,
-    /// означает «в конец».
+    /// означает «в конец». Выход за эти границы означает, что дерево изменилось
+    /// внутри жеста, и запрос отклоняется.
     /// </param>
     /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
     /// <remarks>
@@ -2599,21 +2600,31 @@ public class DesignEditor : SelectingItemsControl
         if (handler == null)
             return false;
 
-        // Перенос удаляет контрол и только потом вставляет, поэтому позиции
-        // правее источника сдвигаются на одну.
-        var requested = insertBefore > current ? insertBefore - 1 : insertBefore;
-        var clamped = Math.Clamp(requested, 0, panel.Children.Count - 1);
-        if (clamped == current)
+        // Точка вставки описывает ту же коллекцию, которую редактор только что
+        // прочитал: от нуля до числа детей включительно, где верхняя граница
+        // означает «в конец». Всё, что вне, — снимок панели, которой уже нет:
+        // дерево изменилось внутри жеста. Такой запрос отклоняется, а не
+        // подгоняется под новый размер. Подгонка ставила бы контрол туда, куда
+        // пользователь не целился, и хост не смог бы это заметить: индексы
+        // приходили бы к нему валидными на вид.
+        if (insertBefore < 0 || insertBefore > panel.Children.Count)
             return false;
 
-        var anchor = insertBefore >= 0 && insertBefore < panel.Children.Count
+        // Перенос удаляет контрол и только потом вставляет, поэтому позиции
+        // правее источника сдвигаются на одну. Из проверки выше следует, что
+        // результат уже лежит в границах коллекции, и ограничивать его нечем.
+        var requested = insertBefore > current ? insertBefore - 1 : insertBefore;
+        if (requested == current)
+            return false;
+
+        var anchor = insertBefore < panel.Children.Count
             ? panel.Children[insertBefore]
             : null;
 
         var args = new DesignEditorReorderRequestedEventArgs(
             control,
             current,
-            clamped,
+            requested,
             ReferenceEquals(anchor, control) ? null : anchor);
 
         // Обработчики обходятся по одному, и первый же выполнивший правку
