@@ -163,7 +163,13 @@ internal class ItemIdleState : DesignEditorItemState
         {
             if (semantics == DesignMoveSemantics.Reorder)
             {
-                Container.PushState(new ItemReorderingState(Container, _startPoint));
+                // Перестановку выполняет приложение, и без подписчика она
+                // не произойдёт. Жест тогда не начинается вовсе: вести точку
+                // вставки за курсором, зная, что на отпускании ничего не будет,
+                // — то же самое, что предлагать заблокированное перемещение.
+                if (editor is { CanRequestReorder: true })
+                    Container.PushState(new ItemReorderingState(Container, _startPoint));
+
                 return;
             }
 

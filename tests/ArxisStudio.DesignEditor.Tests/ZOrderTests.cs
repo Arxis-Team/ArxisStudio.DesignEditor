@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -135,7 +135,7 @@ public class ZOrderTests
         harness.RunLayout();
 
         var edit = Assert.Single(edits);
-        Assert.Equal(DesignEditKind.Reorder, edit.Kind);
+        Assert.Equal(DesignEditKind.Order, edit.Kind);
         Assert.All(edit.Changes, c => Assert.IsType<DesignOrderChange>(c));
     }
 

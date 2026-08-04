@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -70,12 +70,14 @@ internal sealed class ItemReorderingState : DesignEditorItemState
     {
         var editor = Container.FindAncestorOfType<DesignEditor>();
 
+        var handled = false;
+
         if (editor != null && _target != null && _initialIndex >= 0)
         {
-            // Индекс вставки задан в текущем списке, а Move переносит уже
-            // после удаления, поэтому позиции правее источника сдвигаются на одну.
-            var index = _insertBefore > _initialIndex ? _insertBefore - 1 : _insertBefore;
-            editor.CommitReorder(_target, index);
+            // Точка вставки уходит как есть: перевод в индекс переноса делает
+            // редактор, там же, где читает текущую позицию. Обе половины запроса
+            // обязаны быть сняты за одно чтение.
+            handled = editor.CommitReorder(_target, _insertBefore);
         }
         else
         {
@@ -84,7 +86,9 @@ internal sealed class ItemReorderingState : DesignEditorItemState
 
         Container.PopState();
         e.Pointer.Capture(null);
-        e.Handled = true;
+
+        // Отказ обработчика оставляет нажатие необработанным — как и у Delete.
+        e.Handled = handled;
     }
 
     /// <inheritdoc />
@@ -101,25 +105,44 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         var world = editor.GetWorldPosition(pointerInEditor);
         var vertical = IsVertical(_panel);
 
-        _insertBefore = _panel.Children.Count;
+        // Ближайший сосед ищется по обеим осям, а не по одной вдоль потока.
+        // В панели с переносом одной оси мало: точка в нижнем ряду сравнивалась бы
+        // с серединами верхнего, и элемент уезжал в чужой ряд. В однорядной
+        // раскладке вторая ось у всех детей общая и на выбор не влияет,
+        // поэтому правило остаётся одно на оба случая.
+        var nearest = -1;
+        var nearestDistance = double.PositiveInfinity;
+        var nearestBounds = default(Rect);
 
         for (var i = 0; i < _panel.Children.Count; i++)
         {
             if (!editor.TryGetDesignBounds(_panel.Children[i], out var childBounds))
                 continue;
 
-            var middle = vertical
-                ? childBounds.Y + (childBounds.Height / 2)
-                : childBounds.X + (childBounds.Width / 2);
+            var centre = new Point(
+                childBounds.X + (childBounds.Width / 2),
+                childBounds.Y + (childBounds.Height / 2));
 
-            var position = vertical ? world.Y : world.X;
+            var distance = Vector.Distance(world, centre);
+            if (distance >= nearestDistance)
+                continue;
 
-            if (position < middle)
-            {
-                _insertBefore = i;
-                break;
-            }
+            nearest = i;
+            nearestDistance = distance;
+            nearestBounds = childBounds;
         }
+
+        if (nearest < 0)
+            return;
+
+        // Сторона выбирается уже вдоль потока: до середины соседа — перед ним,
+        // после — за ним.
+        var position = vertical ? world.Y : world.X;
+        var middle = vertical
+            ? nearestBounds.Y + (nearestBounds.Height / 2)
+            : nearestBounds.X + (nearestBounds.Width / 2);
+
+        _insertBefore = position < middle ? nearest : nearest + 1;
 
         if (TryGetIndicatorBounds(editor, vertical, out var indicator))
             editor.UpdateReorderIndicator(indicator);
@@ -129,7 +152,7 @@ internal sealed class ItemReorderingState : DesignEditorItemState
     {
         bounds = default;
 
-        if (_panel == null || !editor.TryGetDesignBounds(_panel, out var panelBounds))
+        if (_panel == null)
             return false;
 
         var atEnd = _insertBefore >= _panel.Children.Count;
@@ -138,11 +161,15 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         if (anchor < 0 || !editor.TryGetDesignBounds(_panel.Children[anchor], out var anchorBounds))
             return false;
 
+        // Линия натянута по соседу, а не по всей панели: в раскладке с переносом
+        // она обязана оставаться в своём ряду, иначе показывает точку вставки
+        // сразу во всех. В однорядной раскладке сосед занимает всю ширину,
+        // поэтому видимо ничего не меняется.
         // Толщина нулевая: видимую задаёт шаблон, поэтому линия остаётся
         // одинаково тонкой на любом масштабе.
         bounds = vertical
-            ? new Rect(panelBounds.X, atEnd ? anchorBounds.Bottom : anchorBounds.Y, panelBounds.Width, 0)
-            : new Rect(atEnd ? anchorBounds.Right : anchorBounds.X, panelBounds.Y, 0, panelBounds.Height);
+            ? new Rect(anchorBounds.X, atEnd ? anchorBounds.Bottom : anchorBounds.Y, anchorBounds.Width, 0)
+            : new Rect(atEnd ? anchorBounds.Right : anchorBounds.X, anchorBounds.Y, 0, anchorBounds.Height);
 
         return true;
     }

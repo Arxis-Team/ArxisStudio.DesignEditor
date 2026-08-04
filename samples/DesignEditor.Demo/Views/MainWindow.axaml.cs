@@ -94,10 +94,26 @@ public partial class MainWindow : Window
 
     private void Editor_OnReorderRequested(object? sender, DesignEditorReorderRequestedEventArgs e)
     {
+        if (e.Handled)
+            return;
+
         if (e.Target.GetVisualParent() is not Panel panel)
             return;
 
+        // Индексы сняты редактором до вызова. Сверяем их с деревом, прежде чем
+        // писать: обработчик — обычный код приложения, и полагаться на то, что
+        // между запросом и правкой никто ничего не поменял, он не должен.
+        if (panel.Children.IndexOf(e.Target) != e.OldIndex ||
+            e.NewIndex < 0 || e.NewIndex >= panel.Children.Count)
+        {
+            return;
+        }
+
         panel.Children.Move(e.OldIndex, e.NewIndex);
+
+        // Правку выполнили здесь — значит, здесь же её и записываем. В поток
+        // EditCompleted она не попадает: редактор структурой не распоряжается.
+        _history?.RecordReorder(panel, e.OldIndex, e.NewIndex);
         e.Handled = true;
     }
 

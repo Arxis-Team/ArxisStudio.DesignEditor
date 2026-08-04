@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -23,7 +23,14 @@ public enum DesignEditKind
     /// <summary>
     /// Изменение порядка перекрытия одного или нескольких targets.
     /// </summary>
-    Reorder
+    /// <remarks>
+    /// Именно перекрытия, то есть <c>ZIndex</c>. Перестановка среди детей панели
+    /// сюда не попадает вовсе — это структурная правка, и редактор о ней только
+    /// просит через <see cref="DesignEditor.ReorderRequested"/>. Одно слово на два
+    /// разных действия уже путало: обработчик, написанный на «изменился порядок»,
+    /// молча ловил половину случаев.
+    /// </remarks>
+    Order
 }
 
 /// <summary>
@@ -96,11 +103,13 @@ public sealed class DesignEditorReorderRequestedEventArgs : EventArgs
     /// <param name="target">Контрол, который требуется переставить.</param>
     /// <param name="oldIndex">Текущая позиция среди соседей.</param>
     /// <param name="newIndex">Запрошенная позиция среди соседей.</param>
-    public DesignEditorReorderRequestedEventArgs(Control target, int oldIndex, int newIndex)
+    /// <param name="anchor">Сосед, перед которым встаёт контрол, либо <see langword="null"/>.</param>
+    public DesignEditorReorderRequestedEventArgs(Control target, int oldIndex, int newIndex, Control? anchor)
     {
         Target = target ?? throw new ArgumentNullException(nameof(target));
         OldIndex = oldIndex;
         NewIndex = newIndex;
+        Anchor = anchor;
     }
 
     /// <summary>
@@ -116,7 +125,25 @@ public sealed class DesignEditorReorderRequestedEventArgs : EventArgs
     /// <summary>
     /// Получает запрошенную позицию среди соседей.
     /// </summary>
+    /// <remarks>
+    /// Индекс задан <b>после</b> удаления контрола из коллекции — так его понимает
+    /// <c>Children.Move</c>, и так же им пользуются оба обработчика в репозитории.
+    /// Проще говоря, это итоговая позиция контрола среди соседей.
+    /// </remarks>
     public int NewIndex { get; }
+
+    /// <summary>
+    /// Получает соседа, перед которым встаёт контрол, либо <see langword="null"/>,
+    /// если он уходит в конец.
+    /// </summary>
+    /// <remarks>
+    /// Ссылка, а не число, и в этом весь смысл: индекс осмыслен только против той
+    /// же коллекции <c>Panel.Children</c>, которую редактор только что измерил.
+    /// Библиотека разметки владеет исходным деревом, где узел может не иметь
+    /// ровно одного соответствия среди визуальных детей, — по ссылке она найдёт
+    /// точку вставки в своих терминах, по индексу не всегда.
+    /// </remarks>
+    public Control? Anchor { get; }
 
     /// <summary>
     /// Получает или задает признак того, что перестановка выполнена приложением.

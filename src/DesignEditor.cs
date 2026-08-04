@@ -2557,20 +2557,36 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
-    /// Возвращает позицию контрола среди детей его родительской панели или -1.
+    /// Определяет, есть ли кому выполнить перестановку.
     /// </summary>
-    internal static int GetChildIndex(Control control)
-        => control.GetVisualParent() is Panel panel ? panel.Children.IndexOf(control) : -1;
+    /// <remarks>
+    /// Жест не предлагается, когда исполнить его некому: иначе редактор вёл бы
+    /// точку вставки за курсором и обещал результат, которого не будет. Правило
+    /// то же, что и у политик размещения, — заблокированный жест не начинается.
+    /// </remarks>
+    internal bool CanRequestReorder => ReorderRequested != null;
 
     /// <summary>
-    /// Просит приложение переставить контрол на заданную позицию среди соседей.
+    /// Просит приложение переставить контрол перед указанным соседом.
     /// </summary>
+    /// <param name="control">Контрол, который требуется переставить.</param>
+    /// <param name="insertBefore">
+    /// Позиция вставки в <b>текущем</b> списке детей; значение, равное их числу,
+    /// означает «в конец».
+    /// </param>
     /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
     /// <remarks>
     /// Редактор сам дерево не правит: он распознаёт жест и сообщает намерение.
     /// Структурная правка, её запись и отмена — зона библиотеки разметки.
+    /// <para>
+    /// Обе половины запроса считаются от <b>одного</b> чтения коллекции. Раньше
+    /// состояние жеста переводило точку вставки в индекс переноса по своему снимку,
+    /// снятому на входе в жест, а текущую позицию редактор перечитывал заново, —
+    /// и стоило дереву измениться во время протяжки, как хост получал пару индексов,
+    /// описывающих разные состояния панели.
+    /// </para>
     /// </remarks>
-    internal bool RequestChildIndex(Control control, int index)
+    internal bool RequestChildIndex(Control control, int insertBefore)
     {
         if (control.GetVisualParent() is not Panel panel)
             return false;
@@ -2579,17 +2595,50 @@ public class DesignEditor : SelectingItemsControl
         if (current < 0)
             return false;
 
-        var clamped = Math.Clamp(index, 0, panel.Children.Count - 1);
-        if (clamped == current)
-            return false;
-
         var handler = ReorderRequested;
         if (handler == null)
             return false;
 
-        var args = new DesignEditorReorderRequestedEventArgs(control, current, clamped);
-        handler(this, args);
-        return args.Handled;
+        // Перенос удаляет контрол и только потом вставляет, поэтому позиции
+        // правее источника сдвигаются на одну.
+        var requested = insertBefore > current ? insertBefore - 1 : insertBefore;
+        var clamped = Math.Clamp(requested, 0, panel.Children.Count - 1);
+        if (clamped == current)
+            return false;
+
+        var anchor = insertBefore >= 0 && insertBefore < panel.Children.Count
+            ? panel.Children[insertBefore]
+            : null;
+
+        var args = new DesignEditorReorderRequestedEventArgs(
+            control,
+            current,
+            clamped,
+            ReferenceEquals(anchor, control) ? null : anchor);
+
+        // Обработчики обходятся по одному, и первый же выполнивший правку
+        // останавливает обход. Индексы сняты до правки, поэтому следующему
+        // они описывали бы дерево, которого уже нет: на двух подписчиках
+        // одинаковой формы перестановка молча отменяла сама себя.
+        foreach (var invocation in handler.GetInvocationList())
+        {
+            ((EventHandler<DesignEditorReorderRequestedEventArgs>)invocation)(this, args);
+
+            if (args.Handled)
+                break;
+        }
+
+        if (!args.Handled)
+            return false;
+
+        // Обработчик мог не переставить контрол, а пересобрать разметку. Выделение,
+        // оставшееся на контроле вне дерева, рисовало бы рамку по его последним
+        // координатам и принимало бы на него нюдж. Пересборка оверлея этим и
+        // занимается: сверка выделения отбрасывает target, у которого больше нет
+        // владеющего item'а, — отдельная зачистка рядом с ней ничего не добавляла
+        // и ни одним тестом не держалась.
+        UpdateSelectionOverlayState();
+        return true;
     }
 
     internal void SetDesignZIndex(Control control, int zIndex)
@@ -2668,7 +2717,7 @@ public class DesignEditor : SelectingItemsControl
         if (groups.Count == 0)
             return false;
 
-        BeginEdit(DesignEditKind.Reorder);
+        BeginEdit(DesignEditKind.Order);
 
         foreach (var pair in groups)
             ReorderWithinParent(pair.Key, pair.Value, placement);
@@ -4084,10 +4133,18 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Сообщает намерение переставить контрол и убирает индикатор.
     /// </summary>
-    internal void CommitReorder(Control target, int index)
+    /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
+    /// <remarks>
+    /// Результат не декоративный: им помечается само нажатие. Отказ обработчика
+    /// оставляет событие необработанным, и оно всплывает дальше — так же, как
+    /// у <see cref="DeleteRequested"/>. Иначе <c>Handled</c> оказался бы
+    /// свойством, которое никто не читает.
+    /// </remarks>
+    internal bool CommitReorder(Control target, int insertBefore)
     {
-        RequestChildIndex(target, index);
+        var handled = RequestChildIndex(target, insertBefore);
         ClearReorderIndicator();
+        return handled;
     }
 
     /// <summary>

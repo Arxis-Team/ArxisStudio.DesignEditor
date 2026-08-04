@@ -1,8 +1,11 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
+using Avalonia.Layout;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using ArxisStudio.Attached;
 using Xunit;
@@ -112,13 +115,19 @@ public class ReorderTests
     [AvaloniaFact]
     public void Reorder_Stays_Out_Of_The_Edit_Contract()
     {
-        var (harness, _) = Create();
+        var (harness, requests) = Create();
         var action = harness.Find<Button>(0, "Action");
+        var panel = PanelOf(action);
 
         var edits = new List<DesignEditCompletedEventArgs>();
         harness.Editor.EditCompleted += (_, e) => edits.Add(e);
 
         Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        // Сначала убеждаемся, что перестановка вообще произошла: без этого
+        // Assert.Empty(edits) держался бы и на полностью удалённом жесте.
+        Assert.Single(requests);
+        Assert.Equal(0, panel.Children.IndexOf(action));
 
         // Структурная правка не принадлежит редактору, поэтому и в его поток
         // изменений не попадает: там живут геометрия и порядок перекрытия.
@@ -131,10 +140,13 @@ public class ReorderTests
         var (harness, requests) = Create();
         var action = harness.Find<Button>(0, "Action");
 
+        var panel = PanelOf(action);
+
         // Смещение меньше половины соседа: точка вставки не меняется.
         Drag(harness, harness.CentreOf(action), new Vector(0, -4));
 
         Assert.Empty(requests);
+        Assert.Equal(1, panel.Children.IndexOf(action));
     }
 
     [AvaloniaFact]
@@ -144,10 +156,16 @@ public class ReorderTests
         var action = harness.Find<Button>(0, "Action");
         DesignInteraction.SetMovePolicy(action, MovePolicy.None);
 
+        var panel = PanelOf(action);
+
         Drag(harness, harness.CentreOf(action), new Vector(0, -60));
 
         // Запрет пользователя сильнее любой раскладки, включая перестановку.
         Assert.Empty(requests);
+
+        // И дерево не тронуто: правка мимо CommitReorder была бы ровно тем
+        // нарушением границы, ради которого запрос и заводился.
+        Assert.Equal(1, panel.Children.IndexOf(action));
     }
 
     [AvaloniaFact]
@@ -169,6 +187,264 @@ public class ReorderTests
         harness.RunLayout();
 
         Assert.False(harness.Editor.IsReordering);
+    }
+
+    [AvaloniaFact]
+    public void Dragging_Down_Reports_The_Post_Removal_Index()
+    {
+        var (harness, requests) = Create();
+        var field = harness.Find<TextBox>(0, "Field");
+        var action = harness.Find<Button>(0, "Action");
+        var panel = PanelOf(field);
+
+        Assert.Equal(0, panel.Children.IndexOf(field));
+
+        // Движение вниз — единственный случай, где точка вставки и индекс
+        // переноса расходятся: Move сначала удаляет, поэтому позиции правее
+        // источника сдвигаются на одну. Вверх обе величины совпадают,
+        // и до этого теста ветка не исполнялась ни разу.
+        Drag(harness, harness.CentreOf(field), new Vector(0, 60));
+
+        var request = Assert.Single(requests);
+        Assert.Same(field, request.Target);
+        Assert.Equal(0, request.OldIndex);
+        Assert.Equal(1, request.NewIndex);
+
+        // NewIndex — итоговая позиция, и Children.Move понимает его именно так.
+        Assert.Equal(1, panel.Children.IndexOf(field));
+        Assert.Equal(0, panel.Children.IndexOf(action));
+    }
+
+    [AvaloniaFact]
+    public void The_Anchor_Names_The_Neighbour_Instead_Of_A_Slot()
+    {
+        // handle: false — иначе обработчик стенда пометит запрос выполненным
+        // и обход подписчиков остановится на нём, не дойдя до этого.
+        var (harness, _) = Create(handle: false);
+        var field = harness.Find<TextBox>(0, "Field");
+        var action = harness.Find<Button>(0, "Action");
+
+        Control? anchor = null;
+        var seen = false;
+        harness.Editor.ReorderRequested += (_, e) =>
+        {
+            anchor = e.Anchor;
+            seen = true;
+        };
+
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        Assert.True(seen);
+
+        // Ссылка на соседа переживает любое представление дерева, индекс — нет.
+        Assert.Same(field, anchor);
+    }
+
+    [AvaloniaFact]
+    public void Without_A_Subscriber_The_Gesture_Does_Not_Start()
+    {
+        var harness = EditorHarness.CreateStackHosted();
+        harness.PlaceContainer(0, CardLocation, CardSize);
+
+        var action = harness.Find<Button>(0, "Action");
+        var panel = PanelOf(action);
+
+        var centre = harness.CentreOf(action);
+        harness.Window.MouseDown(centre, MouseButton.Left);
+        harness.Window.MouseMove(centre + new Vector(4, 6));
+        harness.Window.MouseMove(centre + new Vector(0, -60));
+        harness.RunLayout();
+
+        // Выполнить перестановку некому, поэтому редактор её и не обещает:
+        // точка вставки не рисуется вовсе.
+        Assert.False(harness.Editor.IsReordering);
+
+        harness.Window.MouseUp(centre + new Vector(0, -60), MouseButton.Left);
+        harness.RunLayout();
+
+        Assert.Equal(1, panel.Children.IndexOf(action));
+    }
+
+    [AvaloniaFact]
+    public void Only_The_First_Handler_Applies_The_Request()
+    {
+        var (harness, requests) = Create();
+        var action = harness.Find<Button>(0, "Action");
+        var field = harness.Find<TextBox>(0, "Field");
+        var panel = PanelOf(action);
+
+        // Второй подписчик той же формы, что и первый. Индексы сняты до правки,
+        // поэтому применённые повторно они переставляют уже не тот контрол:
+        // на двух обработчиках перестановка молча отменяла сама себя.
+        var secondRan = false;
+        harness.Editor.ReorderRequested += (_, e) =>
+        {
+            secondRan = true;
+
+            if (e.Target.GetVisualParent() is Panel other)
+                other.Children.Move(e.OldIndex, e.NewIndex);
+        };
+
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        Assert.Single(requests);
+        Assert.False(secondRan);
+        Assert.Equal(0, panel.Children.IndexOf(action));
+        Assert.Equal(1, panel.Children.IndexOf(field));
+    }
+
+    [AvaloniaFact]
+    public void A_Declined_Request_Leaves_The_Press_Unhandled()
+    {
+        var (harness, _) = Create(handle: false);
+        var action = harness.Find<Button>(0, "Action");
+
+        var released = 0;
+        harness.Editor.AddHandler(
+            InputElement.PointerReleasedEvent,
+            (object? _, PointerReleasedEventArgs _) => released++,
+            RoutingStrategies.Bubble);
+
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        // Отказ обработчика обязан быть заметен: иначе Handled — свойство,
+        // которое никто не читает, и его можно удалить, не сломав ни одного теста.
+        Assert.Equal(1, released);
+    }
+
+    [AvaloniaFact]
+    public void Selection_Drops_A_Target_The_Handler_Removed()
+    {
+        var harness = EditorHarness.CreateStackHosted();
+        harness.PlaceContainer(0, CardLocation, CardSize);
+
+        // Разметку можно не переставить, а пересобрать: библиотека разметки
+        // владеет деревом и вправе выдать другое.
+        harness.Editor.ReorderRequested += (_, e) =>
+        {
+            if (e.Target.GetVisualParent() is Panel panel)
+            {
+                panel.Children.Remove(e.Target);
+                e.Handled = true;
+            }
+        };
+
+        var action = harness.Find<Button>(0, "Action");
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        // Рамка на контроле вне дерева рисовалась бы по его последним координатам
+        // и принимала бы на него нюдж.
+        Assert.DoesNotContain(
+            harness.Editor.SelectedDesignTargets,
+            target => ReferenceEquals(target.Target, action));
+    }
+
+    [AvaloniaFact]
+    public void A_Removed_Target_No_Longer_Takes_The_Nudge()
+    {
+        var harness = EditorHarness.CreateStackHosted();
+        harness.PlaceContainer(0, CardLocation, CardSize);
+
+        harness.Editor.ReorderRequested += (_, e) =>
+        {
+            if (e.Target.GetVisualParent() is Panel panel)
+            {
+                panel.Children.Remove(e.Target);
+                e.Handled = true;
+            }
+        };
+
+        var action = harness.Find<Button>(0, "Action");
+        Drag(harness, harness.CentreOf(action), new Vector(0, -60));
+
+        var before = new Point(Layout.GetDesignX(action), Layout.GetDesignY(action));
+
+        harness.Editor.Focus();
+        harness.Window.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.None);
+        harness.RunLayout();
+
+        // Публикуемый снимок выделения — не единственный слой: нюдж идёт по
+        // внутреннему списку targets. Контрол, покинувший дерево, обязан выпасть
+        // из обоих, иначе редактор продолжает писать геометрию в никуда.
+        Assert.Equal(before, new Point(Layout.GetDesignX(action), Layout.GetDesignY(action)));
+    }
+
+    /// <summary>
+    /// Стенд с переносом строк: шесть ячеек по 100x40 в панели шириной 300.
+    /// </summary>
+    private static (EditorHarness Harness, List<Request> Requests) CreateWrapped()
+    {
+        var nodes = new List<TestNode> { new("wrap0") };
+
+        var editor = new DesignEditor
+        {
+            ItemsSource = nodes,
+            SelectionMode = SelectionMode.Multiple,
+            ItemTemplate = new FuncDataTemplate<TestNode>((_, _) =>
+            {
+                var panel = new WrapPanel
+                {
+                    Name = "Cells",
+                    Orientation = Orientation.Horizontal,
+                    ItemWidth = 100,
+                    ItemHeight = 40
+                };
+
+                for (var i = 0; i < 6; i++)
+                {
+                    var cell = new Border { Name = "Cell" + i };
+                    Layout.SetIsTracked(cell, true);
+                    panel.Children.Add(cell);
+                }
+
+                return panel;
+            }, supportsRecycling: false)
+        };
+
+        var window = new Window { Width = 800, Height = 600, Content = editor };
+        editor.InteractionOptions.IsSnapToGridEnabled = false;
+        window.Show();
+
+        var requests = new List<Request>();
+        editor.ReorderRequested += (_, e) =>
+        {
+            requests.Add(new Request(e.Target, e.OldIndex, e.NewIndex));
+
+            if (e.Target.GetVisualParent() is Panel panel)
+            {
+                panel.Children.Move(e.OldIndex, e.NewIndex);
+                e.Handled = true;
+            }
+        };
+
+        var harness = EditorHarness.Adopt(window, editor, nodes);
+        harness.RunLayout();
+        harness.PlaceContainer(0, new Point(100, 100), new Size(300, 100));
+        return (harness, requests);
+    }
+
+    [AvaloniaFact]
+    public void A_Drop_Into_The_Second_Row_Stays_In_That_Row()
+    {
+        var (harness, requests) = CreateWrapped();
+        var panel = harness.Find<WrapPanel>(0, "Cells");
+        var first = harness.Named(0, "Cell0");
+
+        // Три ячейки в ряд, значит Cell3..Cell5 лежат во втором ряду.
+        Assert.Equal(0, panel.Children.IndexOf(first));
+
+        // Целимся между Cell4 и Cell5 — во втором ряду. Точка вставки, считанная
+        // по одной оси потока, сравнивала бы X с серединами первого ряда
+        // и уводила ячейку в чужой ряд: обе строки проецируются на один отрезок.
+        Drag(harness, harness.CentreOf(first), new Vector(145, 40));
+
+        var request = Assert.Single(requests);
+        Assert.Equal(0, request.OldIndex);
+        Assert.Equal(4, request.NewIndex);
+
+        // Cell0 встала перед Cell5, а не в первый ряд.
+        Assert.Equal(4, panel.Children.IndexOf(first));
+        Assert.Equal(5, panel.Children.IndexOf(harness.Named(0, "Cell5")));
     }
 
     [AvaloniaFact]
