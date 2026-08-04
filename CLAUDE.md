@@ -350,6 +350,10 @@ grep -rn "Children\.\(Add\|Remove\|Insert\|Move\|Clear\)" src/ --include=*.cs
 
 Единая точка входа — `Themes/ArxisStudioDesignEditorTheme.axaml`; приложение подключает только её. Внутри: `Themes/Resources/DesignEditorResources.axaml` (lightweight-ресурсы) и `Themes/Styles/*.axaml` (`ControlTheme` контролов).
 
+Постоянная рамка контейнера включается ресурсом `DesignEditorItem.OutlineOpacity` (по умолчанию `0` — только под курсором). Рамка оверлейная: `PART_HoverBorder` лежит в той же ячейке шаблона, что и содержимое, и не участвует в раскладке. `BorderThickness` для этой цели не годится — `Border` разворачивает ребёнка внутри штриха, и форма рисуется на два пикселя уже объявленной.
+
+Свойство задано ресурсом, а не стилем приложения, потому что перекрыть значение, заданное атрибутом внутри `ControlTemplate`, стиль извне не может: замер показал, что `Style Selector="... /template/ Border#PART_HoverBorder"` из `Application.Styles` не применяется, тогда как вложенный стиль самой `ControlTheme` — применяется. Наводить свои правила на чужие template parts бесполезно; расширять шаблон нужно ресурсом.
+
 Кисти определяются через `ThemeDictionaries`, поэтому Light/Dark различаются без дублирования `ControlTheme`. `SelectionAdorner` использует ресурсные ключи по ролям и состояниям (`DesignEditor.SelectionAdorner.Primary*` / `Secondary*` / `Group*` / `Handle*` / `Locked*`), а роль задаётся свойством `SelectionAdorner.Role`. Кастомизация внешнего вида должна идти через ресурсы, а не копированием шаблонов.
 
 ## Публичная поверхность закреплена

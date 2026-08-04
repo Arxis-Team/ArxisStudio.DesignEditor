@@ -86,6 +86,14 @@
     <x:Double x:Key="DesignEditor.SnapGuide.Thickness">1</x:Double>
 
     <Thickness x:Key="DesignEditorItem.BorderThickness">0</Thickness>
+
+    <!--
+        Непрозрачность рамки контейнера в покое. Ноль — рамка видна только при
+        наведении, как и было. Больше нуля — контейнер очерчен постоянно, и это
+        не стоит ни пикселя раскладки: рамка оверлейная, она рисуется поверх края
+        содержимого, а не оборачивает его.
+    -->
+    <x:Double x:Key="DesignEditorItem.OutlineOpacity">0</x:Double>
     <CornerRadius x:Key="DesignEditorItem.CornerRadius">0</CornerRadius>
 
 </ResourceDictionary>

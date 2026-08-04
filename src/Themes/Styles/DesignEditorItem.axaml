@@ -39,7 +39,7 @@
                             BorderThickness="1"
                             CornerRadius="{TemplateBinding CornerRadius}"
                             IsHitTestVisible="False"
-                            Opacity="0" />
+                            Opacity="{DynamicResource DesignEditorItem.OutlineOpacity}" />
 
                     <StackPanel Name="PART_Toolbar"
                                 Orientation="Horizontal"
