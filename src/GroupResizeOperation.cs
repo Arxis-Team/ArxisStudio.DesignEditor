@@ -28,13 +28,20 @@ internal sealed class GroupResizeOperation
         _currentBounds = initialBounds;
     }
 
+    /// <summary>
+    /// Любой из участников группы. Годится для снимка соседей: он и так
+    /// исключает всё выделение целиком, а не один конкретный target.
+    /// </summary>
+    public Control? SourceTarget => _targets.Count > 0 ? _targets[0].Target : null;
+
     public void Update(DesignEditor editor, Vector worldDelta)
     {
         var nextBounds = CalculateResizedBounds(_currentBounds, _direction, worldDelta, _minSize);
 
         // Для группы привязывается рамка целиком: привязка каждого target'а
-        // по отдельности разрушила бы пропорции внутри группы.
-        if (editor.ShouldSnap(editor.LastInputModifiers))
+        // по отдельности разрушила бы пропорции внутри группы. Это касается
+        // и направляющих — линия ловит рамку выделения, а не отдельный контрол.
+        if (editor.CanSnapResizeEdge(editor.LastInputModifiers))
             nextBounds = SnapBounds(editor, nextBounds, _direction, _currentBounds, _minSize);
 
         // Ограничение по форме — тоже над рамкой целиком, по тем же причинам,
@@ -45,6 +52,9 @@ internal sealed class GroupResizeOperation
         // Запоминаем применённое: следующая дельта придёт относительно ручки,
         // которая встанет именно на эту рамку.
         _currentBounds = nextBounds;
+
+        // Линии — по применённой рамке: край мог упереться в границу формы.
+        editor.PublishResizeGuides(nextBounds);
 
         // Масштаб и позиции считаются от ИСХОДНОЙ рамки, иначе округления
         // копились бы от кадра к кадру и группа расползалась.
@@ -163,24 +173,25 @@ internal sealed class GroupResizeOperation
     }
 
     /// <summary>
-    /// Приводит к сетке те края рамки группы, которые тянет пользователь.
+    /// Приводит к направляющим и сетке те края рамки группы, которые тянет пользователь.
     /// </summary>
     private static Rect SnapBounds(DesignEditor editor, Rect bounds, ResizeDirection direction, Rect initialBounds, double minSize)
     {
+        var modifiers = editor.LastInputModifiers;
         var left = bounds.X;
         var top = bounds.Y;
         var right = bounds.Right;
         var bottom = bounds.Bottom;
 
         if (direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
-            right = editor.SnapCoordinate(right);
+            right = editor.ResolveResizeEdge(right, xAxis: true, modifiers);
         else if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-            left = editor.SnapCoordinate(left);
+            left = editor.ResolveResizeEdge(left, xAxis: true, modifiers);
 
         if (direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
-            bottom = editor.SnapCoordinate(bottom);
+            bottom = editor.ResolveResizeEdge(bottom, xAxis: false, modifiers);
         else if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-            top = editor.SnapCoordinate(top);
+            top = editor.ResolveResizeEdge(top, xAxis: false, modifiers);
 
         var width = Math.Max(minSize, right - left);
         var height = Math.Max(minSize, bottom - top);

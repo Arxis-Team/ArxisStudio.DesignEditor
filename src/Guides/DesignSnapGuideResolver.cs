@@ -62,6 +62,55 @@ internal static class DesignSnapGuideResolver
     }
 
     /// <summary>
+    /// Ищет выравнивание для одного двигающегося края.
+    /// </summary>
+    /// <param name="edge">Координата края по своей оси.</param>
+    /// <param name="neighbours">Соседи в мировых координатах.</param>
+    /// <param name="tolerance">Радиус захвата в мировых единицах.</param>
+    /// <param name="xAxis">Признак горизонтальной оси.</param>
+    /// <param name="snapped">Координата края после выравнивания.</param>
+    /// <returns><see langword="true"/>, если выравнивание найдено.</returns>
+    /// <remarks>
+    /// При изменении размера у элемента нет трёх кандидатов, как при перетаскивании:
+    /// пользователь тянет конкретный край, и выравнивается именно он. Кандидатов
+    /// у соседа по-прежнему три — край, центр, край, — поэтому потянутая сторона
+    /// садится и на край соседа, и на его центральную ось.
+    /// </remarks>
+    internal static bool TryResolveEdge(
+        double edge,
+        IReadOnlyList<Rect> neighbours,
+        double tolerance,
+        bool xAxis,
+        out double snapped)
+    {
+        snapped = edge;
+
+        if (!(tolerance > 0))
+            return false;
+
+        var found = false;
+        var best = double.PositiveInfinity;
+
+        for (var i = 0; i < neighbours.Count; i++)
+        {
+            foreach (var alignment in Alignments)
+            {
+                var candidate = Coordinate(neighbours[i], alignment, xAxis);
+                var distance = Math.Abs(candidate - edge);
+
+                if (distance > tolerance || distance >= best)
+                    continue;
+
+                best = distance;
+                snapped = candidate;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
     /// Собирает линии, совпавшие с уже применённой геометрией.
     /// </summary>
     /// <param name="bounds">Итоговый прямоугольник перетаскиваемого элемента.</param>

@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Headless;
@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using ArxisStudio.Attached;
 using ArxisStudio.Controls;
 using ArxisStudio.Guides;
+using ArxisStudio.States;
 using Xunit;
 
 namespace ArxisStudio.Tests;
@@ -334,6 +335,143 @@ public class SnapGuideTests
         Drag(harness, new Vector(187, 0));
 
         Assert.Equal(Moving.X + 187, PositionOf(harness).X);
+    }
+
+    // ---- Изменение размера --------------------------------------------------
+
+    /// <summary>
+    /// Тянет правый край так, как его видит редактор: ручка стоит на применённом
+    /// крае, поэтому дельта считается от него, а не от точки нажатия.
+    /// </summary>
+    private static void DragRightEdge(EditorHarness harness, Control target, double to)
+    {
+        var container = harness.Container(0);
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        var applied = harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width;
+
+        state.OnResizeDelta(new ResizeDeltaEventArgs(
+            new Vector(to - applied, 0),
+            ResizeDirection.Right,
+            DesignEditorItem.ResizeDeltaEvent));
+
+        harness.RunLayout();
+    }
+
+    private static Rect BoundsOf(EditorHarness harness, Control target)
+        => new(harness.Editor.GetDesignPosition(target), harness.Editor.GetDesignSize(target));
+
+    [AvaloniaFact]
+    public void Resize_Aligns_The_Moving_Edge_To_A_Neighbour()
+    {
+        var harness = Create();
+        var moving = harness.Named(0, "Moving");
+
+        // Правый край не доходит до левого края соседа трёх единиц.
+        DragRightEdge(harness, moving, Anchor.X - 3);
+
+        // Привязывается край, а не размер: левый край остался на месте.
+        var bounds = BoundsOf(harness, moving);
+        Assert.Equal(Anchor.X, bounds.Right);
+        Assert.Equal(Moving.X, bounds.X);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Publishes_A_Guide_For_The_Edge_It_Caught()
+    {
+        var harness = Create();
+        var moving = harness.Named(0, "Moving");
+
+        DragRightEdge(harness, moving, Anchor.X - 3);
+
+        var guide = Assert.Single(harness.Editor.SnapGuides);
+        Assert.Equal(DesignSnapGuideOrientation.Vertical, guide.Orientation);
+        Assert.Equal(Anchor.X, guide.Position);
+    }
+
+    [AvaloniaFact]
+    public void A_Guide_Beats_The_Grid_On_Resize_Too()
+    {
+        var harness = Create(snapToGrid: true);
+        var moving = harness.Named(0, "Moving");
+
+        DragRightEdge(harness, moving, Anchor.X - 3);
+
+        // 305 — край соседа и не узел сетки.
+        Assert.Equal(Anchor.X, BoundsOf(harness, moving).Right);
+        Assert.NotEqual(0, Anchor.X % Cell);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Beyond_The_Tolerance_Falls_Back_To_The_Grid()
+    {
+        var harness = Create(snapToGrid: true);
+        var moving = harness.Named(0, "Moving");
+
+        // Далеко от всех кандидатов: ось достаётся сетке. Значение подобрано
+        // с запасом — центральная ось формы проходит по 265, и край рядом с ней
+        // поймала бы направляющая, а не сетка.
+        DragRightEdge(harness, moving, 222);
+
+        Assert.Equal(220, BoundsOf(harness, moving).Right);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Across_A_Guide_Does_Not_Oscillate()
+    {
+        var harness = Create(snapToGrid: true);
+        var moving = harness.Named(0, "Moving");
+        var container = harness.Container(0);
+
+        var state = new ItemResizingState(container, moving, ResizeDirection.Right);
+        container.PushState(state);
+
+        // Ручка стоит на ПРИМЕНЁННОМ крае, поэтому дельта каждый раз считается
+        // от него. Именно здесь однажды и жила прыгающая рамка: накопление дельт
+        // складывало бы остаток, съеденный привязкой, сам с собой.
+        var widths = new List<double>();
+        var applied = BoundsOf(harness, moving).Right;
+        var pointer = applied;
+
+        for (var i = 0; i < 30; i++)
+        {
+            pointer += 7;
+
+            state.OnResizeDelta(new ResizeDeltaEventArgs(
+                new Vector(pointer - applied, 0),
+                ResizeDirection.Right,
+                DesignEditorItem.ResizeDeltaEvent));
+
+            harness.RunLayout();
+
+            applied = BoundsOf(harness, moving).Right;
+            widths.Add(harness.Editor.GetDesignSize(moving).Width);
+        }
+
+        // Протяжка идёт в одну сторону через край соседа: ширина обязана расти
+        // монотонно. Любой откат назад — это возвращённый остаток привязки.
+        for (var i = 1; i < widths.Count; i++)
+            Assert.True(widths[i] >= widths[i - 1], $"шаг {i}: {widths[i - 1]} -> {widths[i]}");
+
+        // И край соседа по дороге действительно был пойман.
+        Assert.Contains(Anchor.X - Moving.X, widths);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Guides_Are_Cleared_When_The_Gesture_Ends()
+    {
+        var harness = Create();
+        var moving = harness.Named(0, "Moving");
+        var container = harness.Container(0);
+
+        DragRightEdge(harness, moving, Anchor.X - 3);
+        Assert.NotEmpty(harness.Editor.SnapGuides);
+
+        container.PopState();
+        harness.RunLayout();
+
+        Assert.Empty(harness.Editor.SnapGuides);
     }
 
     [AvaloniaFact]

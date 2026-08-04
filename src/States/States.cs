@@ -386,6 +386,17 @@ internal class ItemResizingState : DesignEditorItemState
 
         editor?.SetDesignSize(_target, size);
         _size = size;
+
+        // Соседи снимаются здесь по той же причине, что и при перетаскивании:
+        // внутри жеста они не двигаются, и линия обязана стоять там, где её
+        // увидел пользователь.
+        editor?.BeginSnapGuides(_target);
+    }
+
+    /// <inheritdoc />
+    public override void Exit()
+    {
+        Container.FindAncestorOfType<DesignEditor>()?.EndSnapGuides();
     }
 
     /// <inheritdoc />
@@ -426,19 +437,23 @@ internal class ItemResizingState : DesignEditorItemState
         }
 
         // Привязывается двигающийся край, а не размер: иначе у элемента,
-        // стоящего мимо сетки, край так и остался бы вне узла.
+        // стоящего мимо сетки, край так и остался бы вне узла. Направляющая
+        // занимает свою ось первой, сетка получает остальное — та же композиция,
+        // что и при перетаскивании.
         // Модификатор читается на момент нажатия — в аргументах resize его нет.
-        if (editor != null && editor.ShouldSnap(editor.LastInputModifiers))
+        if (editor != null && editor.CanSnapResizeEdge(editor.LastInputModifiers))
         {
+            var modifiers = editor.LastInputModifiers;
+
             if (_direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
-                newW = editor.SnapCoordinate(newX + newW) - newX;
+                newW = editor.ResolveResizeEdge(newX + newW, xAxis: true, modifiers) - newX;
             else if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-                newW = fixedRight - editor.SnapCoordinate(fixedRight - newW);
+                newW = fixedRight - editor.ResolveResizeEdge(fixedRight - newW, xAxis: true, modifiers);
 
             if (_direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
-                newH = editor.SnapCoordinate(newY + newH) - newY;
+                newH = editor.ResolveResizeEdge(newY + newH, xAxis: false, modifiers) - newY;
             else if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-                newH = fixedBottom - editor.SnapCoordinate(fixedBottom - newH);
+                newH = fixedBottom - editor.ResolveResizeEdge(fixedBottom - newH, xAxis: false, modifiers);
         }
 
         // Приведение к Min/Max делается здесь, а не только внутри SetDesignSize:
@@ -508,6 +523,11 @@ internal class ItemResizingState : DesignEditorItemState
         // относительно ручки, которая встанет именно сюда.
         _location = new Point(newX, newY);
         _size = new Size(newW, newH);
+
+        // Линии считаются по применённой геометрии, а не по запрошенной: край
+        // мог упереться в минимум или в границу формы, и показывать выравнивание,
+        // которого не случилось, нельзя.
+        editor?.PublishResizeGuides(new Rect(_location, _size));
 
         Container.RaiseEvent(new ResizeDeltaEventArgs(e.Delta, _direction, DesignEditorItem.ResizeDeltaEvent));
     }

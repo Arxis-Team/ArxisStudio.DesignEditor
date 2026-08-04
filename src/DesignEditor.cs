@@ -2311,6 +2311,12 @@ public class DesignEditor : SelectingItemsControl
         }
 
         _groupResizeOperation = operation;
+
+        // У группового resize нет состояния контейнера, поэтому снимок соседей
+        // берётся здесь. Исключается всё выделение целиком, а не один target.
+        if (operation?.SourceTarget is { } guideSource)
+            BeginSnapGuides(guideSource);
+
         e.Handled = true;
     }
 
@@ -2337,6 +2343,7 @@ public class DesignEditor : SelectingItemsControl
             return;
 
         CompleteInteractionOperation(ref _groupResizeOperation);
+        EndSnapGuides();
         UpdateSelectionOverlayState();
         CommitEdit();
         e.Handled = true;
@@ -3666,6 +3673,62 @@ public class DesignEditor : SelectingItemsControl
         return result;
 
         double GridCoordinate(double value, bool snap) => snap ? SnapCoordinate(value) : Math.Round(value);
+    }
+
+    /// <summary>
+    /// Определяет, может ли сработать привязка двигающегося края при resize.
+    /// </summary>
+    /// <remarks>
+    /// Спрашивается на входе в блок привязки, чтобы не трогать геометрию там,
+    /// где ни сетка, ни направляющие не действуют: в остальном resize оставляет
+    /// координаты как есть и не округляет их, в отличие от перетаскивания.
+    /// </remarks>
+    internal bool CanSnapResizeEdge(KeyModifiers modifiers)
+    {
+        if (IsSnapBypassed(modifiers))
+            return false;
+
+        return ShouldSnap(modifiers) || HasSnapGuideNeighbours;
+    }
+
+    private bool HasSnapGuideNeighbours
+        => InteractionOptions.IsSnapToGuidesEnabled && _snapGuideNeighbours is { Count: > 0 };
+
+    /// <summary>
+    /// Возвращает координату двигающегося края с учётом направляющих и сетки.
+    /// </summary>
+    /// <param name="edge">Координата края по своей оси.</param>
+    /// <param name="xAxis">Признак горизонтальной оси.</param>
+    /// <param name="modifiers">Модификаторы текущего ввода.</param>
+    /// <remarks>
+    /// Та же композиция, что и при перетаскивании: направляющая занимает ось,
+    /// сетка получает всё остальное. Разница лишь в том, что здесь снимается
+    /// один край, а не позиция целиком, — накапливать тут нечего, потому что
+    /// край приходит уже посчитанным от применённой геометрии.
+    /// </remarks>
+    internal double ResolveResizeEdge(double edge, bool xAxis, KeyModifiers modifiers)
+    {
+        if (IsSnapBypassed(modifiers))
+            return edge;
+
+        if (HasSnapGuideNeighbours &&
+            DesignSnapGuideResolver.TryResolveEdge(
+                edge, _snapGuideNeighbours!, ResolveSnapGuideTolerance(), xAxis, out var guided))
+        {
+            return guided;
+        }
+
+        return ShouldSnap(modifiers) ? SnapCoordinate(edge) : edge;
+    }
+
+    /// <summary>
+    /// Публикует направляющие по итоговой геометрии жеста изменения размера.
+    /// </summary>
+    internal void PublishResizeGuides(Rect bounds)
+    {
+        PublishSnapGuides(HasSnapGuideNeighbours
+            ? DesignSnapGuideResolver.CollectGuides(bounds, _snapGuideNeighbours!)
+            : Array.Empty<DesignSnapGuide>());
     }
 
     /// <summary>
