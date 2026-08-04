@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui"
+﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DesignEditor.Demo.ViewModels"
         xmlns:design="clr-namespace:ArxisStudio;assembly=ArxisStudio.DesignEditor">
@@ -8,8 +8,23 @@
         без designer-метаданных. Контейнер сам открывает их на редактирование
         и гасит ввод, поэтому кнопки не нажимаются, а поля не принимают текст.
     -->
+    <!--
+        Фон контейнера. По умолчанию он Transparent — это не «никакой», а вполне
+        рабочая кисть: попадание указателя считается по ней, и без неё нажатие
+        на пустое место формы до контейнера не дошло бы. Любая непрозрачная
+        кисть это свойство сохраняет, поэтому фон можно задавать свободно.
+
+        Одного фона для границ мало: экраны закрашивают себя от края до края,
+        поэтому он виден только в четырёх уголках, где их скругление в 10 не
+        достаёт до прямого угла контейнера. Границу очерчивает рамка — она
+        рисуется поверх края содержимого и ничего не сдвигает, потому что
+        BorderThickness у контейнера по умолчанию нулевая.
+    -->
     <Style Selector="design|DesignEditorItem" x:DataType="vm:DesignItemViewModel">
         <Setter Property="ContentMode" Value="Loaded" />
+        <Setter Property="Background" Value="#4A5A73" />
+        <Setter Property="BorderBrush" Value="#5A6B85" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
         <Setter Property="Width" Value="{Binding Width, Mode=TwoWay}" />
         <Setter Property="Height" Value="{Binding Height, Mode=TwoWay}" />
