@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -101,6 +101,58 @@ public class LoadedContentTests
 
         Assert.Same(action, harness.Editor.PrimarySelectionTarget!.Target);
         Assert.Equal(DesignSelectionScope.NestedTarget, harness.Editor.PrimarySelectionTarget.Scope);
+    }
+
+    /// <summary>
+    /// Дорога с той стороны: хост выбирает контрол сам.
+    /// </summary>
+    /// <remarks>
+    /// У приложения со своим деревом клик по строке должен выделять на поверхности. Выделение
+    /// в обратную сторону было всегда, а этого не было вовсе, и обойтись без внутренностей
+    /// редактора было нечем.
+    /// </remarks>
+    [AvaloniaFact]
+    public void SelectDesignTarget_Selects_A_Control_The_Host_Names()
+    {
+        var (harness, _) = Create(DesignContentMode.Loaded);
+        var action = Find<Button>(harness, "Action");
+
+        Assert.True(harness.Editor.SelectDesignTarget(action));
+        harness.RunLayout();
+
+        Assert.Same(action, harness.Editor.PrimarySelectionTarget!.Target);
+        Assert.Equal(DesignSelectionScope.NestedTarget, harness.Editor.PrimarySelectionTarget.Scope);
+    }
+
+    [AvaloniaFact]
+    public void SelectDesignTarget_Replaces_The_Selection_Unless_Asked_To_Add()
+    {
+        var (harness, _) = Create(DesignContentMode.Loaded);
+        var action = Find<Button>(harness, "Action");
+        var field = Find<TextBox>(harness, "Field");
+
+        harness.Editor.SelectDesignTarget(action);
+        harness.Editor.SelectDesignTarget(field);
+        harness.RunLayout();
+
+        Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
+
+        harness.Editor.SelectDesignTarget(action, additive: true);
+        harness.RunLayout();
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+    }
+
+    [AvaloniaFact]
+    public void SelectDesignTarget_Declines_A_Control_That_Is_Not_Editable()
+    {
+        // Annotated, и ничего не размечено: редактировать нечего, и метод об этом говорит,
+        // а не делает вид, что выбрал.
+        var (harness, _) = Create(DesignContentMode.Annotated);
+        var action = Find<Button>(harness, "Action");
+
+        Assert.False(harness.Editor.SelectDesignTarget(action));
+        Assert.Null(harness.Editor.PrimarySelectionTarget);
     }
 
     [AvaloniaFact]

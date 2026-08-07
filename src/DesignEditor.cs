@@ -2668,6 +2668,57 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
+    /// Выбирает контрол как design target — то же, что клик по нему на поверхности.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Существует ради хоста, у которого есть собственное дерево. Выделение с поверхности он
+    /// получал и раньше — через <see cref="DesignSelectionChanged"/>, — а вот обратной дороги не
+    /// было вовсе: клик по строке в дереве не мог выбрать контрол на канве. Приложению оставалось
+    /// либо лезть во внутренности редактора, либо не иметь дерева.
+    /// </para>
+    /// <para>
+    /// Оба слоя выбора меняются здесь вместе, и это не осторожность, а необходимость: контейнер,
+    /// попавший в <c>Selection</c> без собственной записи в слое target'ов, подменяется вложенным
+    /// target'ом по умолчанию, и группа контейнеров молча становится смешанной.
+    /// </para>
+    /// </remarks>
+    /// <param name="target">Контрол, который нужно выбрать.</param>
+    /// <param name="additive">Добавить к текущему выделению, а не заменить его.</param>
+    /// <returns><see langword="true"/>, если контрол редактируем и был выбран.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="target"/> равен <see langword="null"/>.</exception>
+    public bool SelectDesignTarget(Control target, bool additive = false)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        var container = FindDesignHost(target);
+        if (container == null || !IsSelectableTarget(target, container))
+            return false;
+
+        var index = IndexFromContainer(container);
+        if (index < 0)
+            return false;
+
+        // Порядок здесь существенный, и в обратном он тихо не работает: очистка индексного
+        // выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов —
+        // так что target, записанный до неё, исчезает, и остаётся выбор по умолчанию.
+        if (additive)
+        {
+            ToggleTargetInSelection(target);
+        }
+        else
+        {
+            Selection.Clear();
+            SetSingleSelectedTarget(target);
+        }
+
+        Selection.Select(index);
+        UpdateSelectionOverlayState();
+
+        return true;
+    }
+
+    /// <summary>
     /// Перемещает выделение на передний план.
     /// </summary>
     /// <returns><see langword="true"/>, если порядок был изменён.</returns>
