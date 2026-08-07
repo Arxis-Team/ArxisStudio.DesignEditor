@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -138,6 +138,35 @@ public class LoadedContentTests
         Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
 
         harness.Editor.SelectDesignTarget(action, additive: true);
+        harness.RunLayout();
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+    }
+
+    /// <summary>
+    /// Добавление добавляет, и повторное добавление ничего не снимает.
+    /// </summary>
+    /// <remarks>
+    /// Хост, отражающий выделение своего дерева построчно, вызывает метод на каждую строку. Если бы
+    /// добавление переключало — как это делает повторный клик со Shift, где снятие осознанно, —
+    /// повторная отправка того же набора снимала бы выбор ровно с тех строк, которые подтверждала.
+    /// </remarks>
+    [AvaloniaFact]
+    public void SelectDesignTarget_Additive_Is_Idempotent()
+    {
+        var (harness, _) = Create(DesignContentMode.Loaded);
+        var action = Find<Button>(harness, "Action");
+        var field = Find<TextBox>(harness, "Field");
+
+        harness.Editor.SelectDesignTarget(action);
+        harness.Editor.SelectDesignTarget(field, additive: true);
+        harness.RunLayout();
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+
+        // Тот же набор ещё раз.
+        harness.Editor.SelectDesignTarget(action, additive: true);
+        harness.Editor.SelectDesignTarget(field, additive: true);
         harness.RunLayout();
 
         Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);

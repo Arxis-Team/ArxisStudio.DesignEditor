@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Headless;
@@ -293,5 +293,42 @@ public class NestedContainerTests
 
         Assert.Equal(start.X + 50, inner.Location.X, 1);
         Assert.Equal(start.Y + 30, inner.Location.Y, 1);
+    }
+
+    /// <summary>
+    /// Хост выбирает контрол во вложенном контейнере — то же, что делает клик.
+    /// </summary>
+    /// <remarks>
+    /// Ближайший design host у такого контрола вложенный, а индекс есть только у item'а верхнего
+    /// уровня. Резолвер владельца это и разводит; без него метод отвергал контрол, который
+    /// указателем выбирается без вопросов.
+    /// </remarks>
+    [AvaloniaFact]
+    public void SelectDesignTarget_Selects_A_Control_Inside_A_Nested_Container()
+    {
+        var (window, editor, _) = Create();
+
+        var innerChild = Named(editor, "InnerChild");
+
+        Assert.True(editor.SelectDesignTarget(innerChild));
+
+        RunLayout(window);
+
+        Assert.Same(innerChild, editor.PrimarySelectionTarget!.Target);
+    }
+
+    [AvaloniaFact]
+    public void SelectDesignTarget_Selects_A_Container_Whole()
+    {
+        var (window, editor, _) = Create();
+
+        var container = (DesignEditorItem)editor.ContainerFromIndex(0)!;
+
+        Assert.True(editor.SelectDesignTarget(container));
+
+        RunLayout(window);
+
+        Assert.Same(container, editor.PrimarySelectionTarget!.Target);
+        Assert.Equal(DesignSelectionScope.Container, editor.PrimarySelectionTarget.Scope);
     }
 }

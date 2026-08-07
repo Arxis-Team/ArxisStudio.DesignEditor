@@ -2678,36 +2678,61 @@ public class DesignEditor : SelectingItemsControl
     /// либо лезть во внутренности редактора, либо не иметь дерева.
     /// </para>
     /// <para>
+    /// Принимает и сам контейнер: выбрать форму целиком — такое же состояние, как выбрать контрол
+    /// внутри неё, и указатель его достаёт. Владелец разрешается тем же путём, что и на пути
+    /// указателя, поэтому контрол во вложенном контейнере выбирается, а не отвергается: ближайший
+    /// design host у него вложенный, а индекс есть только у item'а верхнего уровня.
+    /// </para>
+    /// <para>
     /// Оба слоя выбора меняются здесь вместе, и это не осторожность, а необходимость: контейнер,
     /// попавший в <c>Selection</c> без собственной записи в слое target'ов, подменяется вложенным
     /// target'ом по умолчанию, и группа контейнеров молча становится смешанной.
     /// </para>
     /// </remarks>
-    /// <param name="target">Контрол, который нужно выбрать.</param>
+    /// <param name="target">Контрол или контейнер, который нужно выбрать.</param>
     /// <param name="additive">Добавить к текущему выделению, а не заменить его.</param>
-    /// <returns><see langword="true"/>, если контрол редактируем и был выбран.</returns>
+    /// <returns><see langword="true"/>, если контрол редактируем и после вызова выбран.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="target"/> равен <see langword="null"/>.</exception>
     public bool SelectDesignTarget(Control target, bool additive = false)
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        var container = FindDesignHost(target);
-        if (container == null || !IsSelectableTarget(target, container))
+        // Тот же резолвер, что и у указателя. FindDesignHost отдаёт ближайший host, а индекс есть
+        // только у item'а верхнего уровня — из-за чего контрол во вложенном контейнере отвергался,
+        // хотя кликом выбирается.
+        var owner = ResolveOwningItemForTarget(target);
+        if (owner == null)
             return false;
 
-        var index = IndexFromContainer(container);
+        var index = IndexFromContainer(owner);
         if (index < 0)
             return false;
 
-        // Порядок здесь существенный, и в обратном он тихо не работает: очистка индексного
-        // выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов —
-        // так что target, записанный до неё, исчезает, и остаётся выбор по умолчанию.
+        if (target is not DesignEditorItem)
+        {
+            // Внутри контейнера редактируемость решает его собственный host, а не владеющий item.
+            var host = FindDesignHost(target);
+            if (host == null || !IsSelectableTarget(target, host))
+                return false;
+        }
+
+        // Те же два условия, что и на пути указателя. Без них хост собирал бы группу из разных
+        // design host'ов — состояние, которое указатель составить не даёт.
+        if (additive && (!CanAddNestedTargetToContainer(owner) || !SharesDesignHostWithSelection(target)))
+            return false;
+
+        // Добавление, а не переключение: у жеста повторный клик со Shift снимает выбор осознанно,
+        // а вызов API — это «пусть будет выбран». Иначе хост, отражающий выделение своего дерева
+        // построчно, снимал бы выбор ровно с тех строк, которые собирался подтвердить.
         if (additive)
         {
-            ToggleTargetInSelection(target);
+            AddSelectedTarget(target);
         }
         else
         {
+            // Порядок здесь существенный, и в обратном он тихо не работает: очистка индексного
+            // выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов —
+            // так что target, записанный до неё, исчезает, и остаётся выбор по умолчанию.
             Selection.Clear();
             SetSingleSelectedTarget(target);
         }
