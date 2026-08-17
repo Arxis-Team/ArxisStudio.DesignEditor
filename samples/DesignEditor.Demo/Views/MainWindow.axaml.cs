@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using ArxisStudio;
@@ -26,6 +26,10 @@ public partial class MainWindow : Window
             // правка, и её выполняет владелец разметки. Здесь эту роль временно
             // играет само демо, в продукте её возьмёт ArxisStudio.Markup.
             editor.ReorderRequested += Editor_OnReorderRequested;
+
+            // Канал управления для проверки API вживую. Без --automation ничего
+            // не поднимается: ни таймера, ни подписок, ни файлов.
+            Automation.AutomationChannel.TryStart(Program.AutomationDirectory, editor, this);
 
             // Отмена строится поверх DesignEditor.EditCompleted и ApplyGeometry.
             _history = new EditHistory(editor);
