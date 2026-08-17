@@ -40,6 +40,11 @@ internal class EditorSelectingState : EditorState
         // видит редактор и разбирает стек состояний сам, см. OnPointerCaptureLost.
         _pointer.Capture(Editor);
 
+        // Снимок контейнеров на весь жест — по той же причине, что и соседи для
+        // направляющих: рамка спрашивает их на каждом кадре, а меняться внутри
+        // жеста они не должны, иначе охват обещал бы одно, а применилось другое.
+        Editor.BeginContainerSnapshot();
+
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
         _useContainerSelection = Editor.ShouldUseContainerInteraction(Editor.LastInputModifiers);
@@ -65,6 +70,11 @@ internal class EditorSelectingState : EditorState
         Editor.IsSelecting = false;
         Editor.SelectedArea = new Rect(0, 0, 0, 0);
         Editor.ClearMarqueeScope();
+
+        // Симметрично Enter. Отпускать снимок надо и на потере захвата, а не только
+        // на обычном отпускании: иначе он пережил бы жест и следующее чтение
+        // контейнеров пошло бы по устаревшему списку. Exit проходит на обоих путях.
+        Editor.EndContainerSnapshot();
 
         // Если выход вызван самой потерей захвата, это no-op; на обычном отпускании
         // симметрично снимает то, что взял Enter.
