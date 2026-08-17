@@ -2410,6 +2410,28 @@ public class DesignEditor : SelectingItemsControl
     }
 
     /// <summary>
+    /// Схлопывает выделение до одного контейнера.
+    /// </summary>
+    /// <remarks>
+    /// Одна транзакция: двумя записями подряд наружу публиковалось промежуточное
+    /// пустое выделение, и обычный клик по контейнеру внутри группы стоил трёх
+    /// событий вместо одного. Запись индексного слоя принадлежит редактору —
+    /// состояние контейнера только сообщает о жесте.
+    /// </remarks>
+    internal void CollapseSelectionTo(DesignEditorItem container)
+    {
+        var index = IndexFromContainer(container);
+        if (index < 0)
+            return;
+
+        using (Selection.BatchUpdate())
+        {
+            Selection.Clear();
+            Selection.Select(index);
+        }
+    }
+
+    /// <summary>
     /// Пишет слой design target'ов по точке нажатия.
     /// </summary>
     /// <remarks>

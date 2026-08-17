@@ -242,8 +242,7 @@ internal class ItemIdleState : DesignEditorItemState
         }
         else if (!isAdditive && owner.IsSelected && editor.Selection.Count > 1)
         {
-            editor.Selection.Clear();
-            editor.Selection.Select(index);
+            editor.CollapseSelectionTo(owner);
         }
     }
 }
