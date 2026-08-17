@@ -215,12 +215,9 @@ internal class ItemIdleState : DesignEditorItemState
             return;
         }
 
-        if (!owner.IsSelected)
-        {
-            if (!isAdditive) editor.Selection.Clear();
-            editor.Selection.Select(editor.IndexFromContainer(owner));
-            _shouldSkipSelectionToggle = true;
-        } else _shouldSkipSelectionToggle = false;
+        // Индексный слой пишет редактор — вместе со слоем target'ов, одной транзакцией.
+        // Признак «владельца выбрали именно сейчас» снимается до записи.
+        _shouldSkipSelectionToggle = !owner.IsSelected;
 
         editor.UpdateSelectionTargetFromPoint(owner, e.GetPosition(editor), e.KeyModifiers);
     }

@@ -109,6 +109,22 @@ public class SelectDesignTargetTests
     }
 
     [AvaloniaFact]
+    public void An_Index_Layer_Selection_Reports_The_Form_Not_Its_Child()
+    {
+        var harness = CreateTwo();
+
+        // Унаследованная от SelectingItemsControl дверь: пишет только индексный слой.
+        harness.Editor.SelectedIndex = 0;
+        harness.RunLayout();
+
+        // Хост выбрал форму — значит выбрана форма, а не её первый ребёнок.
+        var primary = harness.Editor.PrimarySelectionTarget;
+        Assert.NotNull(primary);
+        Assert.Equal(DesignSelectionScope.Container, primary!.Scope);
+        Assert.Same(harness.Container(0), primary.Target);
+    }
+
+    [AvaloniaFact]
     public void Additive_Over_An_Index_Layer_Selection_Keeps_What_Was_There()
     {
         var harness = CreateTwo();

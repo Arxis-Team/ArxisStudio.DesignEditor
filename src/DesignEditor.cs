@@ -2388,6 +2388,36 @@ public class DesignEditor : SelectingItemsControl
 
     internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
     {
+        // Оба слоя пишутся одной транзакцией. Раньше индексный слой писало состояние
+        // контейнера, а этот метод дописывал слой target'ов уже после — и между двумя
+        // записями оверлей успевал пересобраться на промежуточном состоянии.
+        using (Selection.BatchUpdate())
+        {
+            if (!container.IsSelected)
+            {
+                if (!ShouldUseAdditiveSelection(modifiers))
+                    Selection.Clear();
+
+                var ownerIndex = IndexFromContainer(container);
+                if (ownerIndex >= 0)
+                    Selection.Select(ownerIndex);
+            }
+
+            ApplyTargetFromPoint(container, screenPoint, modifiers);
+        }
+
+        UpdateSelectionOverlayState();
+    }
+
+    /// <summary>
+    /// Пишет слой design target'ов по точке нажатия.
+    /// </summary>
+    /// <remarks>
+    /// Оверлей отсюда не пересобирается: это половина транзакции, и пересборка
+    /// на её середине публиковала бы состояние, которого пользователь не просил.
+    /// </remarks>
+    private void ApplyTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
+    {
         if (ShouldUseContainerInteraction(modifiers))
         {
             if (ShouldUseAdditiveSelection(modifiers))
@@ -2403,7 +2433,6 @@ public class DesignEditor : SelectingItemsControl
                 SetSingleSelectedTarget(container);
             }
 
-            UpdateSelectionOverlayState();
             return;
         }
 
@@ -2413,7 +2442,6 @@ public class DesignEditor : SelectingItemsControl
             // Клик по области без designer-metadata внутри контейнера
             // переводит selection target на уровень контейнера.
             SetSingleSelectedTarget(container);
-            UpdateSelectionOverlayState();
             return;
         }
 
@@ -2446,8 +2474,6 @@ public class DesignEditor : SelectingItemsControl
                 SetSingleSelectedTarget(target);
             }
         }
-
-        UpdateSelectionOverlayState();
     }
 
     /// <summary>
@@ -3518,7 +3544,11 @@ public class DesignEditor : SelectingItemsControl
             (owned ??= new List<Control>()).Add(target);
         }
 
-        return owned ?? (IReadOnlyList<Control>)new[] { ResolveDefaultSelectionTarget(item) };
+        // Item выбран, а вложенного target'а никто не называл — значит выбрана форма
+        // целиком. Прежний ответ «его первый ребёнок» был неявным target'ом: из-за него
+        // хост, выбравший форму через SelectedIndex, читал Scope как NestedTarget,
+        // а группа контейнеров молча становилась смешанной.
+        return owned ?? (IReadOnlyList<Control>)new Control[] { item };
     }
 
     /// <summary>
