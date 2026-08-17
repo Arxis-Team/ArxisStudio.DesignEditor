@@ -114,6 +114,7 @@ public partial class DesignEditor : SelectingItemsControl
         FocusableProperty.OverrideDefaultValue<DesignEditor>(true);
         ViewportLocationProperty.Changed.AddClassHandler<DesignEditor>((x, e) => x.UpdateTransforms());
         ViewportZoomProperty.Changed.AddClassHandler<DesignEditor>((x, e) => x.UpdateTransforms());
+        GuidesProperty.Changed.AddClassHandler<DesignEditor>((x, e) => x.OnGuidesSourceChanged(e));
 
         DesignEditorItem.DragStartedEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragStarted(e));
         DesignEditorItem.DragDeltaEvent.AddClassHandler<DesignEditor>((x, e) => x.OnItemsDragDelta(e));

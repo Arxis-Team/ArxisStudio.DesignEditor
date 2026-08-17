@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -30,6 +30,18 @@ internal class SnapGuideLayer : Control
         AvaloniaProperty.Register<SnapGuideLayer, IReadOnlyList<DesignSnapGuide>?>(nameof(Guides));
 
     /// <summary>
+    /// Идентификатор свойства пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<DesignGuide>?> UserGuidesProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IReadOnlyList<DesignGuide>?>(nameof(UserGuides));
+
+    /// <summary>
+    /// Идентификатор свойства кисти пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> UserGuideBrushProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(UserGuideBrush));
+
+    /// <summary>
     /// Идентификатор свойства кисти линий.
     /// </summary>
     public static readonly StyledProperty<IBrush?> LineBrushProperty =
@@ -57,6 +69,8 @@ internal class SnapGuideLayer : Control
     {
         AffectsRender<SnapGuideLayer>(
             GuidesProperty,
+            UserGuidesProperty,
+            UserGuideBrushProperty,
             LineBrushProperty,
             LineThicknessProperty,
             ViewportLocationProperty,
@@ -70,6 +84,24 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(GuidesProperty);
         set => SetValue(GuidesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает пользовательские направляющие.
+    /// </summary>
+    public IReadOnlyList<DesignGuide>? UserGuides
+    {
+        get => GetValue(UserGuidesProperty);
+        set => SetValue(UserGuidesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает кисть пользовательских направляющих.
+    /// </summary>
+    public IBrush? UserGuideBrush
+    {
+        get => GetValue(UserGuideBrushProperty);
+        set => SetValue(UserGuideBrushProperty, value);
     }
 
     /// <summary>
@@ -114,13 +146,6 @@ internal class SnapGuideLayer : Control
     /// <param name="context">Контекст отрисовки.</param>
     public override void Render(DrawingContext context)
     {
-        var guides = Guides;
-        if (guides == null || guides.Count == 0)
-            return;
-
-        if (LineBrush is not { } brush)
-            return;
-
         var zoom = ViewportZoom;
         if (!(zoom > 0))
             return;
@@ -134,8 +159,20 @@ internal class SnapGuideLayer : Control
         if (!(thickness > 0))
             return;
 
-        var pen = new Pen(brush, thickness);
         var origin = ViewportLocation;
+
+        // Пользовательские направляющие рисуются первыми и всегда: они не привязаны
+        // к жесту и лежат под линиями выравнивания, чтобы совпадение было видно.
+        RenderUserGuides(context, origin, zoom, scaling, thickness);
+
+        var guides = Guides;
+        if (guides == null || guides.Count == 0)
+            return;
+
+        if (LineBrush is not { } brush)
+            return;
+
+        var pen = new Pen(brush, thickness);
 
         for (var i = 0; i < guides.Count; i++)
         {
@@ -153,6 +190,47 @@ internal class SnapGuideLayer : Control
             var to = vertical ? new Point(position, end) : new Point(end, position);
 
             context.DrawLine(pen, from, to);
+        }
+    }
+
+    /// <summary>
+    /// Отрисовывает пользовательские направляющие через весь viewport.
+    /// </summary>
+    /// <remarks>
+    /// В отличие от линий выравнивания, эти не натянуты между двумя элементами:
+    /// направляющая задаёт координату, а не отношение, и обрывать её незачем.
+    /// </remarks>
+    private void RenderUserGuides(DrawingContext context, Point origin, double zoom, double scaling, double thickness)
+    {
+        var guides = UserGuides;
+        if (guides == null || guides.Count == 0)
+            return;
+
+        if (UserGuideBrush is not { } brush)
+            return;
+
+        var pen = new Pen(brush, thickness);
+        var size = Bounds.Size;
+
+        for (var i = 0; i < guides.Count; i++)
+        {
+            var guide = guides[i];
+            if (guide.Orientation == DesignGuideOrientation.Vertical)
+            {
+                var x = DesignGrid.SnapToDevicePixel((guide.Position - origin.X) * zoom, scaling);
+                if (x < 0 || x > size.Width)
+                    continue;
+
+                context.DrawLine(pen, new Point(x, 0), new Point(x, size.Height));
+            }
+            else
+            {
+                var y = DesignGrid.SnapToDevicePixel((guide.Position - origin.Y) * zoom, scaling);
+                if (y < 0 || y > size.Height)
+                    continue;
+
+                context.DrawLine(pen, new Point(0, y), new Point(size.Width, y));
+            }
         }
     }
 }

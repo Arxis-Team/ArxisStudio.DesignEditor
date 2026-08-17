@@ -48,6 +48,7 @@
                                  ItemsSource="{Binding Elements}"
                                  SelectedItems="{Binding SelectedElements}"
                                  SelectionMode="Multiple"
+                                 Guides="{Binding Guides}"
                                  ViewportZoom="{Binding Zoom, Mode=TwoWay}">
             <arxisStudio:DesignEditor.InputGestures>
                 <arxisStudio:DesignEditorInputGestures PanButton="Middle"

@@ -14,6 +14,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#D6006C" />
+            <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#0A84FF" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -46,6 +47,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#FF4FA3" />
+            <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#4DA3FF" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0099FF" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />

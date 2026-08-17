@@ -203,6 +203,20 @@ public partial class DesignEditor
     /// Свойство internal: форму направляющих ещё рано фиксировать публично, а шаблон
     /// библиотеки компилируется в ту же сборку и привязывается к нему без ограничений.
     /// </remarks>
+    /// <summary>
+    /// Идентификатор свойства пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<IEnumerable<DesignGuide>?> GuidesProperty =
+        AvaloniaProperty.Register<DesignEditor, IEnumerable<DesignGuide>?>(nameof(Guides));
+
+    /// <summary>
+    /// Идентификатор свойства снимка пользовательских направляющих.
+    /// </summary>
+    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignGuide>> UserGuidesProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignGuide>>(
+            nameof(UserGuides),
+            o => o.UserGuides);
+
     internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSnapGuide>> SnapGuidesProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSnapGuide>>(
             nameof(SnapGuides),
@@ -546,6 +560,40 @@ public partial class DesignEditor
     {
         get => _reorderIndicator;
         private set => SetAndRaise(ReorderIndicatorProperty, ref _reorderIndicator, value);
+    }
+
+    private IReadOnlyList<DesignGuide> _userGuides = Array.Empty<DesignGuide>();
+
+    /// <summary>
+    /// Получает или задает пользовательские направляющие.
+    /// </summary>
+    /// <remarks>
+    /// Набором владеет хост: редактор его читает, показывает и притягивает к нему элементы,
+    /// но не создаёт и не удаляет записи сам — как и с деревом контролов.
+    /// <para>
+    /// Коллекция, реализующая <see cref="System.Collections.Specialized.INotifyCollectionChanged"/>,
+    /// отслеживается: добавленная направляющая появляется и в отрисовке, и в притяжении
+    /// без переприсваивания свойства.
+    /// </para>
+    /// </remarks>
+    public IEnumerable<DesignGuide>? Guides
+    {
+        get => GetValue(GuidesProperty);
+        set => SetValue(GuidesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает снимок пользовательских направляющих для шаблона.
+    /// </summary>
+    /// <remarks>
+    /// Отдельное свойство нужно по той же причине, что и у выделения: привязка
+    /// перевычисляется только при смене идентичности значения, а хост вправе держать
+    /// одну и ту же коллекцию и менять её содержимое.
+    /// </remarks>
+    internal IReadOnlyList<DesignGuide> UserGuides
+    {
+        get => _userGuides;
+        private set => SetAndRaise(UserGuidesProperty, ref _userGuides, value);
     }
 
     private IReadOnlyList<DesignSnapGuide> _snapGuides = Array.Empty<DesignSnapGuide>();

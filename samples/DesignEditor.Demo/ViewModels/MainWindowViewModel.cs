@@ -11,6 +11,21 @@ public partial class MainWindowViewModel : ObservableObject
 {
     public ObservableCollection<DesignItemViewModel> Elements { get; } = new();
 
+    /// <summary>
+    /// Пользовательские направляющие макета.
+    /// </summary>
+    /// <remarks>
+    /// Набором владеет хост, поэтому он и живёт здесь, а не в редакторе. Две линии
+    /// поставлены по левому краю колонки экранов и по верхней границе карточек —
+    /// к ним удобно подтягивать элементы, не выцеливая координату мышью.
+    /// </remarks>
+    public ObservableCollection<ArxisStudio.DesignGuide> Guides { get; } = new()
+    {
+        ArxisStudio.DesignGuide.Vertical(560),
+        ArxisStudio.DesignGuide.Vertical(1180),
+        ArxisStudio.DesignGuide.Horizontal(420),
+    };
+
     // Коллекция выделенных элементов (Avalonia биндит сюда object)
     [ObservableProperty]
     private ObservableCollection<object> _selectedElements = new();

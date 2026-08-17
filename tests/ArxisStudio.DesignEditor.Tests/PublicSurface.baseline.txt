@@ -138,6 +138,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia AdditiveSelectionModifiersProperty -> AdditiveSelectionModifiers : KeyModifiers (direct)
     avalonia ContainerInteractionModifiersProperty -> ContainerInteractionModifiers : KeyModifiers (direct)
     avalonia DpiScaledViewportTransformProperty -> DpiScaledViewportTransform : Transform (styled) = <TransformGroup>
+    avalonia GuidesProperty -> Guides : IEnumerable<DesignGuide> (styled) = null
     avalonia HasMultipleContainerSelectionProperty -> HasMultipleContainerSelection : Boolean (direct)
     avalonia HasMultipleNestedSelectionProperty -> HasMultipleNestedSelection : Boolean (direct)
     avalonia HasMultipleSelectionProperty -> HasMultipleSelection : Boolean (direct)
@@ -222,6 +223,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     property Double MinZoom { get; set; }
     property Double ViewportZoom { get; set; }
     property IDesignEditorContextPresenter ContextPresenter { get; set; }
+    property IEnumerable<DesignGuide> Guides { get; set; }
     property IList SelectedItems { get; set; }
     property IList<IDesignEditorContextActionProvider> ContextActionProviders { get; }
     property IReadOnlyList<DesignSelectionTarget> SelectedDesignTargets { get; }
@@ -372,6 +374,21 @@ sealed class ArxisStudio.DesignGeometryChange : DesignChange
     ctor .ctor(Control, Rect, Rect)
     property Rect NewBounds { get; }
     property Rect OldBounds { get; }
+struct ArxisStudio.DesignGuide : ValueType
+    ctor .ctor(DesignGuideOrientation, Double)
+    method Boolean Equals(DesignGuide)
+    method Boolean Equals(Object)
+    method Boolean op_Equality(DesignGuide, DesignGuide)
+    method Boolean op_Inequality(DesignGuide, DesignGuide)
+    method DesignGuide Horizontal(Double)
+    method DesignGuide Vertical(Double)
+    method Int32 GetHashCode()
+    method String ToString()
+    property DesignGuideOrientation Orientation { get; }
+    property Double Position { get; }
+enum ArxisStudio.DesignGuideOrientation
+    value Horizontal = 1
+    value Vertical = 0
 sealed class ArxisStudio.DesignOrderChange : DesignChange
     ctor .ctor(Control, Int32, Int32)
     property Int32 NewZIndex { get; }

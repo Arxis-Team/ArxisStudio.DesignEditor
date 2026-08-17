@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -101,6 +102,87 @@ public partial class DesignEditor
             return new Point(Math.Round(position.X), Math.Round(position.Y));
 
         return new Point(SnapCoordinate(position.X), SnapCoordinate(position.Y));
+    }
+
+    /// <summary>
+    /// Обрабатывает смену коллекции пользовательских направляющих.
+    /// </summary>
+    /// <param name="e">Аргументы смены свойства.</param>
+    private void OnGuidesSourceChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.OldValue is INotifyCollectionChanged oldNotify)
+            oldNotify.CollectionChanged -= OnGuidesCollectionChanged;
+
+        if (e.NewValue is INotifyCollectionChanged newNotify)
+            newNotify.CollectionChanged += OnGuidesCollectionChanged;
+
+        RebuildUserGuides();
+    }
+
+    private void OnGuidesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        => RebuildUserGuides();
+
+    /// <summary>
+    /// Пересобирает снимок пользовательских направляющих.
+    /// </summary>
+    /// <remarks>
+    /// Снимок сравнивается с текущим той же дисциплиной, что и выделение: совпавший
+    /// не публикуется вовсе. Хост вправе переприсвоить эквивалентную коллекцию,
+    /// и перерисовывать слой из-за этого не за чем.
+    /// </remarks>
+    private void RebuildUserGuides()
+    {
+        var source = Guides;
+        var next = source == null
+            ? Array.Empty<DesignGuide>()
+            : source.ToArray();
+
+        if (next.Length == _userGuides.Count)
+        {
+            var same = true;
+            for (var i = 0; i < next.Length; i++)
+            {
+                if (next[i] == _userGuides[i])
+                    continue;
+
+                same = false;
+                break;
+            }
+
+            if (same)
+                return;
+        }
+
+        UserGuides = next;
+    }
+
+    /// <summary>
+    /// Добавляет пользовательские направляющие в список соседей.
+    /// </summary>
+    /// <remarks>
+    /// Направляющая приходит в резолвер прямоугольником нулевой толщины: тогда её
+    /// ближний край, центр и дальний край совпадают, и правило «каждый кандидат
+    /// с каждым» само сводится к одному сравнению. Отдельной ветки под неё не нужно.
+    /// <para>
+    /// Протяжённость берётся у содержимого редактора: она влияет только на длину
+    /// линии, показанной во время жеста, — саму направляющую слой рисует через
+    /// весь viewport независимо от этого прямоугольника.
+    /// </para>
+    /// </remarks>
+    private void AddUserGuideNeighbours(List<Rect> neighbours)
+    {
+        var guides = _userGuides;
+        if (guides.Count == 0)
+            return;
+
+        var extent = ItemsExtent;
+        for (var i = 0; i < guides.Count; i++)
+        {
+            var guide = guides[i];
+            neighbours.Add(guide.Orientation == DesignGuideOrientation.Vertical
+                ? new Rect(guide.Position, extent.Y, 0, extent.Height)
+                : new Rect(extent.X, guide.Position, extent.Width, 0));
+        }
     }
 
     /// <summary>
@@ -272,6 +354,7 @@ public partial class DesignEditor
                     neighbours.Add(containerBounds);
             }
 
+            AddUserGuideNeighbours(neighbours);
             return neighbours;
         }
 
@@ -292,6 +375,7 @@ public partial class DesignEditor
         if (TryGetDesignBounds((Control)host, out var hostBounds))
             neighbours.Add(hostBounds);
 
+        AddUserGuideNeighbours(neighbours);
         return neighbours;
     }
 

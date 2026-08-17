@@ -171,6 +171,8 @@
                         <controls:SnapGuideLayer Name="PART_SnapGuideLayer"
                                                  IsHitTestVisible="False"
                                                  Guides="{TemplateBinding SnapGuides}"
+                                                 UserGuides="{TemplateBinding UserGuides}"
+                                                 UserGuideBrush="{DynamicResource DesignEditor.UserGuideBrush}"
                                                  LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"
                                                  LineThickness="{DynamicResource DesignEditor.SnapGuide.Thickness}"
                                                  ViewportLocation="{TemplateBinding ViewportLocation}"
