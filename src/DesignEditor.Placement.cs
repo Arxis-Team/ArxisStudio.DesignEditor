@@ -1,0 +1,427 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Selection;
+using Avalonia.Input;
+using Avalonia.Logging;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using DesignLayout = ArxisStudio.Attached.Layout;
+using DesignInteraction = ArxisStudio.Attached.DesignInteraction;
+using ArxisStudio.Controls;
+using ArxisStudio.Guides;
+using ArxisStudio.Placement;
+using ArxisStudio.States;
+
+namespace ArxisStudio;
+
+// Геометрия: шов записи, политики, стратегии размещения и перестановка.
+// Часть DesignEditor; общее описание типа — в DesignEditor.cs.
+public partial class DesignEditor
+{
+    internal Point GetDesignPosition(Control control)
+        => GetPlacementStrategy(control).GetPosition(control, this);
+
+    /// <summary>
+    /// Задаёт позицию target'а в design-координатах.
+    /// </summary>
+    /// <remarks>
+    /// Раскладка, которая владеет позицией ребёнка, отсекается здесь, а не выше:
+    /// это единственная точка записи, поэтому только тут можно гарантировать,
+    /// что в контракт изменений не попадёт перемещение, которого не произошло.
+    /// </remarks>
+    internal void SetDesignPosition(Control control, Point position)
+    {
+        var strategy = GetPlacementStrategy(control);
+        if (strategy.MoveSemantics != DesignMoveSemantics.Reposition)
+            return;
+
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordPosition(this, control, position);
+
+        strategy.SetPosition(control, position, this);
+    }
+
+    internal Size GetDesignSize(Control control)
+    {
+        var width = double.IsNaN(control.Width) ? control.Bounds.Width : control.Width;
+        var height = double.IsNaN(control.Height) ? control.Bounds.Height : control.Height;
+        return new Size(width, height);
+    }
+
+    internal void SetDesignSize(Control control, Size size)
+    {
+        var coerced = CoerceDesignSize(control, size);
+
+        if (!_suppressEditRecording)
+            _activeEdit?.RecordSize(this, control, coerced);
+
+        control.Width = coerced.Width;
+        control.Height = coerced.Height;
+    }
+
+    /// <summary>
+    /// Приводит запрошенный размер к ограничениям самого контрола.
+    /// </summary>
+    /// <remarks>
+    /// До появления этого метода редактор писал <c>Width</c>/<c>Height</c> мимо
+    /// <c>MinWidth</c>/<c>MaxWidth</c>: раскладка применяла ограничение уже после,
+    /// и запрошенный размер расходился с фактическим — редактор считал от одного,
+    /// а пользователь видел другое.
+    /// <para>
+    /// При <c>Max &lt; Min</c> побеждает минимум — так же, как в самой Avalonia.
+    /// Минимальный размер редактора (<see cref="DesignEditorInteractionOptions.ResizeMinSize"/>)
+    /// участвует наравне с <c>MinWidth</c>, поэтому правило остаётся одно.
+    /// </para>
+    /// </remarks>
+    internal Size CoerceDesignSize(Control control, Size size)
+    {
+        var floor = Math.Max(0.0, InteractionOptions.ResizeMinSize);
+
+        return new Size(
+            ClampSize(size.Width, Math.Max(floor, control.MinWidth), control.MaxWidth),
+            ClampSize(size.Height, Math.Max(floor, control.MinHeight), control.MaxHeight));
+    }
+
+    private static double ClampSize(double value, double min, double max)
+        => Math.Max(Math.Min(value, max), min);
+
+    /// <summary>
+    /// Возвращает прямоугольник, за который target не должен выходить при изменении размера.
+    /// </summary>
+    /// <remarks>
+    /// Границей выбран владеющий <see cref="DesignEditorItem"/>, а не прямой родитель.
+    /// Панель, которая растёт по содержимому, границей быть не может: ограничивать
+    /// ребёнка её же высотой — рассуждение по кругу. Форма же всегда имеет размер,
+    /// и правило формулируется одной фразой: контрол не выходит за свою форму.
+    /// <para>
+    /// У контейнера верхнего уровня владельца нет, поэтому его размер не ограничен —
+    /// он лежит на бесконечном холсте.
+    /// </para>
+    /// </remarks>
+    internal bool TryGetContainmentBounds(Control target, out Rect bounds)
+    {
+        bounds = default;
+
+        if (!InteractionOptions.IsResizeContainedToParent)
+            return false;
+
+        var host = FindDesignHost(target);
+
+        // Приведение к Control обязательно: перегрузка для DesignEditorItem
+        // возвращает границы выбранного внутри него target'а, а не самой формы.
+        return host != null && TryGetDesignBounds((Control)host, out bounds);
+    }
+
+    /// <summary>
+    /// Определяет, есть ли кому выполнить перестановку.
+    /// </summary>
+    /// <remarks>
+    /// Жест не предлагается, когда исполнить его некому: иначе редактор вёл бы
+    /// точку вставки за курсором и обещал результат, которого не будет. Правило
+    /// то же, что и у политик размещения, — заблокированный жест не начинается.
+    /// </remarks>
+    internal bool CanRequestReorder => ReorderRequested != null;
+
+    /// <summary>
+    /// Просит приложение переставить контрол перед указанным соседом.
+    /// </summary>
+    /// <param name="control">Контрол, который требуется переставить.</param>
+    /// <param name="insertBefore">
+    /// Позиция вставки в <b>текущем</b> списке детей; значение, равное их числу,
+    /// означает «в конец». Выход за эти границы означает, что дерево изменилось
+    /// внутри жеста, и запрос отклоняется.
+    /// </param>
+    /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
+    /// <remarks>
+    /// Редактор сам дерево не правит: он распознаёт жест и сообщает намерение.
+    /// Структурная правка, её запись и отмена — зона библиотеки разметки.
+    /// <para>
+    /// Обе половины запроса считаются от <b>одного</b> чтения коллекции. Раньше
+    /// состояние жеста переводило точку вставки в индекс переноса по своему снимку,
+    /// снятому на входе в жест, а текущую позицию редактор перечитывал заново, —
+    /// и стоило дереву измениться во время протяжки, как хост получал пару индексов,
+    /// описывающих разные состояния панели.
+    /// </para>
+    /// </remarks>
+    internal bool RequestChildIndex(Control control, int insertBefore)
+    {
+        if (control.GetVisualParent() is not Panel panel)
+            return false;
+
+        var current = panel.Children.IndexOf(control);
+        if (current < 0)
+            return false;
+
+        var handler = ReorderRequested;
+        if (handler == null)
+            return false;
+
+        // Точка вставки описывает ту же коллекцию, которую редактор только что
+        // прочитал: от нуля до числа детей включительно, где верхняя граница
+        // означает «в конец». Всё, что вне, — снимок панели, которой уже нет:
+        // дерево изменилось внутри жеста. Такой запрос отклоняется, а не
+        // подгоняется под новый размер. Подгонка ставила бы контрол туда, куда
+        // пользователь не целился, и хост не смог бы это заметить: индексы
+        // приходили бы к нему валидными на вид.
+        if (insertBefore < 0 || insertBefore > panel.Children.Count)
+            return false;
+
+        // Перенос удаляет контрол и только потом вставляет, поэтому позиции
+        // правее источника сдвигаются на одну. Из проверки выше следует, что
+        // результат уже лежит в границах коллекции, и ограничивать его нечем.
+        var requested = insertBefore > current ? insertBefore - 1 : insertBefore;
+        if (requested == current)
+            return false;
+
+        var anchor = insertBefore < panel.Children.Count
+            ? panel.Children[insertBefore]
+            : null;
+
+        var args = new DesignEditorReorderRequestedEventArgs(
+            control,
+            current,
+            requested,
+            ReferenceEquals(anchor, control) ? null : anchor);
+
+        // Обработчики обходятся по одному, и первый же выполнивший правку
+        // останавливает обход. Индексы сняты до правки, поэтому следующему
+        // они описывали бы дерево, которого уже нет: на двух подписчиках
+        // одинаковой формы перестановка молча отменяла сама себя.
+        foreach (var invocation in handler.GetInvocationList())
+        {
+            ((EventHandler<DesignEditorReorderRequestedEventArgs>)invocation)(this, args);
+
+            if (args.Handled)
+                break;
+        }
+
+        if (!args.Handled)
+            return false;
+
+        // Обработчик мог не переставить контрол, а пересобрать разметку. Выделение,
+        // оставшееся на контроле вне дерева, рисовало бы рамку по его последним
+        // координатам и принимало бы на него нюдж. Пересборка оверлея этим и
+        // занимается: сверка выделения отбрасывает target, у которого больше нет
+        // владеющего item'а, — отдельная зачистка рядом с ней ничего не добавляла
+        // и ни одним тестом не держалась.
+        UpdateSelectionOverlayState();
+        return true;
+    }
+
+    internal ArxisStudio.Attached.ResizePolicy GetResizePolicy(Control control)
+    {
+        return DesignInteraction.GetResizePolicy(control);
+    }
+
+    internal ArxisStudio.Attached.MovePolicy GetMovePolicy(Control control)
+    {
+        return DesignInteraction.GetMovePolicy(control);
+    }
+
+    /// <summary>
+    /// Возвращает стратегию размещения контрола.
+    /// </summary>
+    internal static IDesignPlacementStrategy GetPlacementStrategy(Control control)
+        => DesignPlacementResolver.Resolve(control);
+
+    /// <summary>
+    /// Возвращает политику перемещения с учётом того, что реально умеет родительская раскладка.
+    /// </summary>
+    /// <remarks>
+    /// Правило одно: <c>effective = user &amp; layout</c>. Раскладка задаёт потолок —
+    /// что физически работает; политика пользователя только сужает. Ни одна не расширяет
+    /// другую, иначе редактор снова начал бы предлагать жест, который ничего не делает.
+    /// </remarks>
+    internal ArxisStudio.Attached.MovePolicy GetEffectiveMovePolicy(Control control)
+    {
+        var user = GetMovePolicy(control);
+        if (user == ArxisStudio.Attached.MovePolicy.None)
+            return ArxisStudio.Attached.MovePolicy.None;
+
+        return GetPlacementStrategy(control).MoveSemantics == DesignMoveSemantics.Reposition
+            ? user
+            : ArxisStudio.Attached.MovePolicy.None;
+    }
+
+    internal Vector ApplyMovePolicy(Control control, Vector delta)
+    {
+        return ApplyMovePolicy(delta, GetEffectiveMovePolicy(control));
+    }
+
+    internal bool IsResizeAllowed(Control control, ResizeDirection direction)
+    {
+        return IsResizeAllowed(GetResizePolicy(control), direction);
+    }
+
+    private SelectionInteractionCapabilities GetSelectionInteractionCapabilities()
+    {
+        var selectedTargets = SelectedDesignTargets;
+        var selectedTargetCount = selectedTargets.Count;
+        var isNestedGroupSelection = HasMultipleNestedSelection && selectedTargetCount > 1;
+        var hasAnyMoveLockedTarget = false;
+        var hasAnyMoveEnabledTarget = false;
+
+        for (var i = 0; i < selectedTargetCount; i++)
+        {
+            var movePolicy = GetEffectiveMovePolicy(selectedTargets[i].Target);
+            if (movePolicy == ArxisStudio.Attached.MovePolicy.None)
+                hasAnyMoveLockedTarget = true;
+            else
+                hasAnyMoveEnabledTarget = true;
+
+            if (hasAnyMoveLockedTarget && hasAnyMoveEnabledTarget)
+                break;
+        }
+
+        return new SelectionInteractionCapabilities(
+            selectedTargetCount,
+            isNestedGroupSelection,
+            hasAnyMoveLockedTarget,
+            hasAnyMoveEnabledTarget);
+    }
+
+    internal bool ShouldBlockNestedGroupDrag(SelectionInteractionCapabilities capabilities)
+    {
+        if (!capabilities.IsNestedGroupSelection)
+            return false;
+
+        return capabilities.HasAnyMoveLockedTarget;
+    }
+
+    internal bool ShouldBlockNestedGroupDrag()
+    {
+        return ShouldBlockNestedGroupDrag(GetSelectionInteractionCapabilities());
+    }
+
+    private static Vector ApplyMovePolicy(Vector delta, ArxisStudio.Attached.MovePolicy policy)
+    {
+        var x = policy.HasFlag(ArxisStudio.Attached.MovePolicy.X) ? delta.X : 0d;
+        var y = policy.HasFlag(ArxisStudio.Attached.MovePolicy.Y) ? delta.Y : 0d;
+        return new Vector(x, y);
+    }
+
+    private static bool IsResizeAllowed(ArxisStudio.Attached.ResizePolicy policy, ResizeDirection direction)
+    {
+        return direction switch
+        {
+            ResizeDirection.Left => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.Top => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top),
+            ResizeDirection.Right => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            ResizeDirection.Bottom => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom),
+            ResizeDirection.TopLeft => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top) &&
+                                       policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.TopRight => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Top) &&
+                                        policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            ResizeDirection.BottomLeft => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom) &&
+                                          policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Left),
+            ResizeDirection.BottomRight => policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Bottom) &&
+                                           policy.HasFlag(ArxisStudio.Attached.ResizePolicy.Right),
+            _ => false
+        };
+    }
+
+    private bool TryGetDesignBounds(DesignEditorItem item, out Rect bounds)
+    {
+        if (item == null)
+        {
+            bounds = default;
+            return false;
+        }
+
+        return TryGetDesignBounds(ResolveSelectionTarget(item), out bounds);
+    }
+
+    internal bool TryGetDesignBounds(Control control, out Rect bounds)
+    {
+        if (!ReferenceEquals(control.FindAncestorOfType<DesignEditor>(), this))
+        {
+            bounds = default;
+            return false;
+        }
+
+        if (control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        EnsureTracked(control);
+
+        Visual? reference = control.FindAncestorOfType<DesignSurface>()
+                            ?? control.FindAncestorOfType<DesignEditor>() as Visual;
+
+        var position = reference != null
+            ? control.TranslatePoint(new Point(0, 0), reference)
+            : null;
+
+        double x;
+        double y;
+
+        if (position.HasValue)
+        {
+            x = position.Value.X;
+            y = position.Value.Y;
+        }
+        else
+        {
+            x = DesignLayout.GetDesignX(control);
+            y = DesignLayout.GetDesignY(control);
+
+            if (double.IsNaN(x) || double.IsNaN(y))
+            {
+                bounds = default;
+                return false;
+            }
+        }
+
+        bounds = new Rect(new Point(x, y), control.Bounds.Size);
+        return true;
+    }
+
+    /// <summary>
+    /// Обновляет индикатор точки вставки.
+    /// </summary>
+    internal void UpdateReorderIndicator(Rect designBounds)
+    {
+        ReorderIndicator = designBounds;
+        IsReordering = true;
+    }
+
+    /// <summary>
+    /// Сообщает намерение переставить контрол и убирает индикатор.
+    /// </summary>
+    /// <returns><see langword="true"/>, если перестановку выполнил обработчик.</returns>
+    /// <remarks>
+    /// Результат не декоративный: им помечается само нажатие. Отказ обработчика
+    /// оставляет событие необработанным, и оно всплывает дальше — так же, как
+    /// у <see cref="DeleteRequested"/>. Иначе <c>Handled</c> оказался бы
+    /// свойством, которое никто не читает.
+    /// </remarks>
+    internal bool CommitReorder(Control target, int insertBefore)
+    {
+        var handled = RequestChildIndex(target, insertBefore);
+        ClearReorderIndicator();
+        return handled;
+    }
+
+    /// <summary>
+    /// Прерывает перестановку, ничего не сообщая.
+    /// </summary>
+    internal void CancelReorder() => ClearReorderIndicator();
+
+    private void ClearReorderIndicator()
+    {
+        IsReordering = false;
+        ReorderIndicator = default;
+    }
+}
