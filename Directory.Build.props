@@ -1,0 +1,27 @@
+<Project>
+
+    <!--
+        Общие настройки всех проектов решения. TFM здесь намеренно нет: у библиотеки
+        net8.0 (минимальный, поддерживаемый Avalonia 12), у тестов и демо net10.0.
+    -->
+    <PropertyGroup>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <!--
+        «Сборка проходит с 0 предупреждений» было соглашением, которое держалось на
+        внимании автора. Теперь это проверяет компилятор: на момент включения сборка
+        уже была чистой, поэтому правило ничего не сломало и ничего не потребовало.
+
+        Аудит NuGet выведен из-под правила сознательно: NU19xx появляются не от правки
+        кода, а от публикации новой CVE, и без этого исключения сборка падала бы у того,
+        кто в этот день ничего не менял.
+    -->
+    <PropertyGroup>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    </PropertyGroup>
+
+</Project>

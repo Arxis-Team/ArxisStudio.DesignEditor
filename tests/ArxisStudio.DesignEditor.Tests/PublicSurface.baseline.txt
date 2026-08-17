@@ -1,0 +1,413 @@
+static class ArxisStudio.Attached.DesignInteraction
+    avalonia MovePolicyProperty -> MovePolicy : MovePolicy (attached) = Both
+    avalonia ResizePolicyProperty -> ResizePolicy : ResizePolicy (attached) = All
+    method MovePolicy GetMovePolicy(AvaloniaObject)
+    method ResizePolicy GetResizePolicy(AvaloniaObject)
+    method Void SetMovePolicy(AvaloniaObject, MovePolicy)
+    method Void SetResizePolicy(AvaloniaObject, ResizePolicy)
+static class ArxisStudio.Attached.Layout
+    avalonia DesignXProperty -> DesignX : Double (attached) = 0
+    avalonia DesignYProperty -> DesignY : Double (attached) = 0
+    avalonia IsTrackedProperty -> IsTracked : Boolean (attached) = false
+    avalonia XProperty -> X : Double (attached) = NaN
+    avalonia YProperty -> Y : Double (attached) = NaN
+    method Boolean GetIsTracked(AvaloniaObject)
+    method Double GetDesignX(AvaloniaObject)
+    method Double GetDesignY(AvaloniaObject)
+    method Double GetX(AvaloniaObject)
+    method Double GetY(AvaloniaObject)
+    method Void SetDesignX(AvaloniaObject, Double)
+    method Void SetDesignY(AvaloniaObject, Double)
+    method Void SetIsTracked(AvaloniaObject, Boolean)
+    method Void SetX(AvaloniaObject, Double)
+    method Void SetY(AvaloniaObject, Double)
+    method Void Track(Control)
+    method Void Untrack(Control)
+enum ArxisStudio.Attached.MovePolicy
+    value Both = 3
+    value None = 0
+    value X = 1
+    value Y = 2
+enum ArxisStudio.Attached.ResizePolicy
+    value All = 15
+    value Bottom = 8
+    value Horizontal = 5
+    value Left = 1
+    value None = 0
+    value Right = 4
+    value Top = 2
+    value Vertical = 10
+enum ArxisStudio.ContainerEmptyAreaDragGesture
+    value Marquee = 1
+    value MoveContainer = 0
+sealed class ArxisStudio.ContextMenuContextPresenter
+    ctor .ctor()
+    method Boolean TryShow(DesignEditor, DesignEditorContextRequest, IReadOnlyList<DesignEditorContextAction>)
+class ArxisStudio.Controls.AbsolutePanel : Panel
+    avalonia ExtentProperty -> Extent : Rect (styled) = 0, 0, 0, 0
+    ctor .ctor()
+    method Size ArrangeOverride(Size)
+    method Size MeasureOverride(Size)
+    property Rect Extent { get; set; }
+class ArxisStudio.Controls.DesignGrid : Control
+    avalonia BackgroundProperty -> Background : IBrush (styled) = null
+    avalonia CellSizeProperty -> CellSize : Double (styled) = 20
+    avalonia LineBrushProperty -> LineBrush : IBrush (styled) = null
+    avalonia LineThicknessProperty -> LineThickness : Double (styled) = 1
+    avalonia MajorIntervalProperty -> MajorInterval : Int32 (styled) = 5
+    avalonia MajorLineBrushProperty -> MajorLineBrush : IBrush (styled) = null
+    avalonia MinCellSizeProperty -> MinCellSize : Double (styled) = 6
+    avalonia ViewportLocationProperty -> ViewportLocation : Point (styled) = 0, 0
+    avalonia ViewportZoomProperty -> ViewportZoom : Double (styled) = 1
+    ctor .ctor()
+    method Void Render(DrawingContext)
+    property Double CellSize { get; set; }
+    property Double LineThickness { get; set; }
+    property Double MinCellSize { get; set; }
+    property Double ViewportZoom { get; set; }
+    property IBrush Background { get; set; }
+    property IBrush LineBrush { get; set; }
+    property IBrush MajorLineBrush { get; set; }
+    property Int32 MajorInterval { get; set; }
+    property Point ViewportLocation { get; set; }
+class ArxisStudio.Controls.ResizeDeltaEventArgs : RoutedEventArgs
+    ctor .ctor(Vector, ResizeDirection, RoutedEvent)
+    property ResizeDirection Direction { get; }
+    property Vector Delta { get; }
+enum ArxisStudio.Controls.ResizeDirection
+    value Bottom = 1
+    value BottomLeft = 6
+    value BottomRight = 7
+    value Left = 2
+    value Right = 3
+    value Top = 0
+    value TopLeft = 4
+    value TopRight = 5
+class ArxisStudio.Controls.ResizeStartedEventArgs : RoutedEventArgs
+    ctor .ctor(Vector, ResizeDirection, RoutedEvent)
+    property ResizeDirection Direction { get; }
+    property Vector Vector { get; }
+class ArxisStudio.Controls.SelectionAdorner : TemplatedControl
+    avalonia AdornerBrushProperty -> AdornerBrush : IBrush (styled) = <ImmutableSolidColorBrush>
+    avalonia FillProperty -> Fill : IBrush (styled) = <ImmutableSolidColorBrush>
+    avalonia HandleSizeProperty -> HandleSize : Double (styled) = 8
+    avalonia IsInteractiveProperty -> IsInteractive : Boolean (styled) = true
+    avalonia MovePolicyProperty -> MovePolicy : MovePolicy (styled) = Both
+    avalonia ResizePolicyProperty -> ResizePolicy : ResizePolicy (styled) = All
+    avalonia RoleProperty -> Role : SelectionAdornerRole (styled) = Primary
+    avalonia ShowHandlesProperty -> ShowHandles : Boolean (styled) = true
+    avalonia StrokeDashArrayProperty -> StrokeDashArray : AvaloniaList<Double> (styled) = null
+    avalonia StrokeThicknessProperty -> StrokeThickness : Double (styled) = 1
+    ctor .ctor()
+    event EventHandler<ResizeDeltaEventArgs> ResizeDelta
+    event EventHandler<ResizeStartedEventArgs> ResizeStarted
+    event EventHandler<VectorEventArgs> ResizeCompleted
+    field RoutedEvent<ResizeDeltaEventArgs> ResizeDeltaEvent
+    field RoutedEvent<ResizeStartedEventArgs> ResizeStartedEvent
+    field RoutedEvent<VectorEventArgs> ResizeCompletedEvent
+    method Void OnApplyTemplate(TemplateAppliedEventArgs)
+    property AvaloniaList<Double> StrokeDashArray { get; set; }
+    property Boolean IsInteractive { get; set; }
+    property Boolean ShowHandles { get; set; }
+    property Double HandleSize { get; set; }
+    property Double StrokeThickness { get; set; }
+    property IBrush AdornerBrush { get; set; }
+    property IBrush Fill { get; set; }
+    property MovePolicy MovePolicy { get; set; }
+    property ResizePolicy ResizePolicy { get; set; }
+    property SelectionAdornerRole Role { get; set; }
+enum ArxisStudio.Controls.SelectionAdornerRole
+    value Group = 2
+    value Primary = 0
+    value Secondary = 1
+abstract class ArxisStudio.DesignChange
+    ctor .ctor(Control)
+    property Control Target { get; }
+enum ArxisStudio.DesignContentMode
+    value Annotated = 0
+    value Loaded = 1
+sealed class ArxisStudio.DesignEditCompletedEventArgs : EventArgs
+    ctor .ctor(DesignEditKind, IReadOnlyList<DesignChange>)
+    property DesignEditKind Kind { get; }
+    property IReadOnlyList<DesignChange> Changes { get; }
+enum ArxisStudio.DesignEditKind
+    value Move = 0
+    value Order = 2
+    value Resize = 1
+class ArxisStudio.DesignEditor : SelectingItemsControl
+    avalonia AdditiveSelectionModifiersProperty -> AdditiveSelectionModifiers : KeyModifiers (direct)
+    avalonia ContainerInteractionModifiersProperty -> ContainerInteractionModifiers : KeyModifiers (direct)
+    avalonia DpiScaledViewportTransformProperty -> DpiScaledViewportTransform : Transform (styled) = <TransformGroup>
+    avalonia HasMultipleContainerSelectionProperty -> HasMultipleContainerSelection : Boolean (direct)
+    avalonia HasMultipleNestedSelectionProperty -> HasMultipleNestedSelection : Boolean (direct)
+    avalonia HasMultipleSelectionProperty -> HasMultipleSelection : Boolean (direct)
+    avalonia HasSingleSelectionProperty -> HasSingleSelection : Boolean (direct)
+    avalonia InputGesturesProperty -> InputGestures : DesignEditorInputGestures (direct)
+    avalonia InteractionOptionsProperty -> InteractionOptions : DesignEditorInteractionOptions (direct)
+    avalonia IsReorderingProperty -> IsReordering : Boolean (direct)
+    avalonia IsSelectingProperty -> IsSelecting : Boolean (direct)
+    avalonia ItemsExtentProperty -> ItemsExtent : Rect (direct)
+    avalonia MarqueeScopeProperty -> MarqueeScope : DesignEditorItem (direct)
+    avalonia MaxZoomProperty -> MaxZoom : Double (styled) = 5
+    avalonia MinZoomProperty -> MinZoom : Double (styled) = 0.1
+    avalonia PrimarySelectionMovePolicyProperty -> PrimarySelectionMovePolicy : MovePolicy (direct)
+    avalonia PrimarySelectionPlacementProperty -> PrimarySelectionPlacement : String (direct)
+    avalonia PrimarySelectionResizePolicyProperty -> PrimarySelectionResizePolicy : ResizePolicy (direct)
+    avalonia PrimarySelectionTargetProperty -> PrimarySelectionTarget : DesignSelectionTarget (direct)
+    avalonia ReorderIndicatorProperty -> ReorderIndicator : Rect (direct)
+    avalonia SelectedAreaProperty -> SelectedArea : Rect (direct)
+    avalonia SelectedDesignTargetsCountProperty -> SelectedDesignTargetsCount : Int32 (direct)
+    avalonia SelectedDesignTargetsProperty -> SelectedDesignTargets : IReadOnlyList<DesignSelectionTarget> (direct)
+    avalonia SelectedItemsProperty -> SelectedItems : IList (direct)
+    avalonia SelectionBoundsProperty -> SelectionBounds : Rect (direct)
+    avalonia SelectionModeProperty -> SelectionMode : SelectionMode (styled) = Single
+    avalonia SelectionProperty -> Selection : ISelectionModel (direct)
+    avalonia SelectionRectangleStyleProperty -> SelectionRectangleStyle : ControlTheme (styled) = null
+    avalonia ShowGridProperty -> ShowGrid : Boolean (styled) = true
+    avalonia ViewportLocationProperty -> ViewportLocation : Point (styled) = 0, 0
+    avalonia ViewportTransformProperty -> ViewportTransform : Transform (styled) = <TransformGroup>
+    avalonia ViewportZoomProperty -> ViewportZoom : Double (styled) = 1
+    ctor .ctor()
+    event EventHandler<DesignEditCompletedEventArgs> EditCompleted
+    event EventHandler<DesignEditorContextRequestedEventArgs> ContextMenuResolved
+    event EventHandler<DesignEditorContextRequestingEventArgs> ContextMenuRequesting
+    event EventHandler<DesignEditorDeleteRequestedEventArgs> DeleteRequested
+    event EventHandler<DesignEditorReorderRequestedEventArgs> ReorderRequested
+    event EventHandler<DesignSelectionChangedEventArgs> DesignSelectionChanged
+    method Boolean BringForward()
+    method Boolean BringToFront()
+    method Boolean NeedsContainerOverride(Object, Int32, Object&)
+    method Boolean SelectDesignTarget(Control, Boolean)
+    method Boolean SendBackward()
+    method Boolean SendToBack()
+    method Control CreateContainerForItemOverride(Object, Int32, Object)
+    method Point GetPositionForInput(Visual)
+    method Point GetWorldPosition(Point)
+    method Task RequestContextAsync(CancellationToken)
+    method Task RequestContextAsync(DesignEditorContextSource, Point, KeyModifiers, CancellationToken)
+    method Void ApplyGeometry(Control, Rect)
+    method Void ApplyOrder(Control, Int32)
+    method Void CenterOn(Point)
+    method Void CenterOn(Rect)
+    method Void CenterOnItem(DesignEditorItem)
+    method Void CenterOnSelection()
+    method Void FitSelectionToView()
+    method Void FitToView(DesignEditorItem)
+    method Void FitToView(Rect)
+    method Void HandleZoom(PointerWheelEventArgs)
+    method Void OnApplyTemplate(TemplateAppliedEventArgs)
+    method Void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs)
+    method Void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs)
+    method Void OnKeyDown(KeyEventArgs)
+    method Void OnPointerMoved(PointerEventArgs)
+    method Void OnPointerPressed(PointerPressedEventArgs)
+    method Void OnPointerReleased(PointerReleasedEventArgs)
+    method Void OnPointerWheelChanged(PointerWheelEventArgs)
+    method Void Reapply(DesignChange)
+    method Void Revert(DesignChange)
+    property Boolean HasMultipleContainerSelection { get; }
+    property Boolean HasMultipleNestedSelection { get; }
+    property Boolean HasMultipleSelection { get; }
+    property Boolean HasSingleSelection { get; }
+    property Boolean IsReordering { get; }
+    property Boolean IsSelecting { get; set; }
+    property Boolean ShowGrid { get; set; }
+    property ControlTheme SelectionRectangleStyle { get; set; }
+    property DesignEditorInputGestures InputGestures { get; set; }
+    property DesignEditorInteractionOptions InteractionOptions { get; set; }
+    property DesignEditorItem MarqueeScope { get; }
+    property DesignSelectionTarget PrimarySelectionTarget { get; }
+    property Double MaxZoom { get; set; }
+    property Double MinZoom { get; set; }
+    property Double ViewportZoom { get; set; }
+    property IDesignEditorContextPresenter ContextPresenter { get; set; }
+    property IList SelectedItems { get; set; }
+    property IList<IDesignEditorContextActionProvider> ContextActionProviders { get; }
+    property IReadOnlyList<DesignSelectionTarget> SelectedDesignTargets { get; }
+    property ISelectionModel Selection { get; set; }
+    property Int32 SelectedDesignTargetsCount { get; }
+    property KeyModifiers AdditiveSelectionModifiers { get; set; }
+    property KeyModifiers ContainerInteractionModifiers { get; set; }
+    property MovePolicy PrimarySelectionMovePolicy { get; }
+    property Point ViewportLocation { get; set; }
+    property Rect ItemsExtent { get; set; }
+    property Rect ReorderIndicator { get; }
+    property Rect SelectedArea { get; set; }
+    property Rect SelectionBounds { get; }
+    property ResizePolicy PrimarySelectionResizePolicy { get; }
+    property SelectionMode SelectionMode { get; set; }
+    property String PrimarySelectionPlacement { get; }
+    property Transform DpiScaledViewportTransform { get; set; }
+    property Transform ViewportTransform { get; set; }
+sealed class ArxisStudio.DesignEditorContextAction
+    ctor .ctor()
+    property Boolean IsEnabled { get; set; }
+    property Boolean IsSeparator { get; set; }
+    property Boolean IsVisible { get; set; }
+    property ICommand Command { get; set; }
+    property IReadOnlyList<DesignEditorContextAction> Items { get; set; }
+    property Int32 Order { get; set; }
+    property Object CommandParameter { get; set; }
+    property Object Icon { get; set; }
+    property String Group { get; set; }
+    property String Header { get; set; }
+    property String Id { get; set; }
+sealed class ArxisStudio.DesignEditorContextRequest
+    ctor .ctor()
+    property DesignEditorContextScope Scope { get; set; }
+    property DesignEditorContextSource Source { get; set; }
+    property DesignSelectionTarget Target { get; set; }
+    property IReadOnlyList<DesignSelectionTarget> Selection { get; set; }
+    property KeyModifiers Modifiers { get; set; }
+    property PixelPoint ScreenPoint { get; set; }
+    property Point ViewportPoint { get; set; }
+    property Point WorldPoint { get; set; }
+sealed class ArxisStudio.DesignEditorContextRequestedEventArgs : EventArgs
+    ctor .ctor(DesignEditorContextRequest, IReadOnlyList<DesignEditorContextAction>, Boolean)
+    property Boolean Handled { get; }
+    property DesignEditorContextRequest Request { get; }
+    property IReadOnlyList<DesignEditorContextAction> Actions { get; }
+sealed class ArxisStudio.DesignEditorContextRequestingEventArgs : CancelEventArgs
+    ctor .ctor(DesignEditorContextRequest)
+    property Boolean Handled { get; set; }
+    property DesignEditorContextRequest Request { get; }
+    property IReadOnlyList<DesignEditorContextAction> Actions { get; set; }
+enum ArxisStudio.DesignEditorContextScope
+    value Container = 1
+    value NestedTarget = 2
+    value Selection = 3
+    value Surface = 0
+enum ArxisStudio.DesignEditorContextSource
+    value Keyboard = 1
+    value Pointer = 0
+    value Programmatic = 2
+sealed class ArxisStudio.DesignEditorDeleteRequestedEventArgs : EventArgs
+    ctor .ctor(IReadOnlyList<DesignSelectionTarget>)
+    property Boolean Handled { get; set; }
+    property IReadOnlyList<DesignSelectionTarget> Targets { get; }
+class ArxisStudio.DesignEditorInputGestures : AvaloniaObject
+    avalonia AdditiveSelectionModifiersProperty -> AdditiveSelectionModifiers : KeyModifiers (styled) = Shift
+    avalonia ContainerEmptyAreaDragProperty -> ContainerEmptyAreaDrag : ContainerEmptyAreaDragGesture (styled) = Marquee
+    avalonia ContainerInteractionModifiersProperty -> ContainerInteractionModifiers : KeyModifiers (styled) = Control
+    avalonia LargeNudgeModifiersProperty -> LargeNudgeModifiers : KeyModifiers (styled) = Shift
+    avalonia MarqueeButtonProperty -> MarqueeButton : DesignEditorPointerButton (styled) = Left
+    avalonia MarqueeModifiersProperty -> MarqueeModifiers : KeyModifiers (styled) = None
+    avalonia PanButtonProperty -> PanButton : DesignEditorPointerButton (styled) = Middle
+    avalonia PanModifiersProperty -> PanModifiers : KeyModifiers (styled) = None
+    avalonia SnapBypassModifiersProperty -> SnapBypassModifiers : KeyModifiers (styled) = Alt
+    avalonia ZoomModifiersProperty -> ZoomModifiers : KeyModifiers (styled) = None
+    ctor .ctor()
+    property ContainerEmptyAreaDragGesture ContainerEmptyAreaDrag { get; set; }
+    property DesignEditorPointerButton MarqueeButton { get; set; }
+    property DesignEditorPointerButton PanButton { get; set; }
+    property KeyModifiers AdditiveSelectionModifiers { get; set; }
+    property KeyModifiers ContainerInteractionModifiers { get; set; }
+    property KeyModifiers LargeNudgeModifiers { get; set; }
+    property KeyModifiers MarqueeModifiers { get; set; }
+    property KeyModifiers PanModifiers { get; set; }
+    property KeyModifiers SnapBypassModifiers { get; set; }
+    property KeyModifiers ZoomModifiers { get; set; }
+class ArxisStudio.DesignEditorInteractionOptions : AvaloniaObject
+    avalonia DragStartThresholdProperty -> DragStartThreshold : Double (styled) = 3
+    avalonia IsResizeContainedToParentProperty -> IsResizeContainedToParent : Boolean (styled) = true
+    avalonia IsSnapToGridEnabledProperty -> IsSnapToGridEnabled : Boolean (styled) = true
+    avalonia IsSnapToGuidesEnabledProperty -> IsSnapToGuidesEnabled : Boolean (styled) = true
+    avalonia LargeNudgeStepProperty -> LargeNudgeStep : Double (styled) = 10
+    avalonia NudgeStepProperty -> NudgeStep : Double (styled) = 1
+    avalonia ResizeMinSizeProperty -> ResizeMinSize : Double (styled) = 10
+    avalonia SnapGuideToleranceProperty -> SnapGuideTolerance : Double (styled) = 6
+    avalonia SnapStepProperty -> SnapStep : Double (styled) = NaN
+    avalonia ZoomStepProperty -> ZoomStep : Double (styled) = 1.1
+    ctor .ctor()
+    property Boolean IsResizeContainedToParent { get; set; }
+    property Boolean IsSnapToGridEnabled { get; set; }
+    property Boolean IsSnapToGuidesEnabled { get; set; }
+    property Double DragStartThreshold { get; set; }
+    property Double LargeNudgeStep { get; set; }
+    property Double NudgeStep { get; set; }
+    property Double ResizeMinSize { get; set; }
+    property Double SnapGuideTolerance { get; set; }
+    property Double SnapStep { get; set; }
+    property Double ZoomStep { get; set; }
+class ArxisStudio.DesignEditorItem : ContentControl
+    avalonia ContentModeProperty -> ContentMode : DesignContentMode (styled) = Annotated
+    avalonia IsDraggableProperty -> IsDraggable : Boolean (styled) = true
+    avalonia IsSelectedProperty -> IsSelected : Boolean (attached) = false
+    avalonia LocationProperty -> Location : Point (styled) = 0, 0
+    ctor .ctor()
+    event EventHandler<DragCompletedEventArgs> DragCompleted
+    event EventHandler<DragDeltaEventArgs> DragDelta
+    event EventHandler<DragStartedEventArgs> DragStarted
+    event EventHandler<ResizeDeltaEventArgs> ResizeDelta
+    event EventHandler<VectorEventArgs> ResizeCompleted
+    event EventHandler<VectorEventArgs> ResizeStarted
+    field RoutedEvent<DragCompletedEventArgs> DragCompletedEvent
+    field RoutedEvent<DragDeltaEventArgs> DragDeltaEvent
+    field RoutedEvent<DragStartedEventArgs> DragStartedEvent
+    field RoutedEvent<ResizeDeltaEventArgs> ResizeDeltaEvent
+    field RoutedEvent<VectorEventArgs> ResizeCompletedEvent
+    field RoutedEvent<VectorEventArgs> ResizeStartedEvent
+    method Void OnPointerCaptureLost(PointerCaptureLostEventArgs)
+    method Void OnPointerMoved(PointerEventArgs)
+    method Void OnPointerPressed(PointerPressedEventArgs)
+    method Void OnPointerReleased(PointerReleasedEventArgs)
+    method Void OnPropertyChanged(AvaloniaPropertyChangedEventArgs)
+    property Boolean IsDraggable { get; set; }
+    property Boolean IsSelected { get; set; }
+    property DesignContentMode ContentMode { get; set; }
+    property Point Location { get; set; }
+enum ArxisStudio.DesignEditorPointerButton
+    value Left = 0
+    value Middle = 1
+    value Right = 2
+sealed class ArxisStudio.DesignEditorReorderRequestedEventArgs : EventArgs
+    ctor .ctor(Control, Int32, Int32, Control)
+    property Boolean Handled { get; set; }
+    property Control Anchor { get; }
+    property Control Target { get; }
+    property Int32 NewIndex { get; }
+    property Int32 OldIndex { get; }
+sealed class ArxisStudio.DesignGeometryChange : DesignChange
+    ctor .ctor(Control, Rect, Rect)
+    property Rect NewBounds { get; }
+    property Rect OldBounds { get; }
+sealed class ArxisStudio.DesignOrderChange : DesignChange
+    ctor .ctor(Control, Int32, Int32)
+    property Int32 NewZIndex { get; }
+    property Int32 OldZIndex { get; }
+sealed class ArxisStudio.DesignSelectionChangedEventArgs : EventArgs
+    ctor .ctor(IReadOnlyList<DesignSelectionTarget>, IReadOnlyList<DesignSelectionTarget>, IReadOnlyList<DesignSelectionTarget>, IReadOnlyList<DesignSelectionTarget>, DesignSelectionTarget, DesignSelectionTarget)
+    property Boolean IsPrimaryChanged { get; }
+    property DesignSelectionTarget NewPrimary { get; }
+    property DesignSelectionTarget OldPrimary { get; }
+    property IReadOnlyList<DesignSelectionTarget> Added { get; }
+    property IReadOnlyList<DesignSelectionTarget> NewTargets { get; }
+    property IReadOnlyList<DesignSelectionTarget> OldTargets { get; }
+    property IReadOnlyList<DesignSelectionTarget> Removed { get; }
+enum ArxisStudio.DesignSelectionScope
+    value Container = 0
+    value NestedTarget = 1
+sealed class ArxisStudio.DesignSelectionTarget
+    ctor .ctor(DesignEditorItem, Control)
+    property Control Target { get; }
+    property DesignEditorItem Container { get; }
+    property DesignSelectionScope Scope { get; }
+    property Int32 Depth { get; }
+    property String DisplayName { get; }
+class ArxisStudio.DragCompletedEventArgs : RoutedEventArgs
+    ctor .ctor(Double, Double, Boolean)
+    property Boolean Canceled { get; }
+    property Double HorizontalChange { get; }
+    property Double VerticalChange { get; }
+class ArxisStudio.DragDeltaEventArgs : RoutedEventArgs
+    ctor .ctor(Double, Double)
+    property Double HorizontalChange { get; }
+    property Double VerticalChange { get; }
+class ArxisStudio.DragStartedEventArgs : RoutedEventArgs
+    ctor .ctor(Double, Double)
+    property Double HorizontalOffset { get; }
+    property Double VerticalOffset { get; }
+interface ArxisStudio.IDesignEditorContextActionProvider
+    method ValueTask<IReadOnlyList<DesignEditorContextAction>> GetActionsAsync(DesignEditor, DesignEditorContextRequest, CancellationToken)
+interface ArxisStudio.IDesignEditorContextPresenter
+    method Boolean TryShow(DesignEditor, DesignEditorContextRequest, IReadOnlyList<DesignEditorContextAction>)

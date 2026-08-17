@@ -4,9 +4,6 @@
         <!-- xunit v3 собирает тестовый проект как самозапускаемый Exe. -->
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <RootNamespace>ArxisStudio.Tests</RootNamespace>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -14,13 +11,23 @@
 
     <ItemGroup>
         <!-- Avalonia.Headless.XUnit 12.1.1 завязан на xunit.v3, не на v2. -->
-        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1"/>
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1"/>
+        <PackageReference Include="Avalonia.Headless.XUnit"/>
+        <PackageReference Include="Avalonia.Themes.Fluent"/>
         <!-- Загрузка .axaml в рантайме: тот же путь, которым пользуется хост-приложение. -->
-        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="12.1.1"/>
-        <PackageReference Include="xunit.v3" Version="3.2.2"/>
-        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5"/>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1"/>
+        <PackageReference Include="Avalonia.Markup.Xaml.Loader"/>
+        <PackageReference Include="xunit.v3"/>
+        <PackageReference Include="xunit.runner.visualstudio"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+            Baseline публичной поверхности читается из встроенного ресурса, а не с диска:
+            прогон не должен зависеть от того, где лежат исходники.
+        -->
+        <EmbeddedResource Include="PublicSurface.baseline.txt">
+            <LogicalName>ArxisStudio.Tests.PublicSurface.baseline.txt</LogicalName>
+        </EmbeddedResource>
     </ItemGroup>
 
     <ItemGroup>

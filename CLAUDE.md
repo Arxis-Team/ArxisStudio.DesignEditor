@@ -77,8 +77,9 @@ Group drag намеренно считается по **накопленной w
 
 `DesignEditor : SelectingItemsControl`, поэтому штатная модель Avalonia (`Selection`, `SelectedItems`) оперирует **контейнерами** `DesignEditorItem`. Поверх неё редактор ведёт собственный слой выбора вложенных контролов:
 
-- `_selectionTargets: Dictionary<DesignEditorItem, List<Control>>` — nested targets по контейнерам
-- `_containerSelectionTargets: HashSet<DesignEditorItem>` — контейнеры, выбранные целиком
+- `_selectedTargets: List<Control>` — плоский список design target'ов в порядке приоритета: первый это primary
+
+Контейнер, выбранный целиком, — это просто сам `DesignEditorItem` в этом же списке; отдельной структуры под него нет. (Раньше здесь были описаны `_selectionTargets: Dictionary<…>` и `_containerSelectionTargets: HashSet<…>` — их в коде нет давно, а искать по ним приходилось.)
 
 Отсюда следует, что **`SelectedItems.Count` ≠ `SelectedDesignTargetsCount`**: один выбранный контейнер может содержать несколько выбранных nested targets. Публичный контракт выбора — `DesignSelectionTarget` (`Container`, `Target`, `Scope`, `DisplayName`); `Scope` различает `Container` и `NestedTarget`.
 
@@ -307,7 +308,7 @@ grep -rn "Children\.\(Add\|Remove\|Insert\|Move\|Clear\)" src/ --include=*.cs
 
 Законных попаданий четыре вида, и все они сейчас в выдаче: `TransformGroup.Children` в конструкторе `DesignEditor` и в `UpdateTransforms` — это трансформации viewport'а, к дереву контролов отношения не имеющие; `Children.Clear`/`Children.Add` в `SelectionAdornerLayer`, который сам является `Panel` и строит адорнеры выделения, — это оверлей редактора, а не редактируемая разметка; его же локальный список `desiredChildren`, который под шаблон запроса подходит по имени; и одно упоминание `Children.Move` в XML-doc контракта. Всё остальное — нарушение.
 
-Первая версия этой проверки была написана с точкой перед `Children` и потому не видела неквалифицированных вызовов внутри самого `SelectionAdornerLayer`; заодно она утверждала, что все `Children.Add` живут в `UpdateTransforms`, хотя четыре из них — в конструкторе. Проверку, добавленную вместе с правилом, стоит один раз прогнать.
+Первая версия этой проверки была написана с точкой перед `Children` и потому не видела неквалифицированных вызовов внутри самого `SelectionAdornerLayer`; заодно она утверждала, что все `Children.Add` живут в `UpdateTransforms`, хотя четыре из них — в конструкторе. Исправленная версия прогнана: выдача совпадает с четырьмя перечисленными видами, незаконных мутаций в `src/` нет.
 
 Отсюда деление контракта изменений: `EditCompleted` описывает только то, чем распоряжается редактор — геометрию и `ZIndex`. Запись и отмена структурных правок принадлежат тому, кто их выполняет.
 
@@ -358,7 +359,13 @@ grep -rn "Children\.\(Add\|Remove\|Insert\|Move\|Clear\)" src/ --include=*.cs
 
 ## Публичная поверхность закреплена
 
-`PublicSurfaceTests` сверяет `GetExportedTypes()` со списком из 40 типов. Новый публичный тип роняет тест — его нужно либо внести в список осознанно, либо сделать `internal`. Отдельные тесты запрещают утечку машин состояний и деталей overlay.
+`PublicSurfaceTests` сверяет слепок публичной поверхности с baseline-файлом `PublicSurface.baseline.txt` — **до отдельного члена**, а не до типа. Новый публичный член роняет тест: его нужно либо внести в baseline осознанно, либо сделать `internal`. Отдельные тесты запрещают утечку машин состояний, стратегий размещения, направляющих и деталей overlay.
+
+Слепок включает значения по умолчанию у `AvaloniaProperty`: смена умолчания ломает потребителя и при этом не видна ни в одной сигнатуре.
+
+Обновление baseline: `UPDATE_PUBLIC_SURFACE=1 dotnet test --filter Public_Surface`. Диff baseline в ревью и есть тот артефакт, ради которого тест существует.
+
+До этого закреплялся только список из 40 типов, и этого не хватило: `SelectDesignTarget` — первый публичный член, добавленный после появления замка, — приехал с девятью дефектами, не уронив ни одного теста, потому что список типов не изменился.
 
 Машины состояний (`ArxisStudio.States.*`), стратегии размещения (`ArxisStudio.Placement.*`), направляющие (`ArxisStudio.Guides.*`, `SnapGuideLayer`, свойство `SnapGuides`), `SelectionAdornerLayer`, `SelectionAdornerInfo`, `DesignSurface` и свойства `SecondarySelectionAdorners` — **internal**. Вместе с ними internal стали `CurrentState`, `PushState`, `PopState` на обоих контролах.
 
@@ -414,7 +421,9 @@ grep -rn "Children\.\(Add\|Remove\|Insert\|Move\|Clear\)" src/ --include=*.cs
 | --- | --- |
 | [0001](docs/adr/0001-the-editor-reads-the-tree-and-never-writes-it.md) | Редактор владеет геометрией и пишет её; структуру он читает и выражает запросами |
 
-`SelectDesignTarget(control, additive)` — единственный публичный способ задать выделение снаружи. Внутри него порядок существенный и в обратном тихо не работает: очистка индексного выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов. Оба слоя обязаны меняться вместе — см. «Двухуровневое выделение».
+`SelectDesignTarget(control, additive)` — единственный публичный способ задать выделение, который меняет **оба** слоя. Внутри него порядок существенный и в обратном тихо не работает: очистка индексного выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов. Оба слоя обязаны меняться вместе — см. «Двухуровневое выделение».
+
+Унаследованные от `SelectingItemsControl` `SelectedIndex`, `SelectedItem`, `SelectedItems` и `Selection` тоже публичны и тоже пишут выделение — но **только индексный слой**. Контейнер, попавший туда без записи в слое target'ов, читается как «выбран его вложенный контрол по умолчанию», а не как «выбрана форма целиком». Закрывать эти двери не нужно, они часть контракта `SelectingItemsControl`; знать про них нужно.
 
 ## Соглашения
 

@@ -3,14 +3,11 @@
     <PropertyGroup>
         <!-- Avalonia 12 больше не поставляет netstandard2.0-сборки: минимальный TFM — net8.0. -->
         <TargetFramework>net8.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
         <RootNamespace>ArxisStudio</RootNamespace>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.1.1"/>
+        <PackageReference Include="Avalonia"/>
     </ItemGroup>
 </Project>
