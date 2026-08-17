@@ -210,6 +210,14 @@ public partial class DesignEditor
         AvaloniaProperty.Register<DesignEditor, IEnumerable<DesignGuide>?>(nameof(Guides));
 
     /// <summary>
+    /// Идентификатор свойства направляющей, показываемой во время её перемещения.
+    /// </summary>
+    internal static readonly DirectProperty<DesignEditor, DesignGuide?> GuidePreviewProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignGuide?>(
+            nameof(GuidePreview),
+            o => o.GuidePreview);
+
+    /// <summary>
     /// Идентификатор свойства снимка пользовательских направляющих.
     /// </summary>
     internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignGuide>> UserGuidesProperty =
@@ -564,6 +572,17 @@ public partial class DesignEditor
 
     private IReadOnlyList<DesignGuide> _userGuides = Array.Empty<DesignGuide>();
 
+    private DesignGuide? _guidePreview;
+
+    /// <summary>
+    /// Получает направляющую, показываемую во время её перемещения.
+    /// </summary>
+    internal DesignGuide? GuidePreview
+    {
+        get => _guidePreview;
+        private set => SetAndRaise(GuidePreviewProperty, ref _guidePreview, value);
+    }
+
     /// <summary>
     /// Получает или задает пользовательские направляющие.
     /// </summary>
@@ -810,6 +829,18 @@ public partial class DesignEditor
     /// <see cref="DesignEditorReorderRequestedEventArgs.Handled"/>.
     /// </remarks>
     public event EventHandler<DesignEditorReorderRequestedEventArgs>? ReorderRequested;
+
+    /// <summary>
+    /// Возникает, когда пользователь просит изменить набор направляющих.
+    /// </summary>
+    /// <remarks>
+    /// Набором владеет хост, поэтому редактор его не правит сам. Пока обработчик
+    /// не выставил <c>Handled</c>, направляющая остаётся там, где была.
+    /// <para>
+    /// Без подписчика жест перемещения направляющей не начинается вовсе.
+    /// </para>
+    /// </remarks>
+    public event EventHandler<DesignGuideChangeRequestedEventArgs>? GuideChangeRequested;
 
     /// <summary>
     /// Возникает при изменении набора выбранных design targets.

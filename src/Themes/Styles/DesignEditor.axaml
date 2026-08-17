@@ -172,6 +172,7 @@
                                                  IsHitTestVisible="False"
                                                  Guides="{TemplateBinding SnapGuides}"
                                                  UserGuides="{TemplateBinding UserGuides}"
+                                                 GuidePreview="{TemplateBinding GuidePreview}"
                                                  UserGuideBrush="{DynamicResource DesignEditor.UserGuideBrush}"
                                                  LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"
                                                  LineThickness="{DynamicResource DesignEditor.SnapGuide.Thickness}"

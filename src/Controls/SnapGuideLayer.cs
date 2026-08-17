@@ -36,6 +36,12 @@ internal class SnapGuideLayer : Control
         AvaloniaProperty.Register<SnapGuideLayer, IReadOnlyList<DesignGuide>?>(nameof(UserGuides));
 
     /// <summary>
+    /// Идентификатор свойства направляющей, показываемой во время перемещения.
+    /// </summary>
+    public static readonly StyledProperty<DesignGuide?> GuidePreviewProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, DesignGuide?>(nameof(GuidePreview));
+
+    /// <summary>
     /// Идентификатор свойства кисти пользовательских направляющих.
     /// </summary>
     public static readonly StyledProperty<IBrush?> UserGuideBrushProperty =
@@ -70,6 +76,7 @@ internal class SnapGuideLayer : Control
         AffectsRender<SnapGuideLayer>(
             GuidesProperty,
             UserGuidesProperty,
+            GuidePreviewProperty,
             UserGuideBrushProperty,
             LineBrushProperty,
             LineThicknessProperty,
@@ -93,6 +100,15 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(UserGuidesProperty);
         set => SetValue(UserGuidesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает направляющую, показываемую во время перемещения.
+    /// </summary>
+    public DesignGuide? GuidePreview
+    {
+        get => GetValue(GuidePreviewProperty);
+        set => SetValue(GuidePreviewProperty, value);
     }
 
     /// <summary>
@@ -203,23 +219,37 @@ internal class SnapGuideLayer : Control
     private void RenderUserGuides(DrawingContext context, Point origin, double zoom, double scaling, double thickness)
     {
         var guides = UserGuides;
-        if (guides == null || guides.Count == 0)
-            return;
-
         if (UserGuideBrush is not { } brush)
             return;
 
+        if ((guides == null || guides.Count == 0) && GuidePreview == null)
+            return;
+
         var pen = new Pen(brush, thickness);
-        var size = Bounds.Size;
+        guides ??= Array.Empty<DesignGuide>();
 
         for (var i = 0; i < guides.Count; i++)
+            DrawUserGuide(context, pen, guides[i], origin, zoom, scaling);
+
+        // Превью рисуется поверх набора: во время протяжки видно и то, где линия
+        // стоит сейчас, и то, куда она встанет, — правку применит хост, а не редактор.
+        if (GuidePreview is { } preview)
+            DrawUserGuide(context, pen, preview, origin, zoom, scaling);
+    }
+
+    /// <summary>
+    /// Рисует одну пользовательскую направляющую через весь слой.
+    /// </summary>
+    private void DrawUserGuide(DrawingContext context, IPen pen, DesignGuide guide, Point origin, double zoom, double scaling)
+    {
+        var size = Bounds.Size;
+
         {
-            var guide = guides[i];
             if (guide.Orientation == DesignGuideOrientation.Vertical)
             {
                 var x = DesignGrid.SnapToDevicePixel((guide.Position - origin.X) * zoom, scaling);
                 if (x < 0 || x > size.Width)
-                    continue;
+                    return;
 
                 context.DrawLine(pen, new Point(x, 0), new Point(x, size.Height));
             }
@@ -227,7 +257,7 @@ internal class SnapGuideLayer : Control
             {
                 var y = DesignGrid.SnapToDevicePixel((guide.Position - origin.Y) * zoom, scaling);
                 if (y < 0 || y > size.Height)
-                    continue;
+                    return;
 
                 context.DrawLine(pen, new Point(0, y), new Point(size.Width, y));
             }

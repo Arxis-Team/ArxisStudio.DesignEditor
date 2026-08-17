@@ -10,6 +10,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -142,6 +143,11 @@ public partial class DesignEditor : SelectingItemsControl
     /// </summary>
     public DesignEditor()
     {
+        // Нажатие на направляющую перехватывается в фазе туннелирования: линия
+        // нарисована поверх всего, значит и жест должна забирать раньше контейнера
+        // под ней. Через всплытие это не сделать — контейнер обработает нажатие
+        // первым, захватит указатель и начнёт своё перетаскивание.
+        AddHandler(PointerPressedEvent, OnTunnelPointerPressed, RoutingStrategies.Tunnel);
         SelectionMode = SelectionMode.Multiple;
         _inputGestures = new DesignEditorInputGestures();
         _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;

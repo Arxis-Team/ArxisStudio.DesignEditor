@@ -27,6 +27,9 @@ public partial class MainWindow : Window
             // играет само демо, в продукте её возьмёт ArxisStudio.Markup.
             editor.ReorderRequested += Editor_OnReorderRequested;
 
+            // Набор направляющих принадлежит модели, поэтому правит его хост.
+            editor.GuideChangeRequested += Editor_OnGuideChangeRequested;
+
             // Канал управления для проверки API вживую. Без --automation ничего
             // не поднимается: ни таймера, ни подписок, ни файлов.
             Automation.AutomationChannel.TryStart(Program.AutomationDirectory, editor, this);
@@ -92,6 +95,46 @@ public partial class MainWindow : Window
 
         foreach (var index in indexes)
             viewModel.Elements.RemoveAt(index);
+
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Применяет запрошенное изменение набора направляющих.
+    /// </summary>
+    /// <remarks>
+    /// Редактор направляющую не двигает и не убирает — он показывает, куда она встанет,
+    /// и просит. Пока этот обработчик не выставит <c>Handled</c>, линия остаётся на месте.
+    /// </remarks>
+    private void Editor_OnGuideChangeRequested(object? sender, DesignGuideChangeRequestedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        var guides = viewModel.Guides;
+        switch (e.Kind)
+        {
+            case DesignGuideChangeKind.Add:
+                guides.Add(e.Guide);
+                break;
+
+            case DesignGuideChangeKind.Move:
+                var index = e.Original is { } original ? guides.IndexOf(original) : -1;
+                if (index < 0)
+                    return;
+
+                guides[index] = e.Guide;
+                break;
+
+            case DesignGuideChangeKind.Remove:
+                if (!guides.Remove(e.Guide))
+                    return;
+
+                break;
+
+            default:
+                return;
+        }
 
         e.Handled = true;
     }
