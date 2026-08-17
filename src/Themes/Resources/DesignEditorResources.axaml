@@ -15,6 +15,9 @@
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#D6006C" />
             <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#0A84FF" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.BackgroundBrush" Color="#F3F3F5" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.TickBrush" Color="#8A8A93" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.LabelBrush" Color="#5B5B64" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -48,6 +51,9 @@
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#FF4FA3" />
             <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#4DA3FF" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.BackgroundBrush" Color="#25252A" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.TickBrush" Color="#6E6E78" />
+            <SolidColorBrush x:Key="DesignEditor.Ruler.LabelBrush" Color="#9A9AA4" />
 
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryBrush" Color="#0099FF" />
             <SolidColorBrush x:Key="DesignEditor.SelectionAdorner.PrimaryFill" Color="Transparent" />
@@ -86,6 +92,10 @@
 
     <!-- Направляющие. Толщина задана в пикселях устройства, как и у сетки. -->
     <x:Double x:Key="DesignEditor.SnapGuide.Thickness">1</x:Double>
+
+    <!-- Линейки. Толщина одна на обе ориентации, чтобы угол между ними был квадратным. -->
+    <x:Double x:Key="DesignEditor.Ruler.Thickness">20</x:Double>
+    <x:Double x:Key="DesignEditor.Ruler.LabelFontSize">9</x:Double>
 
     <Thickness x:Key="DesignEditorItem.BorderThickness">0</Thickness>
 

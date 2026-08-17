@@ -242,6 +242,21 @@ internal sealed class AutomationChannel
                 _editor.ViewportZoom = command.TryGetProperty("zoom", out var zoom) ? zoom.GetDouble() : _editor.ViewportZoom;
                 return Result();
 
+            case "guides":
+            {
+                // Набор направляющих читается у самого редактора: так видно то же,
+                // что видит хост, а не то, что нарисовано.
+                var list = (_editor.Guides ?? Enumerable.Empty<ArxisStudio.DesignGuide>())
+                    .Select(g => new Dictionary<string, object?>
+                    {
+                        ["orientation"] = g.Orientation.ToString(),
+                        ["position"] = g.Position
+                    })
+                    .ToList();
+
+                return new Dictionary<string, object?> { ["guides"] = list };
+            }
+
             case "events":
             {
                 var drained = _events.Select(entry => entry).ToList();

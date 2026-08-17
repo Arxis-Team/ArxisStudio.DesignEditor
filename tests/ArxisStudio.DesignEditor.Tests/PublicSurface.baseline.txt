@@ -70,6 +70,25 @@ class ArxisStudio.Controls.DesignGrid : Control
     property IBrush MajorLineBrush { get; set; }
     property Int32 MajorInterval { get; set; }
     property Point ViewportLocation { get; set; }
+class ArxisStudio.Controls.DesignRuler : Control
+    avalonia BackgroundProperty -> Background : IBrush (styled) = null
+    avalonia EditorProperty -> Editor : DesignEditor (styled) = null
+    avalonia LabelBrushProperty -> LabelBrush : IBrush (styled) = null
+    avalonia LabelFontSizeProperty -> LabelFontSize : Double (styled) = 9
+    avalonia OrientationProperty -> Orientation : Orientation (styled) = Horizontal
+    avalonia TickBrushProperty -> TickBrush : IBrush (styled) = null
+    ctor .ctor()
+    method Void OnPointerCaptureLost(PointerCaptureLostEventArgs)
+    method Void OnPointerMoved(PointerEventArgs)
+    method Void OnPointerPressed(PointerPressedEventArgs)
+    method Void OnPointerReleased(PointerReleasedEventArgs)
+    method Void Render(DrawingContext)
+    property DesignEditor Editor { get; set; }
+    property Double LabelFontSize { get; set; }
+    property IBrush Background { get; set; }
+    property IBrush LabelBrush { get; set; }
+    property IBrush TickBrush { get; set; }
+    property Orientation Orientation { get; set; }
 class ArxisStudio.Controls.ResizeDeltaEventArgs : RoutedEventArgs
     ctor .ctor(Vector, ResizeDirection, RoutedEvent)
     property ResizeDirection Direction { get; }
