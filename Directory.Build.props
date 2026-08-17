@@ -24,4 +24,12 @@
         <WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     </PropertyGroup>
 
+    <!--
+        Упаковывается только библиотека, и она включает это у себя сама.
+        Без этого `dotnet pack` на решении складывал бы рядом пакеты тестов и демо.
+    -->
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
 </Project>
