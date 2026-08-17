@@ -10,6 +10,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -2104,14 +2105,57 @@ public class DesignEditor : SelectingItemsControl
         e.Handled = CurrentState.OnPointerWheelChanged(e);
     }
 
+    /// <summary>
+    /// Запускает запрос контекста, не дожидаясь его завершения.
+    /// </summary>
+    /// <remarks>
+    /// Указатель ждать не может: обработчик нажатия обязан вернуться сразу. Отсюда
+    /// два следствия, которых раньше не было.
+    /// <para>
+    /// Новый запрос отменяет предыдущий. Провайдер объявлен асинхронным, значит он
+    /// вправе ходить в свою модель; два правых клика подряд доводили до конца оба
+    /// запроса, и меню разрешалось дважды — второй показ поверх первого.
+    /// </para>
+    /// <para>
+    /// Упавший провайдер больше не исчезает молча. Публичного события об ошибке
+    /// здесь нет намеренно — контракт провайдера асинхронный, и ловить свои
+    /// исключения хост умеет сам, — но в лог сообщение уходит, иначе отладка
+    /// сводится к «меню не открылось, и никаких следов».
+    /// </para>
+    /// </remarks>
     private void RequestContextSafe(DesignEditorContextSource source, Point viewportPoint, KeyModifiers modifiers)
     {
-        _ = RequestContextAsync(source, viewportPoint, modifiers).ContinueWith(
-            static task => _ = task.Exception,
+        var previous = _contextRequest;
+        var current = new CancellationTokenSource();
+        _contextRequest = current;
+
+        if (previous != null)
+        {
+            previous.Cancel();
+            previous.Dispose();
+        }
+
+        _ = RequestContextAsync(source, viewportPoint, modifiers, current.Token).ContinueWith(
+            task =>
+            {
+                if (ReferenceEquals(_contextRequest, current))
+                    _contextRequest = null;
+
+                current.Dispose();
+
+                if (task.Exception is { } exception && !task.IsCanceled)
+                {
+                    Logger.TryGet(LogEventLevel.Error, LogArea.Control)?.Log(
+                        this, "Провайдер контекстных действий завершился ошибкой: {Error}", exception.GetBaseException());
+                }
+            },
             CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
+            TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
     }
+
+    // Отмена запроса контекста, который ещё идёт. Null означает, что запроса нет.
+    private CancellationTokenSource? _contextRequest;
 
     private void RetargetSelectionForContext(Point viewportPoint, KeyModifiers modifiers)
     {
