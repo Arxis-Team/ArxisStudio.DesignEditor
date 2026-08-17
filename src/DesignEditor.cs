@@ -1101,10 +1101,19 @@ public class DesignEditor : SelectingItemsControl
     /// Выполняет масштабирование относительно текущей позиции курсора.
     /// </summary>
     /// <param name="e">Аргументы колесика мыши.</param>
-    public void HandleZoom(PointerWheelEventArgs e)
+    public void HandleZoom(PointerWheelEventArgs e) => TryHandleZoom(e);
+
+    /// <summary>
+    /// Масштабирует viewport и сообщает, состоялось ли масштабирование.
+    /// </summary>
+    /// <remarks>
+    /// Публичный <see cref="HandleZoom"/> остаётся void ради совместимости;
+    /// ответ нужен только редактору, чтобы решить судьбу <c>e.Handled</c>.
+    /// </remarks>
+    internal bool TryHandleZoom(PointerWheelEventArgs e)
     {
         if (!ShouldHandleZoom(e.KeyModifiers))
-            return;
+            return false;
 
         var zoomStep = InteractionOptions.ZoomStep > 1.0 ? InteractionOptions.ZoomStep : 1.1;
         double prevZoom = ViewportZoom;
@@ -1118,6 +1127,11 @@ public class DesignEditor : SelectingItemsControl
             ViewportZoom = newZoom;
             ViewportLocation += correction;
         }
+
+        // Колесо потреблено даже когда масштаб упёрся в Min/Max: жест был наш,
+        // и отдавать его наружу на границе диапазона значило бы, что у края
+        // зума страница вдруг начинает прокручиваться.
+        return true;
     }
 
     /// <summary>
@@ -2082,8 +2096,12 @@ public class DesignEditor : SelectingItemsControl
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         if (e.Handled) return;
-        CurrentState.OnPointerWheelChanged(e);
-        e.Handled = true;
+
+        // Помечать обработанным можно только то, что действительно потребили.
+        // Безусловный Handled съедал колесо и тогда, когда зум не сработал —
+        // заданы ZoomModifiers, но не нажаты, — и внешний ScrollViewer,
+        // внутри которого лежит редактор, переставал прокручиваться вовсе.
+        e.Handled = CurrentState.OnPointerWheelChanged(e);
     }
 
     private void RequestContextSafe(DesignEditorContextSource source, Point viewportPoint, KeyModifiers modifiers)

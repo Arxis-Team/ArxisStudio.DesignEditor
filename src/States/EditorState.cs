@@ -54,5 +54,6 @@ internal abstract class EditorState
     /// Обрабатывает вращение колесика мыши.
     /// </summary>
     /// <param name="e">Аргументы колесика мыши.</param>
-    public virtual void OnPointerWheelChanged(PointerWheelEventArgs e) { }
+    /// <returns><see langword="true"/>, если состояние потребило колесо.</returns>
+    public virtual bool OnPointerWheelChanged(PointerWheelEventArgs e) => false;
 }

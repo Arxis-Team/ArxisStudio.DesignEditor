@@ -69,9 +69,9 @@ internal class EditorPanningState : EditorState
     }
 
     /// <inheritdoc />
-    public override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    public override bool OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         // Разрешаем зум даже во время панорамирования (как в Google Maps)
-        Editor.HandleZoom(e);
+        return Editor.TryHandleZoom(e);
     }
 }

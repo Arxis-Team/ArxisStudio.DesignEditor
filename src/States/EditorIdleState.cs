@@ -39,9 +39,9 @@ internal class EditorIdleState : EditorState
     }
 
     /// <inheritdoc />
-    public override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    public override bool OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         // Зум работает всегда, даже в Idle
-        Editor.HandleZoom(e);
+        return Editor.TryHandleZoom(e);
     }
 }
