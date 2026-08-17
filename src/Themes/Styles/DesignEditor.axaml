@@ -4,7 +4,7 @@
                     xmlns:controls="clr-namespace:ArxisStudio.Controls"
                     xmlns:helpers="clr-namespace:ArxisStudio.Helpers">
 
-    <helpers:UnscaleTransformConverter x:Key="UnscaleTransformConverter" />
+    <helpers:InverseScaleConverter x:Key="InverseScaleConverter" />
     <helpers:ScaleDoubleConverter x:Key="ScaleDoubleConverter" />
 
     <!-- Временная marquee-рамка для area-selection в PART_InteractionOverlayLayer. -->
@@ -66,7 +66,7 @@
                                                        Role="Primary"
                                                        ShowHandles="True"
                                                        IsInteractive="True"
-                                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                       RenderTransform="{Binding ViewportZoom, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource InverseScaleConverter}}"
                                                        RenderTransformOrigin="0,0"
                                                        Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                                        Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
@@ -90,7 +90,7 @@
                                                        Role="Group"
                                                        ShowHandles="True"
                                                        IsInteractive="True"
-                                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                                       RenderTransform="{Binding ViewportZoom, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource InverseScaleConverter}}"
                                                        RenderTransformOrigin="0,0"
                                                        Canvas.Top="{Binding SelectionBounds.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                                        Canvas.Left="{Binding SelectionBounds.X, RelativeSource={RelativeSource TemplatedParent}}"
@@ -117,7 +117,7 @@
                                 RenderTransform="{TemplateBinding ViewportTransform}"
                                 RenderTransformOrigin="0,0">
                             <Rectangle Theme="{TemplateBinding SelectionRectangleStyle}"
-                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                       RenderTransform="{Binding ViewportZoom, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource InverseScaleConverter}}"
                                        RenderTransformOrigin="0,0"
                                        Canvas.Top="{Binding SelectedArea.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                        Canvas.Left="{Binding SelectedArea.X, RelativeSource={RelativeSource TemplatedParent}}"
@@ -143,7 +143,7 @@
                                        Fill="{DynamicResource DesignEditor.ReorderIndicatorBrush}"
                                        MinWidth="2"
                                        MinHeight="2"
-                                       RenderTransform="{Binding ViewportTransform, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource UnscaleTransformConverter}}"
+                                       RenderTransform="{Binding ViewportZoom, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource InverseScaleConverter}}"
                                        RenderTransformOrigin="0,0"
                                        Canvas.Top="{Binding ReorderIndicator.Y, RelativeSource={RelativeSource TemplatedParent}}"
                                        Canvas.Left="{Binding ReorderIndicator.X, RelativeSource={RelativeSource TemplatedParent}}"

@@ -1,31 +1,9 @@
 ﻿using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
-using Avalonia.Media;
 
 namespace ArxisStudio.Helpers
 {
-    /// <summary>
-    /// Преобразует масштабированную трансформацию viewport в обратную матрицу,
-    /// чтобы оверлеи могли отрисовываться без масштабирования.
-    /// </summary>
-    internal class UnscaleTransformConverter : IValueConverter
-    {
-        /// <inheritdoc />
-        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            if (value is TransformGroup transformGroup)
-                return new MatrixTransform(transformGroup.Children[0].Value.Invert());
-            return null;
-        }
-
-        /// <inheritdoc />
-        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            return value;
-        }
-    }
-
     /// <summary>
     /// Умножает число на коэффициент масштаба.
     /// </summary>

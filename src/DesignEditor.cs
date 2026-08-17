@@ -1072,11 +1072,11 @@ public class DesignEditor : SelectingItemsControl
         _dpiTranslateTransform.X = Math.Round(x * renderScaling) / renderScaling;
         _dpiTranslateTransform.Y = Math.Round(y * renderScaling) / renderScaling;
 
-        var vg = new TransformGroup(); vg.Children.Add(_scaleTransform); vg.Children.Add(_translateTransform);
-        SetCurrentValue(ViewportTransformProperty, vg);
-
-        var dg = new TransformGroup(); dg.Children.Add(_scaleTransform); dg.Children.Add(_dpiTranslateTransform);
-        SetCurrentValue(DpiScaledViewportTransformProperty, dg);
+        // Группы собраны в конструкторе и содержат эти же трансформации, поэтому
+        // мутации выше видны через них сразу. Пересобирать их заново на каждом кадре
+        // приходилось только ради обратного масштаба оверлеев: тот конвертер снимал
+        // матрицу в момент преобразования и перевычислялся лишь при смене
+        // идентичности значения. Теперь оверлеи привязаны к ViewportZoom напрямую.
     }
 
     /// <summary>
