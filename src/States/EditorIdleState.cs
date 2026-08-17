@@ -23,7 +23,7 @@ internal class EditorIdleState : EditorState
 
         if (Editor.ShouldStartPan(props, modifiers))
         {
-            Editor.PushState(new EditorPanningState(Editor));
+            Editor.PushState(new EditorPanningState(Editor, e.Pointer));
             return;
         }
 
@@ -33,7 +33,7 @@ internal class EditorIdleState : EditorState
         // не отличает «внутри контейнера» от «контейнер удержал жест».
         if (!e.Handled && Editor.ShouldStartMarquee(props, modifiers))
         {
-            Editor.PushState(new EditorSelectingState(Editor));
+            Editor.PushState(new EditorSelectingState(Editor, e.Pointer));
             return;
         }
     }

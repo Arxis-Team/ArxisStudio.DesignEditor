@@ -199,6 +199,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     method Void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs)
     method Void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs)
     method Void OnKeyDown(KeyEventArgs)
+    method Void OnPointerCaptureLost(PointerCaptureLostEventArgs)
     method Void OnPointerMoved(PointerEventArgs)
     method Void OnPointerPressed(PointerPressedEventArgs)
     method Void OnPointerReleased(PointerReleasedEventArgs)

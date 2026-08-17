@@ -9,6 +9,7 @@ namespace ArxisStudio.States;
 /// </summary>
 internal class EditorSelectingState : EditorState
 {
+    private readonly IPointer _pointer;
     private Point _startLocationWorld;
 
     /// <summary>
@@ -24,11 +25,21 @@ internal class EditorSelectingState : EditorState
     /// Инициализирует новый экземпляр <see cref="EditorSelectingState"/>.
     /// </summary>
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
-    public EditorSelectingState(DesignEditor editor) : base(editor) { }
+    /// <param name="pointer">Указатель, которым идёт жест.</param>
+    public EditorSelectingState(DesignEditor editor, IPointer pointer) : base(editor)
+    {
+        _pointer = pointer;
+    }
 
     /// <inheritdoc />
     public override void Enter(EditorState? from)
     {
+        // Захват принадлежит жесту. Avalonia на нажатии захватывает попавший под
+        // указатель элемент сама, но это элемент шаблона, а не редактор: доставка
+        // release зависела бы от формы шаблона. А главное — потерю захвата теперь
+        // видит редактор и разбирает стек состояний сам, см. OnPointerCaptureLost.
+        _pointer.Capture(Editor);
+
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
         _useContainerSelection = Editor.ShouldUseContainerInteraction(Editor.LastInputModifiers);
@@ -54,6 +65,11 @@ internal class EditorSelectingState : EditorState
         Editor.IsSelecting = false;
         Editor.SelectedArea = new Rect(0, 0, 0, 0);
         Editor.ClearMarqueeScope();
+
+        // Если выход вызван самой потерей захвата, это no-op; на обычном отпускании
+        // симметрично снимает то, что взял Enter.
+        if (ReferenceEquals(_pointer.Captured, Editor))
+            _pointer.Capture(null);
     }
 
     /// <inheritdoc />

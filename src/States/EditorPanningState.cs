@@ -8,6 +8,7 @@ namespace ArxisStudio.States;
 /// </summary>
 internal class EditorPanningState : EditorState
 {
+    private readonly IPointer _pointer;
     private Point _startMousePosition;
     private Point _startViewportLocation;
 
@@ -15,7 +16,11 @@ internal class EditorPanningState : EditorState
     /// Инициализирует новый экземпляр <see cref="EditorPanningState"/>.
     /// </summary>
     /// <param name="editor">Редактор, которому принадлежит состояние.</param>
-    public EditorPanningState(DesignEditor editor) : base(editor) { }
+    /// <param name="pointer">Указатель, которым идёт жест.</param>
+    public EditorPanningState(DesignEditor editor, IPointer pointer) : base(editor)
+    {
+        _pointer = pointer;
+    }
 
     /// <inheritdoc />
     public override void Enter(EditorState? from)
@@ -27,15 +32,21 @@ internal class EditorPanningState : EditorState
         _startViewportLocation = Editor.ViewportLocation;
 
         Editor.Cursor = new Cursor(StandardCursorType.Hand);
-        // Захват мыши происходит автоматически в Avalonia при нажатии,
-        // но можно явно указать Capture, если нужно гарантировать поведение.
-        // В данном контексте полагаемся на обработку PointerMoved.
+
+        // Захват берётся явно. Утверждение «Avalonia захватывает сама, поэтому
+        // можно не захватывать» стояло здесь и было причиной дефекта: захват
+        // достаётся элементу шаблона, а потерю захвата не видел никто — курсор
+        // оставался Hand, и каждое следующее движение панорамировало.
+        _pointer.Capture(Editor);
     }
 
     /// <inheritdoc />
     public override void Exit()
     {
         Editor.Cursor = Cursor.Default;
+
+        if (ReferenceEquals(_pointer.Captured, Editor))
+            _pointer.Capture(null);
     }
 
     /// <inheritdoc />

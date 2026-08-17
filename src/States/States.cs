@@ -261,6 +261,7 @@ internal class ItemDraggingState : DesignEditorItemState
     private Point _elementStartLocation;
     private Control _dragTarget = null!;
     private Vector _previousAppliedDelta;
+    private bool _accepted;
 
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemDraggingState"/>.
@@ -286,6 +287,12 @@ internal class ItemDraggingState : DesignEditorItemState
         editor?.BeginSnapGuides(_dragTarget);
 
         Container.RaiseEvent(new DragStartedEventArgs(_initialPointerPosition.X, _initialPointerPosition.Y) { RoutedEvent = DesignEditorItem.DragStartedEvent });
+
+        // Редактор мог жест отклонить. Признак — открытая единица редактирования:
+        // e.Handled не различает отказ от согласия, редактор ставит его на всех
+        // ветках. Без этой проверки отклонённый жест продолжал писать геометрию
+        // каждый кадр при закрытой единице, то есть мимо undo.
+        _accepted = editor == null || editor.HasActiveEdit;
     }
 
     /// <inheritdoc />
@@ -303,6 +310,12 @@ internal class ItemDraggingState : DesignEditorItemState
     /// <inheritdoc />
     public override void OnPointerMoved(PointerEventArgs e)
     {
+        if (!_accepted)
+        {
+            e.Handled = true;
+            return;
+        }
+
         var editor = Container.FindAncestorOfType<DesignEditor>();
         if (editor != null)
         {

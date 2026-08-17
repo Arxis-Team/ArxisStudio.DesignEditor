@@ -2013,7 +2013,19 @@ public class DesignEditor : SelectingItemsControl
             return false;
 
         var args = new DesignEditorDeleteRequestedEventArgs(targets);
-        handler(this, args);
+
+        // Обработчики обходятся по одному, и первый же выполнивший удаление
+        // останавливает обход. Список targets снят до правки, поэтому следующему
+        // он описывал бы выделение, которого уже нет. Ровно это было исправлено
+        // для ReorderRequested и не было исправлено здесь.
+        foreach (var invocation in handler.GetInvocationList())
+        {
+            ((EventHandler<DesignEditorDeleteRequestedEventArgs>)invocation)(this, args);
+
+            if (args.Handled)
+                break;
+        }
+
         return args.Handled;
     }
 
@@ -2036,6 +2048,31 @@ public class DesignEditor : SelectingItemsControl
     {
         CurrentState.OnPointerReleased(e);
         base.OnPointerReleased(e);
+    }
+
+    /// <summary>
+    /// Разбирает стек состояний, если редактор потерял захват указателя.
+    /// </summary>
+    /// <param name="e">Аргументы потери захвата.</param>
+    /// <remarks>
+    /// Рамка выделения и панорамирование выходят только через отпускание. Отпускание
+    /// доходит почти всегда, но захват можно и потерять — его забирает другой элемент,
+    /// захваченный уходит из дерева, платформа отбирает сама. Тогда состояние остаётся
+    /// на стеке, и это не косметика: брошенная рамка держит <see cref="IsSelecting"/>,
+    /// а по нему <c>OnItemsDragStarted</c> отклоняет следующее перетаскивание — при том
+    /// что контейнер об отказе не узнаёт и продолжает писать геометрию каждый кадр
+    /// с закрытой единицей редактирования. Правка уходила мимо undo.
+    /// <para>
+    /// Тот же приём, что у контейнера (<c>DesignEditorItem.OnPointerCaptureLost</c>):
+    /// разобрать стек до базового состояния, дав каждому выйти своим <c>Exit</c>.
+    /// </para>
+    /// </remarks>
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+
+        while (_states.Count > 1)
+            PopState();
     }
 
     /// <summary>
@@ -4239,7 +4276,34 @@ public class DesignEditor : SelectingItemsControl
     /// <summary>
     /// Открывает единицу редактирования. Вызывается на старте жеста, до первой мутации.
     /// </summary>
-    private void BeginEdit(DesignEditKind kind) => _activeEdit = new DesignEditScope(kind);
+    /// <summary>
+    /// Признак открытой единицы редактирования.
+    /// </summary>
+    /// <remarks>
+    /// По нему состояние перетаскивания понимает, принят жест или отклонён:
+    /// <c>e.Handled</c> для этого не годится — редактор ставит его на всех ветках,
+    /// включая успешную. Открытая единица есть только на успешной.
+    /// </remarks>
+    internal bool HasActiveEdit => _activeEdit != null;
+
+    /// <summary>
+    /// Открывает единицу редактирования.
+    /// </summary>
+    /// <remarks>
+    /// Осиротевшая единица не затирается, а фиксируется. Раньше здесь стояло простое
+    /// присваивание: если предыдущий жест закончился, не закрыв свою единицу, — а он
+    /// может, у трёх завершений resize есть ранние выходы до <see cref="CommitEdit"/>, —
+    /// то следующий жест молча уничтожал её, и правка пользователя исчезала из undo
+    /// без единого признака. Поздняя запись хуже своевременной, но несравнимо лучше
+    /// потерянной.
+    /// </remarks>
+    private void BeginEdit(DesignEditKind kind)
+    {
+        if (_activeEdit != null)
+            CommitEdit();
+
+        _activeEdit = new DesignEditScope(kind);
+    }
 
     /// <summary>
     /// Закрывает единицу редактирования и публикует изменения, если они есть.
