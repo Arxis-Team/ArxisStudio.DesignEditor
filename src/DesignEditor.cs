@@ -2746,9 +2746,71 @@ public class DesignEditor : SelectingItemsControl
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        // Тот же резолвер, что и у указателя. FindDesignHost отдаёт ближайший host, а индекс есть
-        // только у item'а верхнего уровня — из-за чего контрол во вложенном контейнере отвергался,
-        // хотя кликом выбирается.
+        return ApplySelection(target, additive ? SelectionIntent.Add : SelectionIntent.Replace);
+    }
+
+    /// <summary>
+    /// Намерение записи выделения.
+    /// </summary>
+    private enum SelectionIntent
+    {
+        /// <summary>Заменить выделение целиком.</summary>
+        Replace,
+
+        /// <summary>Добавить к текущему выделению.</summary>
+        Add
+    }
+
+    /// <summary>
+    /// Единственная точка записи выделения: пишет оба слоя за одну транзакцию.
+    /// </summary>
+    /// <remarks>
+    /// Оба слоя обязаны меняться вместе, и до появления этой точки правило держалось
+    /// в каждой точке записи своими руками — с разными резолверами владельца, разным
+    /// набором guard'ов и батчингом в двух местах из десяти. Отсюда и брались состояния,
+    /// которые указатель построить не может, а публичный API строил.
+    /// <para>
+    /// Четыре вещи, которых не делала ни одна прежняя точка записи:
+    /// </para>
+    /// <list type="number">
+    /// <item><description>
+    /// <b>Один резолвер владельца.</b> Владелец — item верхнего уровня, у него есть индекс;
+    /// host — ближайший контейнер, он решает редактируемость. Оба ответа нужны, вход один.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Ворота редактируемости, которые нельзя обойти выбором аргумента.</b> Проверка
+    /// <c>IsSelectableTarget(target, FindDesignHost(target))</c> в режиме <c>Loaded</c> была
+    /// тавтологией — её ветка это <c>ReferenceEquals(FindDesignHost(control), owner)</c>,
+    /// а owner вызывающий вычислял тем же <c>FindDesignHost</c>. Теперь target обязан
+    /// оказаться среди кандидатов своего host'а: ровно тем списком пользуется указатель,
+    /// и именно он не спускается внутрь шаблонов.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Оба слоя внутри одного <c>BatchUpdate</c>.</b> Без него замена публиковала
+    /// два <see cref="DesignSelectionChanged"/>, первый — с пустым выделением: <c>Clear()</c>
+    /// синхронно доходит до обработчика <c>IsSelected</c>, тот пересобирает оверлей и
+    /// публикует пустой снимок. Хост, зеркалящий выделение в своё дерево, гасил подсветку
+    /// между двумя событиями одного вызова.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Материализация неявного target'а на записи.</b> Контейнер, попавший в индексный
+    /// слой без записи в слое target'ов, читался как «выбран его ребёнок по умолчанию» —
+    /// и потому <c>additive</c> поверх него молча терял то, к чему добавлял.
+    /// </description></item>
+    /// </list>
+    /// </remarks>
+    private bool ApplySelection(Control target, SelectionIntent intent)
+    {
+        // Жест владеет выделением, пока идёт. Вызов извне посреди него ставит
+        // контрол в группу, которую перетаскивают, — он уезжает вместе с ней,
+        // а лишняя правка попадает в чужую единицу редактирования.
+        if (IsSelecting || CurrentState is not EditorIdleState)
+            return false;
+
+        var host = target as DesignEditorItem is { } item && !ReferenceEquals(item, target)
+            ? null
+            : FindDesignHost(target);
+
         var owner = ResolveOwningItemForTarget(target);
         if (owner == null)
             return false;
@@ -2757,39 +2819,93 @@ public class DesignEditor : SelectingItemsControl
         if (index < 0)
             return false;
 
-        if (target is not DesignEditorItem)
-        {
-            // Внутри контейнера редактируемость решает его собственный host, а не владеющий item.
-            var host = FindDesignHost(target);
-            if (host == null || !IsSelectableTarget(target, host))
-                return false;
-        }
-
-        // Те же два условия, что и на пути указателя. Без них хост собирал бы группу из разных
-        // design host'ов — состояние, которое указатель составить не даёт.
-        if (additive && (!CanAddNestedTargetToContainer(owner) || !SharesDesignHostWithSelection(target)))
+        if (host != null && !IsEditableTarget(target, host))
             return false;
 
-        // Добавление, а не переключение: у жеста повторный клик со Shift снимает выбор осознанно,
-        // а вызов API — это «пусть будет выбран». Иначе хост, отражающий выделение своего дерева
-        // построчно, снимал бы выбор ровно с тех строк, которые собирался подтвердить.
-        if (additive)
+        if (intent == SelectionIntent.Add && !SharesDesignHostWithSelection(target))
+            return false;
+
+        using (Selection.BatchUpdate())
         {
-            AddSelectedTarget(target);
-        }
-        else
-        {
-            // Порядок здесь существенный, и в обратном он тихо не работает: очистка индексного
-            // выбора приходит в обработчик, а тот на пустом выборе вычищает и слой target'ов —
-            // так что target, записанный до неё, исчезает, и остаётся выбор по умолчанию.
-            Selection.Clear();
-            SetSingleSelectedTarget(target);
+            if (intent == SelectionIntent.Replace)
+            {
+                Selection.Clear();
+                SetSingleSelectedTarget(target);
+            }
+            else
+            {
+                MaterialiseImplicitTargets();
+                AddSelectedTarget(target);
+            }
+
+            Selection.Select(index);
         }
 
-        Selection.Select(index);
         UpdateSelectionOverlayState();
 
-        return true;
+        // Тот же жест, что и у указателя: без фокуса клавиатура до редактора
+        // не доходит, и выделение, заданное хостом, нельзя сдвинуть стрелками.
+        if (!IsKeyboardFocusWithin)
+            Focus();
+
+        return SelectedDesignTargets.Any(selected => ReferenceEquals(selected.Target, target));
+    }
+
+    /// <summary>
+    /// Проверяет, что target вообще редактируем в своём host'е.
+    /// </summary>
+    /// <remarks>
+    /// Мало спросить <see cref="IsSelectableTarget"/>: в режиме <c>Loaded</c> он отсекает
+    /// только чужой контейнер, а внутренности шаблонов отсекает сам обход авторской
+    /// разметки. Указателю этого хватает, потому что он и берёт кандидатов из обхода;
+    /// публичному входу target приносят снаружи, поэтому обход нужно спросить явно.
+    /// </remarks>
+    private static bool IsEditableTarget(Control target, DesignEditorItem host)
+    {
+        if (!IsSelectableTarget(target, host))
+            return false;
+
+        foreach (var candidate in EnumerateSelectionCandidates(host))
+        {
+            if (ReferenceEquals(candidate, target))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Записывает неявные target'ы контейнеров, выбранных только в индексном слое.
+    /// </summary>
+    /// <remarks>
+    /// Такой контейнер читается через <see cref="ResolveSelectionTargets"/> как его
+    /// ребёнок по умолчанию, но в <c>_selectedTargets</c> его нет — и добавление
+    /// к выделению теряло его молча. Материализация делает чтение чистым.
+    /// </remarks>
+    private void MaterialiseImplicitTargets()
+    {
+        var items = SelectedItems;
+        if (items == null)
+            return;
+
+        foreach (var item in items)
+        {
+            if (ContainerFromItem(item) is not DesignEditorItem container)
+                continue;
+
+            var owned = false;
+            foreach (var selected in _selectedTargets)
+            {
+                if (!IsOwnedByContainer(selected, container))
+                    continue;
+
+                owned = true;
+                break;
+            }
+
+            if (!owned)
+                AddSelectedTarget(ResolveDefaultSelectionTarget(container));
+        }
     }
 
     /// <summary>
