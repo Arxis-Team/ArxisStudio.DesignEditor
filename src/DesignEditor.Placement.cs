@@ -153,7 +153,7 @@ public partial class DesignEditor
     /// описывающих разные состояния панели.
     /// </para>
     /// </remarks>
-    internal bool RequestChildIndex(Control control, int insertBefore)
+    private bool RequestChildIndex(Control control, int insertBefore)
     {
         if (control.GetVisualParent() is not Panel panel)
             return false;

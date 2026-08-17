@@ -246,7 +246,7 @@ public partial class DesignEditor
     /// <summary>
     /// Идентификатор количества secondary selection adorner'ов.
     /// </summary>
-    internal static readonly DirectProperty<DesignEditor, int> SecondarySelectionAdornersCountProperty =
+    private static readonly DirectProperty<DesignEditor, int> SecondarySelectionAdornersCountProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, int>(
             nameof(SecondarySelectionAdornersCount),
             o => o.SecondarySelectionAdornersCount);
@@ -636,7 +636,7 @@ public partial class DesignEditor
     /// <summary>
     /// Получает количество secondary adorner'ов в текущем multi-selection overlay.
     /// </summary>
-    internal int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
+    private int SecondarySelectionAdornersCount => _secondarySelectionAdornersCount;
 
     private DesignSelectionTarget? _primarySelectionTarget;
 

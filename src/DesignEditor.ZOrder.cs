@@ -28,7 +28,7 @@ namespace ArxisStudio;
 // Часть DesignEditor; общее описание типа — в DesignEditor.cs.
 public partial class DesignEditor
 {
-    internal void SetDesignZIndex(Control control, int zIndex)
+    private void SetDesignZIndex(Control control, int zIndex)
     {
         if (!_suppressEditRecording)
             _activeEdit?.RecordZIndex(this, control, zIndex);

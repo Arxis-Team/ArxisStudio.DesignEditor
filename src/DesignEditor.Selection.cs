@@ -988,7 +988,7 @@ public partial class DesignEditor
     /// контрола внутри вложенного — вложенный, для вложенного контейнера — его владелец.
     /// Это единица группировки выделения: вместе выбираются только соседи по host'у.
     /// </remarks>
-    internal static DesignEditorItem? FindDesignHost(Control target)
+    private static DesignEditorItem? FindDesignHost(Control target)
         => target.FindAncestorOfType<DesignEditorItem>();
 
     private IEnumerable<Control> EnumerateSelectedTargets() => _selectedTargets;

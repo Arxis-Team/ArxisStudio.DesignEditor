@@ -236,7 +236,7 @@ public partial class DesignEditor
     /// <summary>
     /// Возвращает радиус захвата направляющей в мировых единицах.
     /// </summary>
-    internal double ResolveSnapGuideTolerance()
+    private double ResolveSnapGuideTolerance()
     {
         var tolerance = InteractionOptions.SnapGuideTolerance;
         if (!(tolerance > 0))

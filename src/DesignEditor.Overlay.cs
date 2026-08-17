@@ -131,7 +131,7 @@ public partial class DesignEditor
         return true;
     }
 
-    internal void UpdateSelectionOverlayState()
+    private void UpdateSelectionOverlayState()
     {
         if (TryGetSelectedDesignBounds(
                 out var bounds,
