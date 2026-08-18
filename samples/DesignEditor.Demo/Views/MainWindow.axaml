@@ -43,14 +43,20 @@
         -->
     </Window.Resources>
 
-    <Grid Background="{StaticResource BackgroundBrush}">
+    <!--
+        Панель инструментов лежит в шапке, а не висит над холстом. Плавающая панель
+        закрывала верх макета и мешала работать ровно там, где чаще всего находится
+        начало формы; строка Auto отдаёт ей ровно свою высоту и ничего не отнимает
+        у редактора.
+    -->
+    <Grid Background="{StaticResource BackgroundBrush}" RowDefinitions="Auto,*">
 
         <!--
             Линейки стоят рядом с редактором, а не внутри его шаблона: у редактора
             точка ввода совпадает с точкой viewport'а, и слой, занявший место сверху
             или слева, сдвинул бы это соответствие.
         -->
-        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,*">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,*">
         <arxisControls:DesignRuler Grid.Row="0" Grid.Column="1"
                                    x:Name="TopRuler"
                                    Orientation="Horizontal"
@@ -107,12 +113,10 @@
         </arxisStudio:DesignEditor>
         </Grid>
 
-        <Border VerticalAlignment="Top" HorizontalAlignment="Center"
-                Margin="0,10,0,0"
-                Background="#CC1E1E1E"
-                BorderBrush="#3E4451" BorderThickness="1"
-                CornerRadius="8" Padding="5,0"
-                BoxShadow="0 4 12 0 #66000000">
+        <Border Grid.Row="0"
+                Background="#1E1E1E"
+                BorderBrush="#3E4451" BorderThickness="0,0,0,1"
+                Padding="10,4">
 
             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
 
@@ -274,7 +278,7 @@
                               FontSize="10"
                               Foreground="#999"
                               VerticalAlignment="Center"
-                              Content="scale"
+                              Content="ticks"
                               IsEnabled="{Binding #Editor.ShowRulers}"
                               IsChecked="{Binding #TopRuler.IsScaleVisible}"/>
                 </StackPanel>
@@ -395,7 +399,8 @@
             </StackPanel>
         </Border>
 
-        <Border HorizontalAlignment="Right"
+        <Border Grid.Row="1"
+                HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"
                 Margin="0,0,18,18"
                 Padding="14,12"
