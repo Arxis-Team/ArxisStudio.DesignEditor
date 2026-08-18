@@ -7,9 +7,54 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace DesignEditor.Demo.ViewModels;
 
+/// <summary>
+/// Строка в подсказке о жестах: сочетание и что оно делает.
+/// </summary>
+/// <param name="Keys">Сочетание, как его нажимает пользователь.</param>
+/// <param name="Description">Что происходит.</param>
+public sealed record GestureHint(string Keys, string Description);
+
 public partial class MainWindowViewModel : ObservableObject
 {
     public ObservableCollection<DesignItemViewModel> Elements { get; } = new();
+
+    /// <summary>
+    /// Жесты редактора для панели подсказок.
+    /// </summary>
+    /// <remarks>
+    /// Список лежит здесь, а не в разметке, ровно потому, что рукописная сетка от него
+    /// отстала: каждая строка стоила восемнадцати строк XAML и ручной нумерации
+    /// <c>Grid.Row</c>, и дописать в неё жест было дороже, чем не дописать. Порядок —
+    /// от указателя к клавиатуре, как ими и пользуются.
+    /// <para>
+    /// Модификаторы здесь названы теми, что задаёт демо (<c>InputGestures</c> в разметке)
+    /// и что стоит по умолчанию у самого редактора: <c>Alt</c> — обход привязки,
+    /// <c>Ctrl</c> — работа с контейнером, <c>Shift</c> — добавление к выделению.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<GestureHint> Gestures { get; } = new GestureHint[]
+    {
+        new("Left Click", "Выбрать вложенный контрол"),
+        new("Double Click", "Войти в группу и выбрать её участника"),
+        new("Shift + Click", "Добавить вложенный контрол в той же форме"),
+        new("Right Click", "Контекстное меню"),
+        new("Left Drag", "Тянуть выделение или рамку по пустой области"),
+        new("Drag ручки", "Изменить размер выделения"),
+        new("Alt + Drag", "Вести без привязки к сетке и направляющим"),
+        new("Middle Drag", "Панорамирование viewport"),
+        new("Wheel", "Масштабирование viewport"),
+        new("Ctrl + Click", "Выбрать DesignEditorItem"),
+        new("Ctrl + Drag", "Переместить выбранный DesignEditorItem"),
+        new("Ctrl + Shift", "Добавить item или рамочное выделение контейнеров"),
+        new("Drag с линейки", "Вытянуть направляющую"),
+        new("Drag линии", "Переместить направляющую; увести за край — убрать"),
+        new("← ↑ → ↓", "Сместить выделение на шаг"),
+        new("Shift + ← ↑ → ↓", "Сместить крупным шагом"),
+        new("Ctrl + Z", "Отменить"),
+        new("Ctrl + X", "Повторить"),
+        new("Delete", "Удалить выбранные элементы"),
+        new("Esc / Ctrl + A", "Снять выделение / выбрать все"),
+    };
 
     /// <summary>
     /// Пользовательские направляющие макета.

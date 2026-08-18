@@ -458,167 +458,53 @@
                     </Button>
                 </Grid>
 
-                <Grid IsVisible="{Binding IsGestureHelpExpanded}"
-                      ColumnDefinitions="Auto,*"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                      ColumnSpacing="10"
-                      RowSpacing="6">
-                    <Border Grid.Row="0"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Left Click"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="0"
-                               Grid.Column="1"
-                               Text="Выбрать вложенный контрол"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="1"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Shift + Click"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="1"
-                               Grid.Column="1"
-                               Text="Добавить вложенный контрол в той же форме"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="2"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Left Drag"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="2"
-                               Grid.Column="1"
-                               Text="Тянуть выделение или рамку по пустой области"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="3"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Middle Drag"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="3"
-                               Grid.Column="1"
-                               Text="Панорамирование viewport"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="4"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Wheel"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="4"
-                               Grid.Column="1"
-                               Text="Масштабирование viewport"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="5"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Ctrl + Click"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="5"
-                               Grid.Column="1"
-                               Text="Выбрать DesignEditorItem"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="6"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Ctrl + Drag"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="6"
-                               Grid.Column="1"
-                               Text="Переместить выбранный DesignEditorItem"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="7"
-                            Background="#243246"
-                            CornerRadius="4"
-                            Padding="6,2">
-                        <TextBlock Text="Ctrl + Shift"
-                                   Foreground="#A9D1FF"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="7"
-                               Grid.Column="1"
-                               Text="Добавить item или рамочное выделение контейнеров"
-                               Foreground="#C9D1D9"
-                               FontSize="10"
-                               TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="8" Background="#243246" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="← ↑ → ↓" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="8" Grid.Column="1"
-                               Text="Сместить выделение на шаг"
-                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="9" Background="#243246" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Shift + ← ↑ → ↓" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="9" Grid.Column="1"
-                               Text="Сместить крупным шагом"
-                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="10" Background="#243246" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Delete" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="10" Grid.Column="1"
-                               Text="Удалить выбранные элементы"
-                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
-
-                    <Border Grid.Row="11" Background="#243246" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Esc / Ctrl + A" Foreground="#A9D1FF" FontSize="10" FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock Grid.Row="11" Grid.Column="1"
-                               Text="Снять выделение / выбрать все"
-                               Foreground="#C9D1D9" FontSize="10" TextWrapping="Wrap"/>
-                </Grid>
+                <!--
+                    Подсказки идут списком из вью-модели, а не рукописной сеткой.
+                    Раньше каждая строка стоила восемнадцати строк разметки и ручной
+                    нумерации Grid.Row — поэтому список и разошёлся с настоящими жестами:
+                    дописать в него новый жест было дороже, чем не дописать.
+                -->
+                <ScrollViewer IsVisible="{Binding IsGestureHelpExpanded}"
+                              MaxHeight="520"
+                              MaxWidth="360"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Gestures}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="6"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:GestureHint">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <!--
+                                        Ширина плашки задана, а не выведена из текста:
+                                        иначе столбец описаний ехал бы у каждой строки
+                                        по-своему и читать список было бы нечем.
+                                    -->
+                                    <Border Width="104"
+                                            Background="#243246"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding Keys}"
+                                                   Foreground="#A9D1FF"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Description}"
+                                               Foreground="#C9D1D9"
+                                               FontSize="10"
+                                               VerticalAlignment="Center"
+                                               TextWrapping="Wrap"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
                 <TextBlock IsVisible="{Binding IsGestureHelpCollapsed}"
                            Text="Показать подсказки"
