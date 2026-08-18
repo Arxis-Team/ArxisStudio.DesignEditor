@@ -116,6 +116,12 @@ public partial class DesignEditor
         AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowGrid), true);
 
     /// <summary>
+    /// Идентификатор свойства видимости пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowGuidesProperty =
+        AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowGuides), true);
+
+    /// <summary>
     /// Идентификатор свойства видимости линеек.
     /// </summary>
     public static readonly StyledProperty<bool> ShowRulersProperty =
@@ -401,6 +407,25 @@ public partial class DesignEditor
     {
         get => GetValue(ShowGridProperty);
         set => SetValue(ShowGridProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения пользовательских направляющих.
+    /// </summary>
+    /// <remarks>
+    /// Прячет линии, но не трогает набор: <see cref="Guides"/> остаётся как был,
+    /// и включение возвращает всё на место. Это выключатель показа, а не удаление.
+    /// <para>
+    /// Спрятанную линию нельзя ни подвинуть, ни вытянуть новую с линейки: жест по
+    /// невидимому — худший вид сюрприза. А вот <b>притяжение</b> к ней продолжает
+    /// работать, ровно как у сетки, которую <see cref="ShowGrid"/> тоже только прячет;
+    /// выключается оно отдельно, через <c>InteractionOptions.IsSnapToGuidesEnabled</c>.
+    /// </para>
+    /// </remarks>
+    public bool ShowGuides
+    {
+        get => GetValue(ShowGuidesProperty);
+        set => SetValue(ShowGuidesProperty, value);
     }
 
     /// <summary>

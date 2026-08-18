@@ -42,6 +42,12 @@ internal class SnapGuideLayer : Control
         AvaloniaProperty.Register<SnapGuideLayer, DesignGuide?>(nameof(GuidePreview));
 
     /// <summary>
+    /// Идентификатор свойства видимости пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowUserGuidesProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, bool>(nameof(ShowUserGuides), true);
+
+    /// <summary>
     /// Идентификатор свойства кисти пользовательских направляющих.
     /// </summary>
     public static readonly StyledProperty<IBrush?> UserGuideBrushProperty =
@@ -94,6 +100,7 @@ internal class SnapGuideLayer : Control
         AffectsRender<SnapGuideLayer>(
             GuidesProperty,
             UserGuidesProperty,
+            ShowUserGuidesProperty,
             GuidePreviewProperty,
             UserGuideBrushProperty,
             CentreLineBrushProperty,
@@ -130,6 +137,15 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(GuidePreviewProperty);
         set => SetValue(GuidePreviewProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения пользовательских направляющих.
+    /// </summary>
+    public bool ShowUserGuides
+    {
+        get => GetValue(ShowUserGuidesProperty);
+        set => SetValue(ShowUserGuidesProperty, value);
     }
 
     /// <summary>
@@ -278,6 +294,9 @@ internal class SnapGuideLayer : Control
     /// </remarks>
     private void RenderUserGuides(DrawingContext context, Point origin, double zoom, double scaling, double thickness)
     {
+        if (!ShowUserGuides)
+            return;
+
         var guides = UserGuides;
         if (UserGuideBrush is not { } brush)
             return;

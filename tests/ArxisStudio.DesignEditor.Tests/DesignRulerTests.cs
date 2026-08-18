@@ -342,6 +342,24 @@ public class DesignRulerTests
         Assert.Equal(DesignGuide.Horizontal(180), Assert.Single(stand.Requests).Guide);
     }
 
+    /// <summary>
+    /// Со спрятанными направляющими линейка ничего не вытягивает.
+    /// </summary>
+    [AvaloniaFact]
+    public void With_Guides_Hidden_The_Ruler_Pulls_Nothing()
+    {
+        var stand = Create();
+        stand.Harness.Editor.ShowGuides = false;
+
+        stand.Harness.Window.MouseDown(InWindow(300, -10), MouseButton.Left);
+        stand.Harness.Window.MouseMove(InWindow(300, 180));
+        stand.Harness.Window.MouseUp(InWindow(300, 180), MouseButton.Left);
+        stand.Harness.RunLayout();
+
+        Assert.Empty(stand.Requests);
+        Assert.Null(stand.Harness.Editor.GuidePreview);
+    }
+
     [AvaloniaFact]
     public void The_Pulled_Guide_Snaps_To_The_Grid()
     {

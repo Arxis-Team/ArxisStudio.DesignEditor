@@ -186,6 +186,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia SelectionProperty -> Selection : ISelectionModel (direct)
     avalonia SelectionRectangleStyleProperty -> SelectionRectangleStyle : ControlTheme (styled) = null
     avalonia ShowGridProperty -> ShowGrid : Boolean (styled) = true
+    avalonia ShowGuidesProperty -> ShowGuides : Boolean (styled) = true
     avalonia ShowRulersProperty -> ShowRulers : Boolean (styled) = true
     avalonia ViewportLocationProperty -> ViewportLocation : Point (styled) = 0, 0
     avalonia ViewportTransformProperty -> ViewportTransform : Transform (styled) = <TransformGroup>
@@ -237,6 +238,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     property Boolean IsReordering { get; }
     property Boolean IsSelecting { get; set; }
     property Boolean ShowGrid { get; set; }
+    property Boolean ShowGuides { get; set; }
     property Boolean ShowRulers { get; set; }
     property ControlTheme SelectionRectangleStyle { get; set; }
     property DesignEditorInputGestures InputGestures { get; set; }

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -206,6 +206,51 @@ public class UserGuideGestureTests
         Assert.True(harness.Editor.IsSelecting);
 
         harness.Window.MouseUp(InWindow(GuideX + 60, 300), MouseButton.Left);
+    }
+
+    // ---- Показ ----------------------------------------------------------------
+
+    /// <summary>
+    /// Спрятанную направляющую нельзя схватить.
+    /// </summary>
+    /// <remarks>
+    /// Жест по невидимому объекту читается как самопроизвольное поведение редактора,
+    /// поэтому <c>ShowGuides</c> закрывает и захват, а не только отрисовку.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Hidden_Guide_Cannot_Be_Grabbed()
+    {
+        var (harness, _) = Create();
+        var log = Listen(harness);
+        harness.Editor.ShowGuides = false;
+
+        DragGuide(harness, new Point(GuideX, 300), new Point(GuideX + 60, 300));
+
+        Assert.Empty(log.Requests);
+    }
+
+    /// <summary>
+    /// Показ выключает показ, а не набор.
+    /// </summary>
+    /// <remarks>
+    /// Это не удаление: <c>Guides</c> остаётся как был, и притяжение к спрятанной линии
+    /// продолжает работать — ровно как у сетки, которую <c>ShowGrid</c> тоже только прячет.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Hiding_Keeps_The_Set_And_The_Snapping()
+    {
+        var (harness, guides) = Create();
+        harness.Editor.ShowGuides = false;
+
+        Assert.Single(guides);
+        Assert.Single(harness.Editor.UserGuides);
+
+        harness.Editor.ShowGuides = true;
+        Listen(harness);
+
+        // И линия по-прежнему на месте: её снова можно схватить.
+        DragGuide(harness, new Point(GuideX, 300), new Point(GuideX + 60, 300));
+        Assert.Equal(DesignGuide.Vertical(GuideX), Assert.Single(guides));
     }
 
     // ---- Удаление -------------------------------------------------------------

@@ -139,6 +139,11 @@ public partial class DesignEditor
     {
         guide = default;
 
+        // Спрятанную линию не за что хватать: жест по невидимому объекту
+        // выглядит как самопроизвольное поведение редактора.
+        if (!ShowGuides)
+            return false;
+
         var guides = _userGuides;
         if (guides.Count == 0)
             return false;

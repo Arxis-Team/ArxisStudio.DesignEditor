@@ -206,6 +206,10 @@ public class DesignRuler : Control
         if (Editor is not { } editor || !editor.CanRequestGuideChange)
             return;
 
+        // Вытягивать линию, которую не покажут, незачем.
+        if (!editor.ShowGuides)
+            return;
+
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
 

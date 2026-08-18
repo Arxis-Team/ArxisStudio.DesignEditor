@@ -253,11 +253,17 @@
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>
 
                 <!--
-                    Два разных выключателя: ShowRulers убирает линейки целиком,
-                    IsScaleVisible оставляет полосу, с которой всё ещё вытягиваются
-                    направляющие, но без делений и подписей.
+                    Три выключателя показа. ShowGuides прячет направляющие, не трогая
+                    набор; ShowRulers убирает линейки целиком; IsScaleVisible оставляет
+                    полосу, с которой всё ещё вытягиваются направляющие, но без делений.
                 -->
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <CheckBox Name="GuidesBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="guides"
+                              IsChecked="{Binding #Editor.ShowGuides}"/>
                     <CheckBox Name="RulersBox"
                               FontSize="10"
                               Foreground="#999"
