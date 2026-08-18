@@ -262,6 +262,12 @@
                     полосу, с которой всё ещё вытягиваются направляющие, но без делений.
                 -->
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <CheckBox Name="SpacingBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="spacing"
+                              IsChecked="{Binding #Editor.InteractionOptions.IsEqualSpacingEnabled}"/>
                     <CheckBox Name="GuidesBox"
                               FontSize="10"
                               Foreground="#999"

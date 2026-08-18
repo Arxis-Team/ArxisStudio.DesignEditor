@@ -237,6 +237,14 @@ public partial class DesignEditor
             nameof(UserGuides),
             o => o.UserGuides);
 
+    /// <summary>
+    /// Идентификатор свойства подсказок о равных интервалах.
+    /// </summary>
+    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSpacingHint>> SpacingHintsProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSpacingHint>>(
+            nameof(SpacingHints),
+            o => o.SpacingHints);
+
     internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSnapGuide>> SnapGuidesProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSnapGuide>>(
             nameof(SnapGuides),
@@ -663,6 +671,17 @@ public partial class DesignEditor
     {
         get => _userGuides;
         private set => SetAndRaise(UserGuidesProperty, ref _userGuides, value);
+    }
+
+    private IReadOnlyList<DesignSpacingHint> _spacingHints = Array.Empty<DesignSpacingHint>();
+
+    /// <summary>
+    /// Получает подсказки о равных интервалах, показанные во время жеста.
+    /// </summary>
+    internal IReadOnlyList<DesignSpacingHint> SpacingHints
+    {
+        get => _spacingHints;
+        private set => SetAndRaise(SpacingHintsProperty, ref _spacingHints, value);
     }
 
     private IReadOnlyList<DesignSnapGuide> _snapGuides = Array.Empty<DesignSnapGuide>();

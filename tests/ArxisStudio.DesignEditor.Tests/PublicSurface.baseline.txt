@@ -338,6 +338,7 @@ class ArxisStudio.DesignEditorInputGestures : AvaloniaObject
     property KeyModifiers ZoomModifiers { get; set; }
 class ArxisStudio.DesignEditorInteractionOptions : AvaloniaObject
     avalonia DragStartThresholdProperty -> DragStartThreshold : Double (styled) = 3
+    avalonia IsEqualSpacingEnabledProperty -> IsEqualSpacingEnabled : Boolean (styled) = true
     avalonia IsResizeContainedToParentProperty -> IsResizeContainedToParent : Boolean (styled) = true
     avalonia IsSnapToGridEnabledProperty -> IsSnapToGridEnabled : Boolean (styled) = true
     avalonia IsSnapToGuidesEnabledProperty -> IsSnapToGuidesEnabled : Boolean (styled) = true
@@ -348,6 +349,7 @@ class ArxisStudio.DesignEditorInteractionOptions : AvaloniaObject
     avalonia SnapStepProperty -> SnapStep : Double (styled) = NaN
     avalonia ZoomStepProperty -> ZoomStep : Double (styled) = 1.1
     ctor .ctor()
+    property Boolean IsEqualSpacingEnabled { get; set; }
     property Boolean IsResizeContainedToParent { get; set; }
     property Boolean IsSnapToGridEnabled { get; set; }
     property Boolean IsSnapToGuidesEnabled { get; set; }

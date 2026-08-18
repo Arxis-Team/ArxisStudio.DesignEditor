@@ -1,0 +1,171 @@
+using Avalonia;
+using Avalonia.Headless.XUnit;
+using ArxisStudio.Guides;
+using Xunit;
+
+namespace ArxisStudio.Tests;
+
+/// <summary>
+/// Арифметика равных интервалов.
+/// </summary>
+/// <remarks>
+/// Отличие от выравнивания в том, что сравниваются <b>зазоры</b>, а не координаты.
+/// Отсюда два требования, которых у выравнивания нет: сосед должен лежать
+/// с элементом в одном ряду — то есть перекрываться по другой оси, — и иметь
+/// ненулевую площадь, потому что интервал бывает между элементами, а не до линии.
+/// </remarks>
+public class SpacingResolverTests
+{
+    /// <summary>Левый сосед ряда: занимает 0..100 по X.</summary>
+    private static readonly Rect Left = new(0, 100, 100, 60);
+
+    /// <summary>Правый сосед того же ряда: начинается на 300.</summary>
+    private static readonly Rect Right = new(300, 100, 100, 60);
+
+    private static readonly Rect[] Row = { Left, Right };
+
+    [AvaloniaFact]
+    public void The_Element_Is_Centred_Between_Its_Row_Neighbours()
+    {
+        // Свободного места 200, элемент шириной 40 — по 80 с каждой стороны,
+        // то есть ровное положение это X = 180.
+        var moving = new Rect(174, 110, 40, 40);
+
+        var found = DesignSpacingResolver.TryResolveOffset(
+            moving, Row, tolerance: 8, out var offset, out var spacedX, out var spacedY);
+
+        Assert.True(found);
+        Assert.True(spacedX);
+        Assert.False(spacedY);
+        Assert.Equal(6, offset.X);
+        Assert.Equal(0, offset.Y);
+    }
+
+    [AvaloniaFact]
+    public void Beyond_The_Tolerance_Nothing_Is_Found()
+    {
+        var moving = new Rect(160, 110, 40, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveOffset(
+            moving, Row, tolerance: 8, out _, out _, out _));
+    }
+
+    /// <summary>
+    /// Сосед из другого ряда в расчёт не идёт.
+    /// </summary>
+    /// <remarks>
+    /// «Слева» и «справа» осмысленны внутри ряда: коробка этажом выше стоит слева
+    /// по координате, но интервала с ней не образует.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Neighbour_From_Another_Row_Is_Ignored()
+    {
+        var elsewhere = new Rect(0, 400, 100, 60);
+        var moving = new Rect(174, 110, 40, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveOffset(
+            moving, new[] { elsewhere, Right }, tolerance: 8, out _, out _, out _));
+    }
+
+    /// <summary>
+    /// Направляющая соседом по интервалу не является.
+    /// </summary>
+    /// <remarks>
+    /// Она приходит прямоугольником нулевой толщины. Интервал до линии — это уже
+    /// не «расстояние между элементами», и подсказка о нём вводила бы в заблуждение.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Zero_Area_Neighbour_Is_Not_A_Spacing_Partner()
+    {
+        var guide = new Rect(100, 0, 0, 800);
+        var moving = new Rect(174, 110, 40, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveOffset(
+            moving, new[] { guide, Right }, tolerance: 8, out _, out _, out _));
+    }
+
+    [AvaloniaFact]
+    public void One_Sided_Rows_Produce_Nothing()
+    {
+        var moving = new Rect(174, 110, 40, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveOffset(
+            moving, new[] { Left }, tolerance: 8, out _, out _, out _));
+    }
+
+    [AvaloniaFact]
+    public void The_Nearest_Neighbour_On_Each_Side_Wins()
+    {
+        // Дальний сосед слева не должен перебить ближнего: интервал считается
+        // до того, что рядом, иначе элемент уезжал бы к краю макета.
+        var far = new Rect(-400, 100, 100, 60);
+        var moving = new Rect(174, 110, 40, 40);
+
+        var found = DesignSpacingResolver.TryResolveOffset(
+            moving, new[] { far, Left, Right }, tolerance: 8, out var offset, out _, out _);
+
+        Assert.True(found);
+        Assert.Equal(6, offset.X);
+    }
+
+    [AvaloniaFact]
+    public void The_Vertical_Axis_Works_The_Same_Way()
+    {
+        var above = new Rect(100, 0, 60, 100);
+        var below = new Rect(100, 300, 60, 100);
+        var moving = new Rect(110, 176, 40, 40);
+
+        var found = DesignSpacingResolver.TryResolveOffset(
+            moving, new[] { above, below }, tolerance: 8, out var offset, out var spacedX, out var spacedY);
+
+        Assert.True(found);
+        Assert.False(spacedX);
+        Assert.True(spacedY);
+        Assert.Equal(4, offset.Y);
+    }
+
+    // ---- Подсказки ------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void Equal_Gaps_Produce_A_Pair_Of_Hints()
+    {
+        var bounds = new Rect(180, 110, 40, 40);
+
+        var hints = DesignSpacingResolver.CollectHints(bounds, Row);
+
+        Assert.Equal(2, hints.Count);
+        Assert.All(hints, h => Assert.Equal(DesignSnapGuideOrientation.Vertical, h.Orientation));
+
+        // Оба отрезка меряют по 80 и лежат на одной высоте — середине общего перекрытия.
+        Assert.All(hints, h => Assert.Equal(80, h.End - h.Start, 3));
+        Assert.Equal(hints[0].Position, hints[1].Position, 3);
+
+        // Первый — от левого соседа до элемента, второй — от элемента до правого.
+        Assert.Equal(100, hints[0].Start);
+        Assert.Equal(180, hints[0].End);
+        Assert.Equal(220, hints[1].Start);
+        Assert.Equal(300, hints[1].End);
+    }
+
+    [AvaloniaFact]
+    public void Unequal_Gaps_Produce_Nothing()
+    {
+        var bounds = new Rect(200, 110, 40, 40);
+
+        Assert.Empty(DesignSpacingResolver.CollectHints(bounds, Row));
+    }
+
+    /// <summary>
+    /// Подсказка ложится на середину общего перекрытия, а не на край элемента.
+    /// </summary>
+    [AvaloniaFact]
+    public void The_Hint_Sits_In_The_Shared_Band()
+    {
+        var bounds = new Rect(180, 110, 40, 40);
+
+        var hint = DesignSpacingResolver.CollectHints(bounds, Row)[0];
+
+        // Общая полоса всех трёх — 110..150, её середина 130.
+        Assert.Equal(130, hint.Position, 3);
+    }
+}

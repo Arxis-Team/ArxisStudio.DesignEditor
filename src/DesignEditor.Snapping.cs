@@ -126,6 +126,7 @@ public partial class DesignEditor
     /// </summary>
     internal void EndSnapGuides()
     {
+        PublishSpacingHints(Array.Empty<DesignSpacingHint>());
         _snapGuideNeighbours = null;
         PublishSnapGuides(Array.Empty<DesignSnapGuide>());
     }
@@ -153,6 +154,7 @@ public partial class DesignEditor
         if (neighbours is not { Count: > 0 } || IsSnapBypassed(modifiers))
         {
             PublishSnapGuides(Array.Empty<DesignSnapGuide>());
+            PublishSpacingHints(Array.Empty<DesignSpacingHint>());
             return SnapPosition(proposed, modifiers);
         }
 
@@ -167,12 +169,45 @@ public partial class DesignEditor
             out var snappedX,
             out var snappedY);
 
-        var x = snappedX ? proposed.X + offset.X : GridCoordinate(proposed.X, snapToGrid);
-        var y = snappedY ? proposed.Y + offset.Y : GridCoordinate(proposed.Y, snapToGrid);
+        // Равные интервалы стоят между выравниванием и сеткой. Выравнивание точнее:
+        // оно связывает элемент с конкретным краем соседа, а интервал — с расстоянием,
+        // которого на макете не видно. Сетка же остаётся тем, что забирает всё,
+        // на что не нашлось отношения.
+        var spacedX = false;
+        var spacedY = false;
+        var spacing = default(Vector);
+
+        if (InteractionOptions.IsEqualSpacingEnabled && (!snappedX || !snappedY))
+        {
+            DesignSpacingResolver.TryResolveOffset(
+                new Rect(proposed, size),
+                neighbours,
+                ResolveSnapGuideTolerance(),
+                out spacing,
+                out spacedX,
+                out spacedY);
+        }
+
+        var x = Axis(proposed.X, offset.X, spacing.X, snappedX, spacedX);
+        var y = Axis(proposed.Y, offset.Y, spacing.Y, snappedY, spacedY);
 
         var result = new Point(x, y);
-        PublishSnapGuides(DesignSnapGuideResolver.CollectGuides(new Rect(result, size), neighbours));
+        var bounds = new Rect(result, size);
+
+        PublishSnapGuides(DesignSnapGuideResolver.CollectGuides(bounds, neighbours));
+        PublishSpacingHints(InteractionOptions.IsEqualSpacingEnabled
+            ? DesignSpacingResolver.CollectHints(bounds, neighbours)
+            : Array.Empty<DesignSpacingHint>());
+
         return result;
+
+        double Axis(double value, double guide, double space, bool snapped, bool spaced)
+        {
+            if (snapped)
+                return value + guide;
+
+            return spaced ? value + space : GridCoordinate(value, snapToGrid);
+        }
 
         double GridCoordinate(double value, bool snap) => snap ? SnapCoordinate(value) : Math.Round(value);
     }
@@ -353,6 +388,36 @@ public partial class DesignEditor
             return;
 
         SnapGuides = guides;
+    }
+
+    /// <summary>
+    /// Публикует подсказки о равных интервалах, если набор изменился.
+    /// </summary>
+    /// <param name="hints">Новый набор подсказок.</param>
+    /// <remarks>
+    /// Та же дисциплина, что у линий выравнивания: метод зовётся на каждом кадре
+    /// протяжки, а меняются подсказки редко.
+    /// </remarks>
+    private void PublishSpacingHints(IReadOnlyList<DesignSpacingHint> hints)
+    {
+        if (AreSameHints(SpacingHints, hints))
+            return;
+
+        SpacingHints = hints;
+    }
+
+    private static bool AreSameHints(IReadOnlyList<DesignSpacingHint> first, IReadOnlyList<DesignSpacingHint> second)
+    {
+        if (first.Count != second.Count)
+            return false;
+
+        for (var i = 0; i < first.Count; i++)
+        {
+            if (!first[i].Equals(second[i]))
+                return false;
+        }
+
+        return true;
     }
 
     private static bool AreSameGuides(IReadOnlyList<DesignSnapGuide> first, IReadOnlyList<DesignSnapGuide> second)

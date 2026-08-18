@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 
 namespace ArxisStudio;
 
@@ -147,6 +147,14 @@ public class DesignEditorInteractionOptions : AvaloniaObject
             true);
 
     /// <summary>
+    /// Идентификатор свойства подсказок о равных интервалах.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsEqualSpacingEnabledProperty =
+        AvaloniaProperty.Register<DesignEditorInteractionOptions, bool>(
+            nameof(IsEqualSpacingEnabled),
+            true);
+
+    /// <summary>
     /// Идентификатор свойства радиуса захвата направляющей, в пикселях экрана.
     /// </summary>
     public static readonly StyledProperty<double> SnapGuideToleranceProperty =
@@ -181,6 +189,23 @@ public class DesignEditorInteractionOptions : AvaloniaObject
     {
         get => GetValue(SnapGuideToleranceProperty);
         set => SetValue(SnapGuideToleranceProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак подсказок о равных интервалах.
+    /// </summary>
+    /// <remarks>
+    /// Включено по умолчанию, как сетка и направляющие: выключенная подсказка,
+    /// о которой надо знать, чтобы её включить, не помогает никому.
+    /// <para>
+    /// Радиус захвата общий с направляющими — <see cref="SnapGuideTolerance"/>:
+    /// это одна и та же величина «насколько близко надо подвести».
+    /// </para>
+    /// </remarks>
+    public bool IsEqualSpacingEnabled
+    {
+        get => GetValue(IsEqualSpacingEnabledProperty);
+        set => SetValue(IsEqualSpacingEnabledProperty, value);
     }
 
     /// <summary>

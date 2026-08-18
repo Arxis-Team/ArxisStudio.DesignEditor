@@ -60,6 +60,18 @@ internal class SnapGuideLayer : Control
         AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(LineBrush));
 
     /// <summary>
+    /// Идентификатор свойства подсказок о равных интервалах.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<DesignSpacingHint>?> SpacingHintsProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IReadOnlyList<DesignSpacingHint>?>(nameof(SpacingHints));
+
+    /// <summary>
+    /// Идентификатор свойства кисти подсказок о равных интервалах.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> SpacingBrushProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(SpacingBrush));
+
+    /// <summary>
     /// Идентификатор свойства кисти линий выравнивания по центру.
     /// </summary>
     public static readonly StyledProperty<IBrush?> CentreLineBrushProperty =
@@ -104,6 +116,8 @@ internal class SnapGuideLayer : Control
             GuidePreviewProperty,
             UserGuideBrushProperty,
             CentreLineBrushProperty,
+            SpacingHintsProperty,
+            SpacingBrushProperty,
             LineDashStyleProperty,
             UserGuideDashStyleProperty,
             LineBrushProperty,
@@ -164,6 +178,24 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(LineBrushProperty);
         set => SetValue(LineBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает подсказки о равных интервалах.
+    /// </summary>
+    public IReadOnlyList<DesignSpacingHint>? SpacingHints
+    {
+        get => GetValue(SpacingHintsProperty);
+        set => SetValue(SpacingHintsProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает кисть подсказок о равных интервалах.
+    /// </summary>
+    public IBrush? SpacingBrush
+    {
+        get => GetValue(SpacingBrushProperty);
+        set => SetValue(SpacingBrushProperty, value);
     }
 
     /// <summary>
@@ -248,6 +280,8 @@ internal class SnapGuideLayer : Control
         // Пользовательские направляющие рисуются первыми и всегда: они не привязаны
         // к жесту и лежат под линиями выравнивания, чтобы совпадение было видно.
         RenderUserGuides(context, origin, zoom, scaling, thickness);
+
+        RenderSpacingHints(context, origin, zoom, scaling, thickness);
 
         var guides = Guides;
         if (guides == null || guides.Count == 0)
@@ -339,6 +373,56 @@ internal class SnapGuideLayer : Control
                     return;
 
                 context.DrawLine(pen, new Point(0, y), new Point(size.Width, y));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Отрисовывает подсказки о равных интервалах.
+    /// </summary>
+    /// <remarks>
+    /// Подсказка — не линия, а измерение: отрезок вдоль зазора с засечками на концах.
+    /// Отсюда и вид, отличный от направляющей: линию через весь холст нельзя прочитать
+    /// как «вот столько», а короткий отрезок с концами — можно.
+    /// </remarks>
+    private void RenderSpacingHints(DrawingContext context, Point origin, double zoom, double scaling, double thickness)
+    {
+        var hints = SpacingHints;
+        if (hints == null || hints.Count == 0)
+            return;
+
+        if (SpacingBrush is not { } brush)
+            return;
+
+        var pen = new Pen(brush, thickness);
+
+        // Половина длины засечки в DIP: она задана в экранных пикселях, потому что
+        // это часть подписи, а не часть макета.
+        const double CapHalf = 3.0;
+
+        for (var i = 0; i < hints.Count; i++)
+        {
+            var hint = hints[i];
+            var along = hint.Orientation == DesignSnapGuideOrientation.Vertical;
+
+            var lineOrigin = along ? origin.X : origin.Y;
+            var crossOrigin = along ? origin.Y : origin.X;
+
+            var from = (hint.Start - lineOrigin) * zoom;
+            var to = (hint.End - lineOrigin) * zoom;
+            var at = DesignGrid.SnapToDevicePixel((hint.Position - crossOrigin) * zoom, scaling);
+
+            if (along)
+            {
+                context.DrawLine(pen, new Point(from, at), new Point(to, at));
+                context.DrawLine(pen, new Point(from, at - CapHalf), new Point(from, at + CapHalf));
+                context.DrawLine(pen, new Point(to, at - CapHalf), new Point(to, at + CapHalf));
+            }
+            else
+            {
+                context.DrawLine(pen, new Point(at, from), new Point(at, to));
+                context.DrawLine(pen, new Point(at - CapHalf, from), new Point(at + CapHalf, from));
+                context.DrawLine(pen, new Point(at - CapHalf, to), new Point(at + CapHalf, to));
             }
         }
     }

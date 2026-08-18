@@ -177,6 +177,8 @@
                                                  UserGuideBrush="{DynamicResource DesignEditor.UserGuideBrush}"
                                                  LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"
                                                  CentreLineBrush="{DynamicResource DesignEditor.SnapGuide.CentreBrush}"
+                                                 SpacingHints="{TemplateBinding SpacingHints}"
+                                                 SpacingBrush="{DynamicResource DesignEditor.SpacingBrush}"
                                                  LineDashStyle="{DynamicResource DesignEditor.SnapGuide.DashStyle}"
                                                  UserGuideDashStyle="{DynamicResource DesignEditor.UserGuide.DashStyle}"
                                                  LineThickness="{DynamicResource DesignEditor.SnapGuide.Thickness}"
