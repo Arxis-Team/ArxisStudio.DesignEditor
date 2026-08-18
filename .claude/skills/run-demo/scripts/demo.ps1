@@ -28,6 +28,11 @@ param(
     [string]$Action,
 
     [string]$Out,
+
+    # Снимать с экрана вместо PrintWindow: нужно для контекстного меню,
+    # которое живёт отдельным окном. Сторож откажет, если сверху чужое окно.
+    [switch]$Screen,
+
     [int]$X = 0,
     [int]$Y = 0,
     [int]$ToX = 0,
@@ -57,6 +62,16 @@ public static class DemoDriver
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, IntPtr e);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int val, int size);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT val, int size);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint from, uint to, bool attach);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra);
 
@@ -101,7 +116,31 @@ public static class DemoDriver
 
     public static RECT Rect(IntPtr h) { RECT r; GetWindowRect(h, out r); return r; }
 
-    public static void Focus(IntPtr h) { SetForegroundWindow(h); System.Threading.Thread.Sleep(600); }
+    // SetForegroundWindow молча не срабатывает, если вызывающий процесс сам не на
+    // переднем плане: Windows это ограничивает. Раньше отказ был не виден, и снимок
+    // брал то окно, что оказалось в координатах демо, — вплоть до чужого и личного.
+    // Поэтому результат проверяется, а не предполагается.
+    public static void Focus(IntPtr h)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            // Права на вывод вперёд есть только у процесса, который уже на переднем
+            // плане. Штатный обход — на время присоединить свой ввод к его потоку.
+            uint mine = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+            uint theirs = GetWindowThreadProcessId(h, IntPtr.Zero);
+
+            AttachThreadInput(mine, theirs, true);
+            ShowWindow(h, 5);   // SW_SHOW: не трогает развёрнутость окна
+            SetForegroundWindow(h);
+            AttachThreadInput(mine, theirs, false);
+
+            System.Threading.Thread.Sleep(600);
+            if (GetForegroundWindow() == h) return;
+        }
+
+        throw new InvalidOperationException(
+            "Окно демо не удалось вывести на передний план: снимок захватил бы чужое окно.");
+    }
 
     // Клавиши идут тем же низкоуровневым путём, что и мышь. SendKeys здесь не работал:
     // замер показывал, что Ctrl + A не меняет выделение, то есть нажатие до приложения
@@ -132,9 +171,46 @@ public static class DemoDriver
         }
     }
 
+    // Снимок берётся у самого окна (PrintWindow), а не с экрана. CopyFromScreen
+    // копирует пиксели по координатам, то есть всё, что лежит сверху: всплывающее
+    // уведомление чужого приложения попадает в файл и уезжает в репозиторий.
+    // Это уже случилось один раз.
     public static void Shot(IntPtr h, string path)
     {
         RECT r = Rect(h);
+        int w = r.Right - r.Left, ht = r.Bottom - r.Top;
+        using (var bmp = new Bitmap(w, ht))
+        {
+            using (var g = Graphics.FromImage(bmp))
+            {
+                IntPtr dc = g.GetHdc();
+                try
+                {
+                    // PW_RENDERFULLCONTENT: без него композиторный рендер даёт пустоту.
+                    if (!PrintWindow(h, dc, 2))
+                        throw new InvalidOperationException("PrintWindow не смог снять окно.");
+                }
+                finally { g.ReleaseHdc(dc); }
+            }
+
+            // Пустой кадр PrintWindow возвращает молча, признаком служит содержимое.
+            if (IsBlank(bmp))
+                throw new InvalidOperationException(
+                    "PrintWindow вернул пустой кадр: снимок не сохранён.");
+
+            bmp.Save(path, ImageFormat.Png);
+        }
+    }
+
+    // Снимок с экрана. Нужен только там, где содержимое лежит в отдельном окне —
+    // контекстное меню Avalonia это popup, и PrintWindow главного окна его не видит.
+    // Ценой идёт риск захватить чужое окно, поэтому перед копированием проверяется
+    // Z-порядок: всё, что лежит выше демо и перекрывает её, снимок отменяет.
+    public static void ShotScreen(IntPtr h, string path)
+    {
+        RECT r = Rect(h);
+        Intruder(h, r);
+
         int w = r.Right - r.Left, ht = r.Bottom - r.Top;
         using (var bmp = new Bitmap(w, ht))
         using (var g = Graphics.FromImage(bmp))
@@ -142,6 +218,59 @@ public static class DemoDriver
             g.CopyFromScreen(r.Left, r.Top, 0, 0, new Size(w, ht));
             bmp.Save(path, ImageFormat.Png);
         }
+    }
+
+    // Видимые границы окна. У максимизированного окна рамка шире нарисованного:
+    // Windows держит по краям невидимую полосу для растягивания, и панель задач
+    // с ней пересекается всегда. Сторож, сравнивающий рамки, отказывал бы каждый раз.
+    private static RECT Visible(IntPtr h)
+    {
+        RECT frame;
+        // DWMWA_EXTENDED_FRAME_BOUNDS = 9
+        if (DwmGetWindowAttribute(h, 9, out frame, Marshal.SizeOf(typeof(RECT))) == 0)
+            return frame;
+        return Rect(h);
+    }
+
+    private static void Intruder(IntPtr h, RECT windowRect)
+    {
+        RECT area = Visible(h);
+        uint owner;
+        GetWindowThreadProcessId(h, out owner);
+
+        // GW_HWNDPREV = 3: шаг вверх по Z-порядку.
+        for (IntPtr top = GetWindow(h, 3); top != IntPtr.Zero; top = GetWindow(top, 3))
+        {
+            if (!IsWindowVisible(top))
+                continue;
+
+            // DWMWA_CLOAKED = 14: окно другого рабочего стола или UWP-заготовка.
+            int cloaked;
+            if (DwmGetWindowAttribute(top, 14, out cloaked, sizeof(int)) == 0 && cloaked != 0)
+                continue;
+
+            uint pid;
+            GetWindowThreadProcessId(top, out pid);
+            if (pid == owner)
+                continue;   // popup самой демо — его и снимаем
+
+            RECT o = Visible(top);
+            if (o.Right <= area.Left || o.Left >= area.Right || o.Bottom <= area.Top || o.Top >= area.Bottom)
+                continue;
+
+            throw new InvalidOperationException(
+                "Над окном демо чужое окно (pid " + pid + "): снимок захватил бы его содержимое.");
+        }
+    }
+
+    private static bool IsBlank(Bitmap bmp)
+    {
+        Color first = bmp.GetPixel(0, 0);
+        for (int x = 0; x < bmp.Width; x += 17)
+            for (int y = 0; y < bmp.Height; y += 17)
+                if (bmp.GetPixel(x, y) != first)
+                    return false;
+        return true;
     }
 
     // wx/wy - координаты относительно окна
@@ -305,7 +434,8 @@ switch ($Action) {
         $dir = Split-Path -Parent $Out
         if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
         [DemoDriver]::Focus($p.MainWindowHandle)
-        [DemoDriver]::Shot($p.MainWindowHandle, $Out)
+        if ($Screen) { [DemoDriver]::ShotScreen($p.MainWindowHandle, $Out) }
+        else { [DemoDriver]::Shot($p.MainWindowHandle, $Out) }
         "saved $Out ($((Get-Item $Out).Length) bytes)"
     }
 
