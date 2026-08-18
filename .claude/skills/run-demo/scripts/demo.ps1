@@ -35,7 +35,7 @@ param(
     [ValidateSet('None', 'Ctrl', 'Shift', 'Alt', 'CtrlShift')]
     [string]$Modifier = 'None',
 
-    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A')]
+    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A', 'Z', 'Y')]
     [string]$Key = 'Right',
 
     [int]$Notches = 3,
@@ -308,9 +308,15 @@ switch ($Action) {
     'key' {
         $p = Require-Demo
 
-        # Именно SendKeys, а не keybd_event: последний до приложения не доходит,
-        # хотя окно и foreground. Мышь работает иначе, потому что mouse_event
+        # ВНИМАНИЕ: этот путь сейчас не работает. Замер: Ctrl + A (выбрать всё —
+        # давняя возможность, закрытая тестами) через него не меняет выделение,
+        # значит нажатие до приложения не доходит. Мышь при этом работает: mouse_event
         # адресуется точкой экрана, а не фокусом.
+        #
+        # Здесь стоял комментарий, утверждавший обратное — что SendKeys выбран
+        # потому, что keybd_event не доходит. Проверять клавиатуру этим действием
+        # нельзя: оно молча ничего не делает. Клавиатурные сценарии закрыты
+        # headless-тестами, где нажатия идут через настоящий ввод Avalonia.
         $token = switch ($Key) {
             'Left'   { '{LEFT}' }
             'Right'  { '{RIGHT}' }
@@ -319,6 +325,8 @@ switch ($Action) {
             'Delete' { '{DELETE}' }
             'Escape' { '{ESC}' }
             'A'      { 'a' }
+            'Z'      { 'z' }
+            'Y'      { 'y' }
         }
 
         $prefix = switch ($Modifier) {

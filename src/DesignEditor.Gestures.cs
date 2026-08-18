@@ -10,6 +10,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Logging;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -124,7 +125,67 @@ public partial class DesignEditor
             case Key.A when ShouldUseContainerInteraction(e.KeyModifiers):
                 e.Handled = TrySelectAll();
                 break;
+
+            case Key.Z when Matches(HotkeyConfiguration?.Undo, e):
+                e.Handled = TryRequestHistory(UndoRequested);
+                break;
+
+            case Key.Y when Matches(HotkeyConfiguration?.Redo, e):
+            case Key.Z when Matches(HotkeyConfiguration?.Redo, e):
+                e.Handled = TryRequestHistory(RedoRequested);
+                break;
         }
+    }
+
+    /// <summary>
+    /// Сочетания клавиш, принятые на этой платформе.
+    /// </summary>
+    /// <remarks>
+    /// Отмена — не политика редактора, а соглашение системы: на macOS это Cmd, а не
+    /// Ctrl, и повтор там пишется Cmd + Shift + Z. Спрашивать платформу дешевле, чем
+    /// заводить свои свойства и потом объяснять, почему они не совпадают с остальным
+    /// приложением.
+    /// </remarks>
+    private PlatformHotkeyConfiguration? HotkeyConfiguration => this.GetPlatformSettings()?.HotkeyConfiguration;
+
+    private static bool Matches(System.Collections.Generic.List<KeyGesture>? gestures, KeyEventArgs e)
+    {
+        if (gestures == null)
+            return false;
+
+        for (var i = 0; i < gestures.Count; i++)
+        {
+            if (gestures[i].Matches(e))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Поднимает запрос к истории правок.
+    /// </summary>
+    /// <param name="handler">Подписчики запроса.</param>
+    /// <returns><see langword="true"/>, если запрос выполнен.</returns>
+    /// <remarks>
+    /// Обход останавливается на первом выполнившем — по той же причине, что у удаления
+    /// и перестановки: второй обработчик отменял бы уже не то, о чём его спросили.
+    /// </remarks>
+    private bool TryRequestHistory(EventHandler<DesignEditorHistoryRequestedEventArgs>? handler)
+    {
+        if (handler == null)
+            return false;
+
+        var args = new DesignEditorHistoryRequestedEventArgs();
+        foreach (var invocation in handler.GetInvocationList())
+        {
+            ((EventHandler<DesignEditorHistoryRequestedEventArgs>)invocation)(this, args);
+
+            if (args.Handled)
+                break;
+        }
+
+        return args.Handled;
     }
 
     private bool TryNudgeSelection(Key key, KeyModifiers modifiers)

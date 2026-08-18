@@ -49,7 +49,7 @@
 | Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
 | Содержимое контейнера | `DesignContentMode` |
-| Запросы к приложению | `DesignEditorDeleteRequestedEventArgs`, `DesignEditorReorderRequestedEventArgs` |
+| Запросы к приложению | `DesignEditorDeleteRequestedEventArgs`, `DesignEditorReorderRequestedEventArgs`, `DesignEditorHistoryRequestedEventArgs` |
 | Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
 | Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs` |
 | События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
@@ -216,6 +216,8 @@ editor.DesignSelectionChanged += (_, e) =>
 | `Esc` | снять выделение |
 | `Ctrl + A` | выбрать все контейнеры |
 | `Delete` / `Backspace` | запросить удаление выделения |
+| `Ctrl + Z` | запросить отмену |
+| `Ctrl + Y`, `Ctrl + Shift + Z` | запросить повтор |
 
 Модификатор крупного шага задаётся через `InputGestures.LargeNudgeModifiers`.
 
@@ -236,6 +238,21 @@ editor.DeleteRequested += (_, e) =>
 ```
 
 Пока запрос не помечен `Handled`, нажатие считается необработанным и продолжает всплывать — приложение может повесить на `Delete` собственную логику выше по дереву.
+
+Отмена и повтор устроены так же и по той же причине: стека правок у редактора нет. Он сообщает о своих изменениях через `EditCompleted` и умеет применить одно из них (`Revert` / `Reapply`), но что отменять и в каком порядке — знает только тот, кто их копил.
+
+```csharp
+editor.UndoRequested += (_, e) =>
+{
+    if (!history.CanUndo)
+        return;
+
+    history.Undo();
+    e.Handled = true;   // без этого нажатие всплывёт дальше
+};
+```
+
+Сами сочетания берутся у платформы (`PlatformHotkeyConfiguration`), а не задаются библиотекой: на macOS это `Cmd`, и повтор там пишется иначе. Клавиша без модификатора историю не трогает.
 
 ### Контейнер как хост загруженной формы
 

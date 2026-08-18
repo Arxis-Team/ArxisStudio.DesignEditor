@@ -928,6 +928,20 @@ public partial class DesignEditor
     public event EventHandler<DesignEditorReorderRequestedEventArgs>? ReorderRequested;
 
     /// <summary>
+    /// Возникает, когда пользователь просит отменить последнюю правку.
+    /// </summary>
+    /// <remarks>
+    /// Стек правок принадлежит хосту, поэтому редактор ничего не отменяет сам.
+    /// Без подписчика нажатие остаётся необработанным и всплывает дальше.
+    /// </remarks>
+    public event EventHandler<DesignEditorHistoryRequestedEventArgs>? UndoRequested;
+
+    /// <summary>
+    /// Возникает, когда пользователь просит повторить отменённую правку.
+    /// </summary>
+    public event EventHandler<DesignEditorHistoryRequestedEventArgs>? RedoRequested;
+
+    /// <summary>
     /// Возникает, когда пользователь просит изменить набор направляющих.
     /// </summary>
     /// <remarks>

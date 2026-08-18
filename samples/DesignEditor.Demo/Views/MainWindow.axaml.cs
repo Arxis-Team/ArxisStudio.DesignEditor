@@ -36,6 +36,26 @@ public partial class MainWindow : Window
 
             // Отмена строится поверх DesignEditor.EditCompleted и ApplyGeometry.
             _history = new EditHistory(editor);
+
+            // Клавиши истории редактор не выполняет сам — стек принадлежит хосту,
+            // поэтому он спрашивает, а Handled говорит, что запрос выполнен.
+            editor.UndoRequested += (_, e) =>
+            {
+                if (!_history!.CanUndo)
+                    return;
+
+                _history.Undo();
+                e.Handled = true;
+            };
+
+            editor.RedoRequested += (_, e) =>
+            {
+                if (!_history!.CanRedo)
+                    return;
+
+                _history.Redo();
+                e.Handled = true;
+            };
             _history.Changed += (_, _) => UpdateHistoryButtons();
             UpdateHistoryButtons();
         }

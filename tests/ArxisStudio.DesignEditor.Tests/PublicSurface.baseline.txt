@@ -236,6 +236,8 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     event EventHandler<DesignEditorContextRequestedEventArgs> ContextMenuResolved
     event EventHandler<DesignEditorContextRequestingEventArgs> ContextMenuRequesting
     event EventHandler<DesignEditorDeleteRequestedEventArgs> DeleteRequested
+    event EventHandler<DesignEditorHistoryRequestedEventArgs> RedoRequested
+    event EventHandler<DesignEditorHistoryRequestedEventArgs> UndoRequested
     event EventHandler<DesignEditorReorderRequestedEventArgs> ReorderRequested
     event EventHandler<DesignGuideChangeRequestedEventArgs> GuideChangeRequested
     event EventHandler<DesignSelectionChangedEventArgs> DesignSelectionChanged
@@ -361,6 +363,9 @@ sealed class ArxisStudio.DesignEditorDeleteRequestedEventArgs : EventArgs
     ctor .ctor(IReadOnlyList<DesignSelectionTarget>)
     property Boolean Handled { get; set; }
     property IReadOnlyList<DesignSelectionTarget> Targets { get; }
+sealed class ArxisStudio.DesignEditorHistoryRequestedEventArgs : EventArgs
+    ctor .ctor()
+    property Boolean Handled { get; set; }
 class ArxisStudio.DesignEditorInputGestures : AvaloniaObject
     avalonia AdditiveSelectionModifiersProperty -> AdditiveSelectionModifiers : KeyModifiers (styled) = Shift
     avalonia ContainerEmptyAreaDragProperty -> ContainerEmptyAreaDrag : ContainerEmptyAreaDragGesture (styled) = Marquee
