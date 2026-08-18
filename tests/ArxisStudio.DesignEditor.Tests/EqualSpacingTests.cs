@@ -180,6 +180,69 @@ public class EqualSpacingTests
         Assert.Equal(268, PositionOf(harness));
     }
 
+    // ---- Повтор шага ----------------------------------------------------------
+
+    /// <summary>
+    /// Стенд-ряд: два элемента с шагом 40 и третий за ними, без соседа справа.
+    /// </summary>
+    /// <remarks>
+    /// Форма шире общего стенда намеренно: при ширине 500 её правый край попадает
+    /// в радиус захвата от края элемента, ось X занимает выравнивание, и проверялось
+    /// бы не то. Ровное положение здесь — 310.
+    /// </remarks>
+    private static EditorHarness CreateRun()
+    {
+        var nodes = new List<TestNode> { new("run0") };
+
+        var editor = new DesignEditor
+        {
+            ItemsSource = nodes,
+            SelectionMode = SelectionMode.Multiple,
+            ItemTemplate = new FuncDataTemplate<TestNode>((_, _) =>
+            {
+                var panel = new AbsolutePanel();
+                panel.Children.Add(Place("First", 10, 50, 60, 40));
+                panel.Children.Add(Place("Second", 110, 50, 60, 40));
+                panel.Children.Add(Place("Moving", 240, 50, 40, 40));
+                return panel;
+            }, supportsRecycling: false)
+        };
+
+        editor.InteractionOptions.IsSnapToGridEnabled = false;
+
+        var window = new Window { Width = 900, Height = 700, Content = editor };
+        window.Show();
+
+        var harness = EditorHarness.Adopt(window, editor, nodes);
+        harness.RunLayout();
+        harness.PlaceContainer(0, ContainerLocation, new Size(540, 300));
+        return harness;
+    }
+
+    /// <summary>
+    /// Элемент в конце ряда подхватывает шаг, который там уже стоит.
+    /// </summary>
+    /// <remarks>
+    /// Справа от него никого нет, поэтому положение посередине невозможно: без повтора
+    /// шага интервалы здесь не сработали бы вовсе.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Drag_Continues_The_Existing_Step()
+    {
+        var harness = CreateRun();
+        var moving = harness.Named(0, "Moving");
+        var from = new Point(340 + 20, 150 + 20);
+
+        harness.Window.MouseDown(from, MouseButton.Left);
+        harness.Window.MouseMove(from + new Vector(-6, 0));
+        harness.Window.MouseMove(from + new Vector(-24, 0));
+        harness.Window.MouseUp(from + new Vector(-24, 0), MouseButton.Left);
+        harness.RunLayout();
+
+        // Шаг между First и Second — 40, значит Moving встаёт на 270 + 40 = 310.
+        Assert.Equal(310, Layout.GetDesignX(moving));
+    }
+
     // ---- Изменение размера ----------------------------------------------------
 
     /// <summary>

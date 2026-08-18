@@ -59,7 +59,7 @@ internal readonly struct DesignSpacingHint : IEquatable<DesignSpacingHint>
 }
 
 /// <summary>
-/// Считает положение, при котором зазоры до ближайших соседей по оси равны.
+/// Считает положение, при котором зазоры вокруг элемента становятся равными.
 /// </summary>
 /// <remarks>
 /// Здесь, как и в <see cref="DesignSnapGuideResolver"/>, только арифметика: соседи
@@ -71,6 +71,14 @@ internal readonly struct DesignSpacingHint : IEquatable<DesignSpacingHint>
 /// внутри одного ряда, а коробка этажом выше в ряд не входит. И соседи с нулевой
 /// площадью исключаются — интервал бывает между элементами, а не до линии.
 /// </para>
+/// <para>
+/// Равенство достигается двумя разными способами, и оба нужны. <b>Посередине</b> —
+/// зазоры до ближайших соседей слева и справа равны друг другу. <b>Повтор шага</b> —
+/// зазор до ближайшего соседа равен тому, который уже стоит между двумя соседями
+/// дальше по ряду; так элемент продолжает существующий ритм, даже когда с другой
+/// стороны от него никого нет. Кандидатов на ось поэтому несколько, и побеждает
+/// ближайший — то же правило, что и у выравнивания.
+/// </para>
 /// </remarks>
 internal static class DesignSpacingResolver
 {
@@ -81,7 +89,7 @@ internal static class DesignSpacingResolver
     private const double Epsilon = 0.01;
 
     /// <summary>
-    /// Ищет смещение, уравнивающее зазоры до ближайших соседей.
+    /// Ищет смещение, уравнивающее зазоры вокруг элемента.
     /// </summary>
     /// <param name="moving">Прямоугольник в предполагаемой позиции.</param>
     /// <param name="neighbours">Соседи в мировых координатах.</param>
@@ -106,7 +114,7 @@ internal static class DesignSpacingResolver
     }
 
     /// <summary>
-    /// Ищет координату двигающегося края, при которой зазоры до соседей равны.
+    /// Ищет координату двигающегося края, при которой зазоры становятся равными.
     /// </summary>
     /// <param name="proposed">Предполагаемая геометрия элемента.</param>
     /// <param name="neighbours">Соседи в мировых координатах.</param>
@@ -116,11 +124,11 @@ internal static class DesignSpacingResolver
     /// <param name="resolved">Найденная координата края.</param>
     /// <returns><see langword="true"/>, если координата найдена.</returns>
     /// <remarks>
-    /// При перетаскивании элемент целиком встаёт посередине, и оба зазора считаются
-    /// заново. При resize неподвижный край остаётся на месте, поэтому его зазор задан
-    /// и остаётся один вопрос: где должен оказаться двигающийся край, чтобы второй
-    /// зазор стал таким же. Отсюда и одна точка входа вместо смещения по двум осям —
-    /// ровно так же устроена разница между перетаскиванием и resize у направляющих.
+    /// При перетаскивании элемент двигается целиком, и оба зазора считаются заново.
+    /// При resize неподвижный край остаётся на месте, поэтому его зазор задан
+    /// и остаётся один вопрос: где должен оказаться двигающийся край. Отсюда
+    /// отдельная точка входа — ровно так же устроена разница между перетаскиванием
+    /// и resize у направляющих.
     /// </remarks>
     internal static bool TryResolveEdge(
         Rect proposed,
@@ -132,45 +140,51 @@ internal static class DesignSpacingResolver
     {
         resolved = 0;
 
-        if (!TryFindRowNeighbours(proposed, neighbours, xAxis, out var before, out var after))
-            return false;
-
-        var beforeEnd = xAxis ? before.Right : before.Bottom;
-        var afterStart = xAxis ? after.X : after.Y;
+        var row = BuildRow(proposed, neighbours, xAxis);
         var near = xAxis ? proposed.X : proposed.Y;
         var far = xAxis ? proposed.Right : proposed.Bottom;
+        var edge = farEdge ? far : near;
 
-        double target;
+        var best = double.PositiveInfinity;
+        var winner = 0.0;
+        var found = false;
+
+        void Consider(double target)
+        {
+            // Схлопывать элемент ради равенства нельзя: это уже не изменение размера.
+            if (farEdge ? target <= near : target >= far)
+                return;
+
+            var distance = Math.Abs(target - edge);
+            if (distance > tolerance || distance >= best)
+                return;
+
+            best = distance;
+            winner = target;
+            found = true;
+        }
+
         if (farEdge)
         {
             // Неподвижен ближний край: его зазор задан, дальний обязан стать таким же.
-            var fixedGap = near - beforeEnd;
-            if (fixedGap < 0)
-                return false;
+            if (row.HasBefore && row.HasAfter && near - row.BeforeEnd >= 0)
+                Consider(row.AfterStart - (near - row.BeforeEnd));
 
-            target = afterStart - fixedGap;
-
-            // Схлопывать элемент ради равенства нельзя: это уже не изменение размера.
-            if (target <= near)
-                return false;
+            // Либо край подхватывает шаг, который уже стоит дальше по ряду.
+            if (row.TryGetAfterStep(out var afterStep))
+                Consider(row.AfterStart - afterStep);
         }
         else
         {
-            var fixedGap = afterStart - far;
-            if (fixedGap < 0)
-                return false;
+            if (row.HasBefore && row.HasAfter && row.AfterStart - far >= 0)
+                Consider(row.BeforeEnd + (row.AfterStart - far));
 
-            target = beforeEnd + fixedGap;
-            if (target >= far)
-                return false;
+            if (row.TryGetBeforeStep(out var beforeStep))
+                Consider(row.BeforeEnd + beforeStep);
         }
 
-        var edge = farEdge ? far : near;
-        if (Math.Abs(target - edge) > tolerance)
-            return false;
-
-        resolved = target;
-        return true;
+        resolved = winner;
+        return found;
     }
 
     /// <summary>
@@ -178,6 +192,11 @@ internal static class DesignSpacingResolver
     /// </summary>
     /// <param name="bounds">Применённая геометрия элемента.</param>
     /// <param name="neighbours">Соседи в мировых координатах.</param>
+    /// <remarks>
+    /// Показывается не «зазор рядом с элементом», а цепочка равных зазоров, в которую
+    /// он попал: два подряд при положении посередине, два и больше при повторе шага.
+    /// Одинокий зазор ничего не значит и не рисуется.
+    /// </remarks>
     internal static IReadOnlyList<DesignSpacingHint> CollectHints(Rect bounds, IReadOnlyList<Rect> neighbours)
     {
         List<DesignSpacingHint>? hints = null;
@@ -197,27 +216,43 @@ internal static class DesignSpacingResolver
     {
         delta = 0;
 
-        if (!TryFindRowNeighbours(moving, neighbours, xAxis, out var before, out var after))
-            return false;
-
-        var beforeEnd = xAxis ? before.Right : before.Bottom;
-        var afterStart = xAxis ? after.X : after.Y;
+        var row = BuildRow(moving, neighbours, xAxis);
+        var start = xAxis ? moving.X : moving.Y;
         var size = xAxis ? moving.Width : moving.Height;
 
-        // Свободное место между соседями за вычетом самого элемента делится пополам.
-        var free = afterStart - beforeEnd - size;
-        if (free < 0)
-            return false;
+        var best = double.PositiveInfinity;
+        var winner = 0.0;
+        var found = false;
 
-        var target = beforeEnd + (free / 2);
-        var current = xAxis ? moving.X : moving.Y;
-        var candidate = target - current;
+        void Consider(double target)
+        {
+            var candidate = target - start;
+            var distance = Math.Abs(candidate);
+            if (distance > tolerance || distance >= best)
+                return;
 
-        if (Math.Abs(candidate) > tolerance)
-            return false;
+            best = distance;
+            winner = candidate;
+            found = true;
+        }
 
-        delta = candidate;
-        return true;
+        // Посередине: свободное место между ближайшими соседями делится пополам.
+        if (row.HasBefore && row.HasAfter)
+        {
+            var free = row.AfterStart - row.BeforeEnd - size;
+            if (free >= 0)
+                Consider(row.BeforeEnd + (free / 2));
+        }
+
+        // Повтор шага, который уже стоит слева или справа по ряду.
+        if (row.TryGetBeforeStep(out var beforeStep))
+            Consider(row.BeforeEnd + beforeStep);
+
+        if (row.TryGetAfterStep(out var afterStep))
+            Consider(row.AfterStart - afterStep - size);
+
+        delta = winner;
+        return found;
     }
 
     private static void CollectAxis(
@@ -226,49 +261,137 @@ internal static class DesignSpacingResolver
         bool xAxis,
         ref List<DesignSpacingHint>? hints)
     {
-        if (!TryFindRowNeighbours(bounds, neighbours, xAxis, out var before, out var after))
+        var row = BuildRow(bounds, neighbours, xAxis);
+
+        // Элемент встаёт в ряд между соседями до него и после него: получается
+        // последовательность, у которой можно взять зазоры подряд.
+        var items = new List<Rect>(row.Before.Count + row.After.Count + 1);
+        items.AddRange(row.Before);
+        var index = items.Count;
+        items.Add(bounds);
+        items.AddRange(row.After);
+
+        if (items.Count < 3)
             return;
 
-        var beforeEnd = xAxis ? before.Right : before.Bottom;
-        var start = xAxis ? bounds.X : bounds.Y;
-        var end = xAxis ? bounds.Right : bounds.Bottom;
-        var afterStart = xAxis ? after.X : after.Y;
+        var gaps = new double[items.Count - 1];
+        for (var i = 0; i < gaps.Length; i++)
+            gaps[i] = Start(items[i + 1], xAxis) - End(items[i], xAxis);
 
-        var first = start - beforeEnd;
-        var second = afterStart - end;
+        var shown = new bool[gaps.Length];
 
-        if (first < 0 || second < 0 || Math.Abs(first - second) > Epsilon)
-            return;
+        // Цепочка ищется от зазоров, прилегающих к элементу: равенство где-то
+        // в стороне к нему не относится и подсказкой быть не должно.
+        MarkChain(gaps, shown, index - 1);
+        MarkChain(gaps, shown, index);
 
-        // Отрезок рисуется по середине перекрытия всех трёх: только там он читается
-        // как измерение зазора, а не как ещё одна линия у края.
-        var position = CrossCentre(bounds, before, after, xAxis);
-        var orientation = xAxis
-            ? DesignSnapGuideOrientation.Vertical
-            : DesignSnapGuideOrientation.Horizontal;
+        for (var i = 0; i < gaps.Length; i++)
+        {
+            if (!shown[i])
+                continue;
 
-        hints ??= new List<DesignSpacingHint>();
-        hints.Add(new DesignSpacingHint(orientation, beforeEnd, start, position));
-        hints.Add(new DesignSpacingHint(orientation, end, afterStart, position));
+            var orientation = xAxis
+                ? DesignSnapGuideOrientation.Vertical
+                : DesignSnapGuideOrientation.Horizontal;
+
+            hints ??= new List<DesignSpacingHint>();
+            hints.Add(new DesignSpacingHint(
+                orientation,
+                End(items[i], xAxis),
+                Start(items[i + 1], xAxis),
+                CrossCentre(bounds, items[i], items[i + 1], xAxis)));
+        }
     }
 
     /// <summary>
-    /// Ищет ближайших соседей по оси, лежащих с элементом в одном ряду.
+    /// Помечает максимальную цепочку равных зазоров, содержащую указанный.
     /// </summary>
-    private static bool TryFindRowNeighbours(
-        Rect moving,
-        IReadOnlyList<Rect> neighbours,
-        bool xAxis,
-        out Rect before,
-        out Rect after)
+    /// <remarks>
+    /// Цепочка короче двух не показывается: одинокий зазор ничего не сообщает,
+    /// равенство начинается со второго.
+    /// </remarks>
+    private static void MarkChain(double[] gaps, bool[] shown, int seed)
     {
-        before = default;
-        after = default;
+        if (seed < 0 || seed >= gaps.Length || gaps[seed] < 0)
+            return;
 
-        var hasBefore = false;
-        var hasAfter = false;
-        var bestBefore = double.NegativeInfinity;
-        var bestAfter = double.PositiveInfinity;
+        var value = gaps[seed];
+        var from = seed;
+        var to = seed;
+
+        while (from > 0 && Math.Abs(gaps[from - 1] - value) <= Epsilon)
+            from--;
+
+        while (to < gaps.Length - 1 && Math.Abs(gaps[to + 1] - value) <= Epsilon)
+            to++;
+
+        if (to - from < 1)
+            return;
+
+        for (var i = from; i <= to; i++)
+            shown[i] = true;
+    }
+
+    /// <summary>
+    /// Соседи одного ряда, разделённые на стоящих до элемента и после него.
+    /// </summary>
+    private readonly struct Row
+    {
+        public Row(List<Rect> before, List<Rect> after, bool xAxis)
+        {
+            Before = before;
+            After = after;
+            XAxis = xAxis;
+        }
+
+        /// <summary>Соседи до элемента, по возрастанию дальнего края.</summary>
+        public List<Rect> Before { get; }
+
+        /// <summary>Соседи после элемента, по возрастанию ближнего края.</summary>
+        public List<Rect> After { get; }
+
+        private bool XAxis { get; }
+
+        public bool HasBefore => Before.Count > 0;
+
+        public bool HasAfter => After.Count > 0;
+
+        /// <summary>Дальний край ближайшего соседа до элемента.</summary>
+        public double BeforeEnd => End(Before[^1], XAxis);
+
+        /// <summary>Ближний край ближайшего соседа после элемента.</summary>
+        public double AfterStart => Start(After[0], XAxis);
+
+        /// <summary>Шаг, уже стоящий между двумя ближайшими соседями до элемента.</summary>
+        public bool TryGetBeforeStep(out double step)
+        {
+            step = 0;
+            if (Before.Count < 2)
+                return false;
+
+            step = Start(Before[^1], XAxis) - End(Before[^2], XAxis);
+            return step >= 0;
+        }
+
+        /// <summary>Шаг, уже стоящий между двумя ближайшими соседями после элемента.</summary>
+        public bool TryGetAfterStep(out double step)
+        {
+            step = 0;
+            if (After.Count < 2)
+                return false;
+
+            step = Start(After[1], XAxis) - End(After[0], XAxis);
+            return step >= 0;
+        }
+    }
+
+    /// <summary>
+    /// Собирает ряд: соседей, лежащих с элементом на одной линии и не пересекающих его.
+    /// </summary>
+    private static Row BuildRow(Rect moving, IReadOnlyList<Rect> neighbours, bool xAxis)
+    {
+        var before = new List<Rect>();
+        var after = new List<Rect>();
 
         var start = xAxis ? moving.X : moving.Y;
         var end = xAxis ? moving.Right : moving.Bottom;
@@ -284,39 +407,50 @@ internal static class DesignSpacingResolver
             if (!OverlapsAcross(moving, neighbour, xAxis))
                 continue;
 
-            var neighbourStart = xAxis ? neighbour.X : neighbour.Y;
-            var neighbourEnd = xAxis ? neighbour.Right : neighbour.Bottom;
-
-            if (neighbourEnd <= start && neighbourEnd > bestBefore)
-            {
-                bestBefore = neighbourEnd;
-                before = neighbour;
-                hasBefore = true;
-            }
-            else if (neighbourStart >= end && neighbourStart < bestAfter)
-            {
-                bestAfter = neighbourStart;
-                after = neighbour;
-                hasAfter = true;
-            }
+            if (End(neighbour, xAxis) <= start)
+                before.Add(neighbour);
+            else if (Start(neighbour, xAxis) >= end)
+                after.Add(neighbour);
         }
 
-        return hasBefore && hasAfter;
+        before.Sort((a, b) => End(a, xAxis).CompareTo(End(b, xAxis)));
+        after.Sort((a, b) => Start(a, xAxis).CompareTo(Start(b, xAxis)));
+
+        return new Row(before, after, xAxis);
     }
+
+    private static double Start(Rect rect, bool xAxis) => xAxis ? rect.X : rect.Y;
+
+    private static double End(Rect rect, bool xAxis) => xAxis ? rect.Right : rect.Bottom;
 
     private static bool OverlapsAcross(Rect moving, Rect neighbour, bool xAxis) => xAxis
         ? neighbour.Y < moving.Bottom && neighbour.Bottom > moving.Y
         : neighbour.X < moving.Right && neighbour.Right > moving.X;
 
-    private static double CrossCentre(Rect bounds, Rect before, Rect after, bool xAxis)
+    /// <summary>
+    /// Координата, на которой рисуется отрезок зазора.
+    /// </summary>
+    /// <remarks>
+    /// Берётся середина полосы, общей у элемента и двух ограничивающих зазор соседей:
+    /// только там отрезок читается как измерение, а не как ещё одна линия у края.
+    /// Если общей полосы нет, остаётся середина самого элемента — он в кадре всегда.
+    /// </remarks>
+    private static double CrossCentre(Rect bounds, Rect first, Rect second, bool xAxis)
     {
         var low = xAxis
-            ? Math.Max(bounds.Y, Math.Max(before.Y, after.Y))
-            : Math.Max(bounds.X, Math.Max(before.X, after.X));
+            ? Math.Max(bounds.Y, Math.Max(first.Y, second.Y))
+            : Math.Max(bounds.X, Math.Max(first.X, second.X));
 
         var high = xAxis
-            ? Math.Min(bounds.Bottom, Math.Min(before.Bottom, after.Bottom))
-            : Math.Min(bounds.Right, Math.Min(before.Right, after.Right));
+            ? Math.Min(bounds.Bottom, Math.Min(first.Bottom, second.Bottom))
+            : Math.Min(bounds.Right, Math.Min(first.Right, second.Right));
+
+        if (low > high)
+        {
+            return xAxis
+                ? bounds.Y + (bounds.Height / 2)
+                : bounds.X + (bounds.Width / 2);
+        }
 
         return low + ((high - low) / 2);
     }

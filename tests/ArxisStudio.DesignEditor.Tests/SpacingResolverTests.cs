@@ -124,6 +124,137 @@ public class SpacingResolverTests
         Assert.Equal(4, offset.Y);
     }
 
+    // ---- Повтор шага ----------------------------------------------------------
+
+    /// <summary>Ряд с уже заданным шагом 50: 0..100, затем 150..250.</summary>
+    private static readonly Rect[] Run =
+    {
+        new(0, 100, 100, 60),
+        new(150, 100, 100, 60)
+    };
+
+    /// <summary>
+    /// Элемент в конце ряда подхватывает шаг, который там уже стоит.
+    /// </summary>
+    /// <remarks>
+    /// Положение посередине здесь невозможно — справа никого нет, — и без повтора
+    /// шага интервалы не помогли бы вовсе. Ровно этот случай и есть «продолжить ряд».
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Run_Continues_Its_Existing_Step()
+    {
+        var moving = new Rect(294, 110, 40, 40);
+
+        var found = DesignSpacingResolver.TryResolveOffset(
+            moving, Run, tolerance: 8, out var offset, out var spacedX, out _);
+
+        Assert.True(found);
+        Assert.True(spacedX);
+        Assert.Equal(6, offset.X);
+    }
+
+    /// <summary>
+    /// Шаг подхватывается и с другой стороны.
+    /// </summary>
+    [AvaloniaFact]
+    public void The_Step_Is_Read_From_Whichever_Side_Has_One()
+    {
+        var after = new[]
+        {
+            new Rect(300, 100, 100, 60),
+            new Rect(450, 100, 100, 60)
+        };
+
+        var moving = new Rect(216, 110, 40, 40);
+
+        var found = DesignSpacingResolver.TryResolveOffset(
+            moving, after, tolerance: 8, out var offset, out _, out _);
+
+        Assert.True(found);
+        Assert.Equal(-6, offset.X);
+    }
+
+    /// <summary>
+    /// Когда подходят оба способа, побеждает ближайший.
+    /// </summary>
+    /// <remarks>
+    /// То же правило, что и у выравнивания: кандидатов несколько, выигрывает тот,
+    /// до которого меньше идти. Иначе выбор зависел бы от порядка проверок, а не
+    /// от того, куда человек ведёт элемент.
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Nearest_Candidate_Wins()
+    {
+        // Ряд 0..100 и 150..250 задаёт шаг 50, значит повтор ставит элемент на 300.
+        // Дальний сосед 400..500 даёт положение посередине — 305.
+        var neighbours = new[]
+        {
+            new Rect(0, 100, 100, 60),
+            new Rect(150, 100, 100, 60),
+            new Rect(400, 100, 100, 60)
+        };
+
+        DesignSpacingResolver.TryResolveOffset(
+            new Rect(302, 110, 40, 40), neighbours, tolerance: 8, out var nearRepeat, out _, out _);
+
+        DesignSpacingResolver.TryResolveOffset(
+            new Rect(304, 110, 40, 40), neighbours, tolerance: 8, out var nearCentre, out _, out _);
+
+        Assert.Equal(300, 302 + nearRepeat.X);
+        Assert.Equal(305, 304 + nearCentre.X);
+    }
+
+    [AvaloniaFact]
+    public void A_Continued_Run_Shows_Both_Gaps()
+    {
+        var hints = DesignSpacingResolver.CollectHints(new Rect(300, 110, 40, 40), Run);
+
+        Assert.Equal(2, hints.Count);
+        Assert.All(hints, h => Assert.Equal(50, h.End - h.Start, 3));
+        Assert.Equal(100, hints[0].Start);
+        Assert.Equal(250, hints[1].Start);
+    }
+
+    /// <summary>
+    /// Цепочка длиннее двух показывается целиком.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_Longer_Chain_Is_Shown_Whole()
+    {
+        var run = new[]
+        {
+            new Rect(0, 100, 100, 60),
+            new Rect(150, 100, 100, 60),
+            new Rect(300, 100, 100, 60)
+        };
+
+        var hints = DesignSpacingResolver.CollectHints(new Rect(450, 110, 40, 40), run);
+
+        Assert.Equal(3, hints.Count);
+        Assert.All(hints, h => Assert.Equal(50, h.End - h.Start, 3));
+    }
+
+    /// <summary>
+    /// Равенство в стороне от элемента подсказкой не становится.
+    /// </summary>
+    /// <remarks>
+    /// Цепочка ищется от зазоров, прилегающих к элементу: два ровных зазора где-то
+    /// поодаль к его положению отношения не имеют.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Equality_Away_From_The_Element_Is_Not_A_Hint()
+    {
+        var run = new[]
+        {
+            new Rect(0, 100, 100, 60),
+            new Rect(150, 100, 100, 60),
+            new Rect(300, 100, 100, 60)
+        };
+
+        // Элемент встал в 90 от последнего — его зазор ни с чем не совпал.
+        Assert.Empty(DesignSpacingResolver.CollectHints(new Rect(490, 110, 40, 40), run));
+    }
+
     // ---- Изменение размера ----------------------------------------------------
 
     /// <summary>
@@ -174,6 +305,28 @@ public class SpacingResolverTests
 
         Assert.False(DesignSpacingResolver.TryResolveEdge(
             proposed, Row, tolerance: 8, xAxis: true, farEdge: true, out _));
+    }
+
+    /// <summary>
+    /// Потянутый край тоже подхватывает шаг, стоящий дальше по ряду.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_Resized_Edge_Continues_The_Run()
+    {
+        var after = new[]
+        {
+            new Rect(300, 100, 100, 60),
+            new Rect(450, 100, 100, 60)
+        };
+
+        // Шаг между соседями 50, значит правый край обязан встать на 250.
+        var proposed = new Rect(0, 110, 244, 40);
+
+        var found = DesignSpacingResolver.TryResolveEdge(
+            proposed, after, tolerance: 8, xAxis: true, farEdge: true, out var resolved);
+
+        Assert.True(found);
+        Assert.Equal(250, resolved);
     }
 
     [AvaloniaFact]
