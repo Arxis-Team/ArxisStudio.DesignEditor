@@ -507,9 +507,52 @@ public partial class DesignEditor
         set
         {
             var gestures = value ?? new DesignEditorInputGestures();
+            DetachInputGestures(_inputGestures);
             SetAndRaise(InputGesturesProperty, ref _inputGestures, gestures);
+            AttachInputGestures(gestures);
             SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, gestures.ContainerInteractionModifiers);
             SetAndRaise(AdditiveSelectionModifiersProperty, ref _additiveSelectionModifiers, gestures.AdditiveSelectionModifiers);
+        }
+    }
+
+    /// <summary>
+    /// Подписывает редактор на изменения внутри набора жестов.
+    /// </summary>
+    /// <remarks>
+    /// Плоские <see cref="ContainerInteractionModifiers"/> и <see cref="AdditiveSelectionModifiers"/>
+    /// читают значение у набора, поэтому по чтению они верны всегда — а вот уведомления
+    /// без этой подписки не было. Настройка через сам набор — путь, который документация
+    /// и рекомендует, — молча оставляла привязку к плоскому свойству со старым значением:
+    /// значение верное, отображается прежнее.
+    /// <para>
+    /// Подписка живёт ровно столько, сколько набор остаётся у этого редактора: замена
+    /// набора её перевешивает. Набор — конфигурация одного редактора, и общий на двоих
+    /// он не рассчитан.
+    /// </para>
+    /// </remarks>
+    private void AttachInputGestures(DesignEditorInputGestures gestures) =>
+        gestures.PropertyChanged += OnInputGesturesPropertyChanged;
+
+    private void DetachInputGestures(DesignEditorInputGestures gestures) =>
+        gestures.PropertyChanged -= OnInputGesturesPropertyChanged;
+
+    private void OnInputGesturesPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        // Повторного события не будет: запись через плоское свойство уже обновила поле,
+        // и SetAndRaise с тем же значением ничего не поднимает.
+        if (e.Property == DesignEditorInputGestures.ContainerInteractionModifiersProperty)
+        {
+            SetAndRaise(
+                ContainerInteractionModifiersProperty,
+                ref _containerInteractionModifiers,
+                _inputGestures.ContainerInteractionModifiers);
+        }
+        else if (e.Property == DesignEditorInputGestures.AdditiveSelectionModifiersProperty)
+        {
+            SetAndRaise(
+                AdditiveSelectionModifiersProperty,
+                ref _additiveSelectionModifiers,
+                _inputGestures.AdditiveSelectionModifiers);
         }
     }
 

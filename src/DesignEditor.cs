@@ -152,6 +152,7 @@ public partial class DesignEditor : SelectingItemsControl
         _inputGestures = new DesignEditorInputGestures();
         _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;
         _additiveSelectionModifiers = _inputGestures.AdditiveSelectionModifiers;
+        AttachInputGestures(_inputGestures);
 
         var contentGroup = new TransformGroup();
         contentGroup.Children.Add(_scaleTransform);
