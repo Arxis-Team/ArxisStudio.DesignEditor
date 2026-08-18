@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -174,5 +175,116 @@ public class EditContractTests
         var (harness, _) = Create();
 
         Assert.Throws<ArgumentNullException>(() => harness.Editor.ApplyGeometry(null!, default));
+    }
+
+    // ---- Отмена и повтор -------------------------------------------------------
+
+    /// <summary>Позиция target'а в design-координатах после прогона layout.</summary>
+    private static Point Position(EditorHarness harness, Control target)
+    {
+        harness.RunLayout();
+        return new Point(
+            ArxisStudio.Attached.Layout.GetDesignX(target),
+            ArxisStudio.Attached.Layout.GetDesignY(target));
+    }
+
+    /// <summary>
+    /// Повтор возвращает элемент туда, где его оставил жест.
+    /// </summary>
+    /// <remarks>
+    /// Отмена покрыта с самого появления контракта, повтор не был покрыт ничем — при том
+    /// что стека правок у редактора нет и обе половины принадлежат хосту поровну. Это
+    /// половина обещания: хост, накопивший изменения, обязан уметь пройти по ним в обе
+    /// стороны.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Reapply_Returns_The_Element_Where_The_Gesture_Left_It()
+    {
+        var (harness, edits) = Create();
+
+        Drag(harness, NestedCentre, new Vector(60, 40));
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
+        var afterGesture = Position(harness, change.Target);
+
+        harness.Editor.Revert(change);
+        var afterRevert = Position(harness, change.Target);
+        Assert.Equal(change.OldBounds.X, afterRevert.X, 1);
+
+        harness.Editor.Reapply(change);
+
+        Assert.Equal(afterGesture.X, Position(harness, change.Target).X, 1);
+        Assert.Equal(afterGesture.Y, Position(harness, change.Target).Y, 1);
+    }
+
+    /// <summary>
+    /// Проход по кругу не накапливает остаток.
+    /// </summary>
+    /// <remarks>
+    /// Обе половины задают <b>значения</b>, а не дельты, поэтому дрейфу взяться неоткуда.
+    /// Проверяется это ровно потому, что рядом, в resize, накопление дельт уже один раз
+    /// дало ширину, ходившую 110, 130, 110, 130: у пользователя отмена и повтор нажимаются
+    /// подряд по многу раз, и цена ошибки та же.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Repeated_Round_Trips_Do_Not_Drift()
+    {
+        var (harness, edits) = Create();
+
+        Drag(harness, NestedCentre, new Vector(60, 40));
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
+        var afterGesture = Position(harness, change.Target);
+
+        for (var i = 0; i < 5; i++)
+        {
+            harness.Editor.Revert(change);
+            harness.RunLayout();
+            harness.Editor.Reapply(change);
+            harness.RunLayout();
+        }
+
+        var final = Position(harness, change.Target);
+        Assert.Equal(afterGesture.X, final.X, 1);
+        Assert.Equal(afterGesture.Y, final.Y, 1);
+    }
+
+    /// <summary>
+    /// Повтор не порождает новой единицы редактирования.
+    /// </summary>
+    /// <remarks>
+    /// То же правило, что у отмены: иначе стек, по которому идут вперёд, дописывался бы
+    /// на каждом шаге и до конца не доходил бы никогда.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Reapply_Does_Not_Produce_A_New_Edit()
+    {
+        var (harness, edits) = Create();
+
+        Drag(harness, NestedCentre, new Vector(60, 40));
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
+
+        harness.Editor.Revert(change);
+        harness.RunLayout();
+
+        edits.Clear();
+        harness.Editor.Reapply(change);
+        harness.RunLayout();
+
+        Assert.Empty(edits);
+    }
+
+    [AvaloniaFact]
+    public void Reapply_Rejects_Null_Change()
+    {
+        var (harness, _) = Create();
+
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.Reapply(null!));
+    }
+
+    [AvaloniaFact]
+    public void Revert_Rejects_Null_Change()
+    {
+        var (harness, _) = Create();
+
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.Revert(null!));
     }
 }

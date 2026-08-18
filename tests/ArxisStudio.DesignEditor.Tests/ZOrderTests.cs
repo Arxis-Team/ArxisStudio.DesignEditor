@@ -200,6 +200,39 @@ public class ZOrderTests
         Assert.Empty(later);
     }
 
+    /// <summary>
+    /// Повтор возвращает порядок, который задала команда.
+    /// </summary>
+    /// <remarks>
+    /// Изменение порядка едет отдельным типом (<c>DesignOrderChange</c>) и своей парой
+    /// значений, поэтому обе половины контракта надо проверять и на нём: отмена геометрии
+    /// ничего не говорит про <c>ZIndex</c>.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Reapply_Restores_The_New_Order()
+    {
+        var harness = CreateWithNestedSelected();
+        var nested = harness.Nested(0);
+
+        DesignEditCompletedEventArgs? edit = null;
+        harness.Editor.EditCompleted += (_, e) => edit = e;
+
+        harness.Editor.BringToFront();
+        harness.RunLayout();
+        var afterCommand = VisualOrder(nested).Select(c => c.ZIndex).ToList();
+
+        foreach (var change in edit!.Changes)
+            harness.Editor.Revert(change);
+        harness.RunLayout();
+        Assert.NotEqual(afterCommand, VisualOrder(nested).Select(c => c.ZIndex).ToList());
+
+        foreach (var change in edit.Changes)
+            harness.Editor.Reapply(change);
+        harness.RunLayout();
+
+        Assert.Equal(afterCommand, VisualOrder(nested).Select(c => c.ZIndex).ToList());
+    }
+
     [AvaloniaFact]
     public void Group_Reorder_Keeps_Relative_Order()
     {
