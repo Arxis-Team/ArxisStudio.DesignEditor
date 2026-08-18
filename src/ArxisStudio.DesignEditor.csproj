@@ -19,8 +19,9 @@
         <IsPackable>true</IsPackable>
         <PackageId>ArxisStudio.DesignEditor</PackageId>
         <Version>0.1.0</Version>
-        <Authors>Arxis Team</Authors>
-        <Company>Arxis Team</Company>
+        <Authors>ArxisStudio</Authors>
+        <Company>ArxisStudio</Company>
+        <Copyright>Copyright (c) 2026 ArxisStudio</Copyright>
         <Product>ArxisStudio.DesignEditor</Product>
         <Description>Библиотека контролов Avalonia UI для построения визуальных редакторов, form designer'ов и layout editor'ов: бесконечная поверхность с панорамированием и зумом, фоновая сетка, двухуровневое выделение, перетаскивание и изменение размеров, привязка к сетке и направляющие выравнивания.</Description>
         <PackageTags>avalonia;designer;form-designer;gui-builder;layout-editor;canvas;diagram;ui</PackageTags>
