@@ -1,6 +1,8 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.VisualTree;
+using ArxisStudio.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Xunit;
@@ -270,6 +272,54 @@ public class EditContractTests
         harness.RunLayout();
 
         Assert.Empty(edits);
+    }
+
+    /// <summary>
+    /// Повтор возвращает и размер, а не только положение.
+    /// </summary>
+    /// <remarks>
+    /// <c>ApplyGeometry</c> пишет обе половины геометрии, но круг проверялся на
+    /// перетаскивании, где размер не меняется вовсе, — то есть половина восстановления
+    /// не могла ни подтвердиться, ни упасть. Здесь жест изменяет размер, и обе половины
+    /// нагружены.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Reapply_Restores_The_Size_Too()
+    {
+        var (harness, edits) = Create();
+
+        harness.Window.MouseDown(NestedCentre, MouseButton.Left);
+        harness.Window.MouseUp(NestedCentre, MouseButton.Left);
+        harness.RunLayout();
+
+        ResizeRight(harness, new Vector(30, 0));
+
+        var change = Assert.IsType<DesignGeometryChange>(edits.Single().Changes.Single());
+        Assert.NotEqual(change.OldBounds.Width, change.NewBounds.Width);
+
+        harness.Editor.Revert(change);
+        harness.RunLayout();
+        Assert.Equal(change.OldBounds.Width, harness.Editor.GetDesignSize(change.Target).Width, 1);
+
+        harness.Editor.Reapply(change);
+        harness.RunLayout();
+        Assert.Equal(change.NewBounds.Width, harness.Editor.GetDesignSize(change.Target).Width, 1);
+        Assert.Equal(change.NewBounds.Height, harness.Editor.GetDesignSize(change.Target).Height, 1);
+    }
+
+    /// <summary>
+    /// Тянет правый край выделения тем же путём, которым его тянет приложение.
+    /// </summary>
+    private static void ResizeRight(EditorHarness harness, Vector delta)
+    {
+        var adorner = harness.Editor.GetVisualDescendants()
+            .OfType<SelectionAdorner>()
+            .Single(a => a.Name == "PART_SelectionAdorner");
+
+        adorner.RaiseEvent(new ResizeStartedEventArgs(default, ResizeDirection.Right, SelectionAdorner.ResizeStartedEvent));
+        adorner.RaiseEvent(new ResizeDeltaEventArgs(delta, ResizeDirection.Right, SelectionAdorner.ResizeDeltaEvent));
+        adorner.RaiseEvent(new VectorEventArgs { RoutedEvent = SelectionAdorner.ResizeCompletedEvent, Vector = delta });
+        harness.RunLayout();
     }
 
     [AvaloniaFact]

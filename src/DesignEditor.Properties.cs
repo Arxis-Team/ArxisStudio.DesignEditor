@@ -12,6 +12,7 @@ using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Logging;
 using Avalonia.Media;
+using Avalonia.Utilities;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -516,30 +517,52 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Подписывает редактор на изменения внутри набора жестов.
+    /// Ретранслятор изменений набора жестов в плоские свойства редактора.
     /// </summary>
     /// <remarks>
-    /// Плоские <see cref="ContainerInteractionModifiers"/> и <see cref="AdditiveSelectionModifiers"/>
-    /// читают значение у набора, поэтому по чтению они верны всегда — а вот уведомления
-    /// без этой подписки не было. Настройка через сам набор — путь, который документация
-    /// и рекомендует, — молча оставляла привязку к плоскому свойству со старым значением:
-    /// значение верное, отображается прежнее.
+    /// Отдельный объект нужен ради времени жизни. Плоские
+    /// <see cref="ContainerInteractionModifiers"/> и <see cref="AdditiveSelectionModifiers"/>
+    /// читают значение у набора и потому по чтению верны всегда — а уведомления держатся
+    /// на подписке. Обычная подписка редактора на набор укладывает делегат в сам набор,
+    /// то есть набор начинает держать редактор: набор, общий на несколько редакторов —
+    /// а именно так его раздаёт один <c>Setter</c> в стиле, — не отпускал бы ни одного
+    /// из них никогда. Замерено: пять редакторов на общем наборе переживали принудительную
+    /// сборку все пять, на своём — ни одного.
     /// <para>
-    /// Подписка живёт ровно столько, сколько набор остаётся у этого редактора: замена
-    /// набора её перевешивает. Набор — конфигурация одного редактора, и общий на двоих
-    /// он не рассчитан.
+    /// Слабое событие Avalonia держит подписчика слабо, поэтому набор ссылается на мост
+    /// слабо, мост на редактор — сильно, а редактор владеет мостом. Всё трое собираются
+    /// вместе, и набор при этом не держит никого.
     /// </para>
     /// </remarks>
-    private void AttachInputGestures(DesignEditorInputGestures gestures) =>
-        gestures.PropertyChanged += OnInputGesturesPropertyChanged;
-
-    private void DetachInputGestures(DesignEditorInputGestures gestures) =>
-        gestures.PropertyChanged -= OnInputGesturesPropertyChanged;
-
-    private void OnInputGesturesPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    private sealed class InputGestureBridge : IWeakEventSubscriber<AvaloniaPropertyChangedEventArgs>
     {
-        // Повторного события не будет: запись через плоское свойство уже обновила поле,
-        // и SetAndRaise с тем же значением ничего не поднимает.
+        private readonly DesignEditor _editor;
+
+        public InputGestureBridge(DesignEditor editor) => _editor = editor;
+
+        public void OnEvent(object? sender, WeakEvent ev, AvaloniaPropertyChangedEventArgs e) =>
+            _editor.OnInputGesturesPropertyChanged(e);
+    }
+
+    private readonly InputGestureBridge _inputGestureBridge;
+
+    private void AttachInputGestures(DesignEditorInputGestures gestures) =>
+        WeakEvents.AvaloniaPropertyChanged.Subscribe(gestures, _inputGestureBridge);
+
+    /// <summary>
+    /// Отписывает редактор от заменённого набора.
+    /// </summary>
+    /// <remarks>
+    /// Для времени жизни это уже не нужно — за него отвечает слабое событие. Отписка
+    /// прекращает лишние вызовы от набора, которым редактор больше не пользуется;
+    /// испортить значение они и так не могут, потому что ретранслятор читает текущий
+    /// набор, а не отправителя.
+    /// </remarks>
+    private void DetachInputGestures(DesignEditorInputGestures gestures) =>
+        WeakEvents.AvaloniaPropertyChanged.Unsubscribe(gestures, _inputGestureBridge);
+
+    private void OnInputGesturesPropertyChanged(AvaloniaPropertyChangedEventArgs e)
+    {
         if (e.Property == DesignEditorInputGestures.ContainerInteractionModifiersProperty)
         {
             SetAndRaise(
@@ -588,11 +611,11 @@ public partial class DesignEditor
     public KeyModifiers ContainerInteractionModifiers
     {
         get => InputGestures.ContainerInteractionModifiers;
-        set
-        {
-            SetAndRaise(ContainerInteractionModifiersProperty, ref _containerInteractionModifiers, value);
-            InputGestures.ContainerInteractionModifiers = value;
-        }
+        // Запись идёт только в набор: уведомление плоского свойства поднимает
+        // ретранслятор — уже после того, как источник правды обновлён. Своё
+        // SetAndRaise здесь поднимало бы событие раньше записи, и подписчик,
+        // перечитавший геттер, получал бы прежнее значение.
+        set => InputGestures.ContainerInteractionModifiers = value;
     }
 
     private KeyModifiers _additiveSelectionModifiers = KeyModifiers.Shift;
@@ -607,11 +630,11 @@ public partial class DesignEditor
     public KeyModifiers AdditiveSelectionModifiers
     {
         get => InputGestures.AdditiveSelectionModifiers;
-        set
-        {
-            SetAndRaise(AdditiveSelectionModifiersProperty, ref _additiveSelectionModifiers, value);
-            InputGestures.AdditiveSelectionModifiers = value;
-        }
+        // Запись идёт только в набор: уведомление плоского свойства поднимает
+        // ретранслятор — уже после того, как источник правды обновлён. Своё
+        // SetAndRaise здесь поднимало бы событие раньше записи, и подписчик,
+        // перечитавший геттер, получал бы прежнее значение.
+        set => InputGestures.AdditiveSelectionModifiers = value;
     }
 
     private bool _isSelecting;

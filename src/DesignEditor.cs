@@ -149,7 +149,10 @@ public partial class DesignEditor : SelectingItemsControl
         // первым, захватит указатель и начнёт своё перетаскивание.
         AddHandler(PointerPressedEvent, OnTunnelPointerPressed, RoutingStrategies.Tunnel);
         SelectionMode = SelectionMode.Multiple;
-        _inputGestures = new DesignEditorInputGestures();
+        // Набор создан инициализатором поля и здесь только подхватывается: прежде
+        // конструктор заводил второй и первый выбрасывал, а подписан оказывался
+        // ровно один из двух — ошибиться в такой паре легко и молча.
+        _inputGestureBridge = new InputGestureBridge(this);
         _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;
         _additiveSelectionModifiers = _inputGestures.AdditiveSelectionModifiers;
         AttachInputGestures(_inputGestures);

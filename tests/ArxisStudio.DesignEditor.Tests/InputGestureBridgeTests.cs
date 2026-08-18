@@ -1,4 +1,7 @@
-﻿using Avalonia;
+using System;
+using System.Runtime.CompilerServices;
+
+using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -12,12 +15,18 @@ namespace ArxisStudio.Tests;
 /// <remarks>
 /// <see cref="DesignEditor.ContainerInteractionModifiers"/> и
 /// <see cref="DesignEditor.AdditiveSelectionModifiers"/> оставлены ради совместимости
-/// и дублируют <see cref="DesignEditorInputGestures"/>. Дублирование живёт на ручной
-/// синхронизации, а ручная синхронизация без тестов расходится — здесь она и закреплена.
+/// и дублируют <see cref="DesignEditorInputGestures"/>. Значение у них одно — геттер
+/// читает у набора, — а уведомления держатся на ретрансляторе, и вот он без тестов
+/// расходится.
 /// <para>
-/// Разошлась она ровно один раз и именно так, как расходится дублирование: чтение шло
-/// у набора и было верным всегда, а уведомления при записи в набор не было вовсе.
-/// Привязка к плоскому свойству показывала прежнее значение — при верном значении внутри.
+/// Разошлось это ровно один раз и именно так, как расходится дублирование: чтение было
+/// верным всегда, а уведомления при записи в набор не было вовсе. Привязка к плоскому
+/// свойству показывала прежнее значение — при верном значении внутри.
+/// </para>
+/// <para>
+/// Каждый случай проверяется на обоих свойствах. Первая версия проверяла уведомления
+/// только на одном, и ветку второго можно было удалить целиком, не уронив ни одного
+/// теста, — половина правки держалась ни на чём.
 /// </para>
 /// </remarks>
 public class InputGestureBridgeTests
@@ -39,6 +48,31 @@ public class InputGestureBridgeTests
         harness.PlaceContainer(0, ContainerLocation, ContainerSize);
         return harness;
     }
+
+    // Оба свойства проходят одни и те же случаи; признак выбирает, какое проверяется.
+    private static AvaloniaProperty Flat(bool container) => container
+        ? DesignEditor.ContainerInteractionModifiersProperty
+        : DesignEditor.AdditiveSelectionModifiersProperty;
+
+    private static void WriteSet(DesignEditorInputGestures set, bool container, KeyModifiers value)
+    {
+        if (container)
+            set.ContainerInteractionModifiers = value;
+        else
+            set.AdditiveSelectionModifiers = value;
+    }
+
+    private static void WriteFlat(DesignEditor editor, bool container, KeyModifiers value)
+    {
+        if (container)
+            editor.ContainerInteractionModifiers = value;
+        else
+            editor.AdditiveSelectionModifiers = value;
+    }
+
+    private static KeyModifiers Read(DesignEditor editor, bool container) => container
+        ? editor.ContainerInteractionModifiers
+        : editor.AdditiveSelectionModifiers;
 
     private static int CountRaises(DesignEditor editor, AvaloniaProperty property, Action change)
     {
@@ -64,24 +98,28 @@ public class InputGestureBridgeTests
 
     // ---- Согласованность двух сторон -------------------------------------------
 
-    [AvaloniaFact]
-    public void Writing_The_Flat_Property_Reaches_The_Set()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Writing_The_Flat_Property_Reaches_The_Set(bool container)
     {
         var harness = Create();
 
-        harness.Editor.AdditiveSelectionModifiers = KeyModifiers.Alt;
+        WriteFlat(harness.Editor, container, KeyModifiers.Alt);
 
-        Assert.Equal(KeyModifiers.Alt, harness.Editor.InputGestures.AdditiveSelectionModifiers);
+        Assert.Equal(KeyModifiers.Alt, Read(harness.Editor, container));
     }
 
-    [AvaloniaFact]
-    public void Writing_The_Set_Reaches_The_Flat_Property()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Writing_The_Set_Reaches_The_Flat_Property(bool container)
     {
         var harness = Create();
 
-        harness.Editor.InputGestures.ContainerInteractionModifiers = KeyModifiers.Alt;
+        WriteSet(harness.Editor.InputGestures, container, KeyModifiers.Alt);
 
-        Assert.Equal(KeyModifiers.Alt, harness.Editor.ContainerInteractionModifiers);
+        Assert.Equal(KeyModifiers.Alt, Read(harness.Editor, container));
     }
 
     [AvaloniaFact]
@@ -107,15 +145,17 @@ public class InputGestureBridgeTests
     /// уведомления не поднимала, и привязка к плоскому свойству оставалась со старым
     /// значением. Заметить это по значению нельзя: геттер читает у набора и врать не может.
     /// </remarks>
-    [AvaloniaFact]
-    public void Writing_The_Set_Raises_The_Flat_Property()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Writing_The_Set_Raises_The_Flat_Property(bool container)
     {
         var harness = Create();
 
         var raised = CountRaises(
             harness.Editor,
-            DesignEditor.AdditiveSelectionModifiersProperty,
-            () => harness.Editor.InputGestures.AdditiveSelectionModifiers = KeyModifiers.Alt);
+            Flat(container),
+            () => WriteSet(harness.Editor.InputGestures, container, KeyModifiers.Alt));
 
         Assert.Equal(1, raised);
     }
@@ -123,46 +163,150 @@ public class InputGestureBridgeTests
     /// <summary>
     /// Запись через плоское свойство поднимает уведомление ровно один раз.
     /// </summary>
-    /// <remarks>
-    /// Такая запись проходит по обеим сторонам, и наивная ретрансляция дала бы два
-    /// события на одно присваивание. Гасит второе не проверка в обработчике, а то,
-    /// что <c>SetAndRaise</c> с уже записанным значением ничего не поднимает.
-    /// </remarks>
-    [AvaloniaFact]
-    public void Writing_The_Flat_Property_Raises_Once()
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Writing_The_Flat_Property_Raises_Once(bool container)
     {
         var harness = Create();
 
         var raised = CountRaises(
             harness.Editor,
-            DesignEditor.AdditiveSelectionModifiersProperty,
-            () => harness.Editor.AdditiveSelectionModifiers = KeyModifiers.Alt);
+            Flat(container),
+            () => WriteFlat(harness.Editor, container, KeyModifiers.Alt));
 
         Assert.Equal(1, raised);
     }
 
     /// <summary>
-    /// Заменённый набор редактор больше не слушает.
+    /// К моменту уведомления геттер уже отвечает новым значением.
     /// </summary>
     /// <remarks>
-    /// Иначе брошенный набор продолжал бы править редактор, которому он уже не принадлежит,
-    /// и держал бы его живым через подписку.
+    /// Плоский сеттер писал сначала своё поле, а в набор — после, и поднятое между этими
+    /// двумя записями событие заставало геттер со старым значением: <c>NewValue</c> уже
+    /// <c>Alt</c>, а чтение свойства ещё <c>Shift</c>. Подписчик, перечитывающий источник
+    /// вместо <c>NewValue</c> — конвертер, <c>MultiBinding</c>, обработчик хоста, — работал
+    /// по устаревшему. Теперь сеттер пишет только в набор, а событие поднимает ретранслятор
+    /// после записи.
+    /// </remarks>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_Getter_Already_Answers_With_The_New_Value(bool container)
+    {
+        var harness = Create();
+        var seen = default(KeyModifiers?);
+
+        void Handler(object? sender, AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.Property == Flat(container))
+                seen = Read(harness.Editor, container);
+        }
+
+        harness.Editor.PropertyChanged += Handler;
+        WriteFlat(harness.Editor, container, KeyModifiers.Alt);
+        harness.Editor.PropertyChanged -= Handler;
+
+        Assert.Equal(KeyModifiers.Alt, seen);
+    }
+
+    /// <summary>
+    /// После замены уведомления идут от нового набора.
+    /// </summary>
+    /// <remarks>
+    /// Подписку на новый набор не проверял никто: без неё значение всё равно верно —
+    /// его задаёт сам сеттер замены, — а вот дальнейшие записи в набор молчали.
+    /// </remarks>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_Replacement_Set_Raises_The_Flat_Property(bool container)
+    {
+        var harness = Create();
+        harness.Editor.InputGestures = new DesignEditorInputGestures();
+
+        var raised = CountRaises(
+            harness.Editor,
+            Flat(container),
+            () => WriteSet(harness.Editor.InputGestures, container, KeyModifiers.Alt));
+
+        Assert.Equal(1, raised);
+    }
+
+    /// <summary>
+    /// Заменённый набор редактор больше не ведёт.
+    /// </summary>
+    /// <remarks>
+    /// Проверяется здесь именно исход, а не сама отписка: ретранслятор читает текущий
+    /// набор, а не отправителя, поэтому даже оставшаяся подписка значение испортить
+    /// не может. Отписка нужна, чтобы брошенный набор не дёргал редактор впустую;
+    /// за время жизни отвечает не она, а слабое событие — см. соседний тест.
     /// </remarks>
     [AvaloniaFact]
-    public void A_Replaced_Set_No_Longer_Reaches_The_Editor()
+    public void A_Replaced_Set_No_Longer_Drives_The_Editor()
     {
         var harness = Create();
         var abandoned = harness.Editor.InputGestures;
 
         harness.Editor.InputGestures = new DesignEditorInputGestures();
+        abandoned.AdditiveSelectionModifiers = KeyModifiers.Alt;
 
-        var raised = CountRaises(
-            harness.Editor,
-            DesignEditor.AdditiveSelectionModifiersProperty,
-            () => abandoned.AdditiveSelectionModifiers = KeyModifiers.Alt);
-
-        Assert.Equal(0, raised);
         Assert.Equal(KeyModifiers.Shift, harness.Editor.AdditiveSelectionModifiers);
+    }
+
+    // ---- Время жизни ------------------------------------------------------------
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference MakeEditor(DesignEditorInputGestures? shared)
+    {
+        var editor = new DesignEditor();
+        if (shared != null)
+            editor.InputGestures = shared;
+
+        return new WeakReference(editor);
+    }
+
+    private static int AliveAfterCollect(Func<WeakReference> make, int count)
+    {
+        var refs = new List<WeakReference>();
+        for (var i = 0; i < count; i++)
+            refs.Add(make());
+
+        for (var i = 0; i < 3; i++)
+        {
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+            GC.WaitForPendingFinalizers();
+        }
+
+        return refs.Count(r => r.IsAlive);
+    }
+
+    /// <summary>
+    /// Общий набор не держит редакторы.
+    /// </summary>
+    /// <remarks>
+    /// Ретранслятор подписан слабым событием Avalonia, а не обычным <c>+=</c>: обычная
+    /// подписка кладёт делегат в сам набор, и набор начинает держать редактор. Набор,
+    /// общий на несколько редакторов — а именно так его раздаёт один <c>Setter</c>
+    /// в стиле, и публичная документация свойства этот путь прямо предлагает, — не
+    /// отпускал бы ни одного из них никогда.
+    /// <para>
+    /// Замерено на обычной подписке: все пять редакторов переживали принудительную
+    /// сборку. Контрольная половина теста нужна, чтобы отличить «не держит» от «сборка
+    /// вообще ничего не собрала»: без неё тест проходил бы на любой реализации.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Shared_Set_Does_Not_Hold_The_Editors()
+    {
+        var shared = new DesignEditorInputGestures();
+
+        var withShared = AliveAfterCollect(() => MakeEditor(shared), 5);
+        var withOwn = AliveAfterCollect(() => MakeEditor(null), 5);
+
+        Assert.Equal(0, withOwn);
+        Assert.Equal(0, withShared);
+        GC.KeepAlive(shared);
     }
 
     // ---- Настройка действует ----------------------------------------------------
