@@ -24,6 +24,8 @@ internal sealed class DesignEditScope
         public int BeforeZIndex;
         public int ZIndex;
 
+        public string? BeforeGroup;
+        public string? Group;
     }
 
     private const double Tolerance = 0.01;
@@ -43,6 +45,9 @@ internal sealed class DesignEditScope
 
     public void RecordZIndex(DesignEditor editor, Control target, int zIndex)
         => Touch(editor, target).ZIndex = zIndex;
+
+    public void RecordGroup(DesignEditor editor, Control target, string? id)
+        => Touch(editor, target).Group = id;
 
     /// <summary>
     /// Собирает итоговый список изменений, отбрасывая те, что вернулись к исходному.
@@ -67,6 +72,13 @@ internal sealed class DesignEditScope
                 (changes ??= new List<DesignChange>()).Add(
                     new DesignOrderChange(target, entry.BeforeZIndex, entry.ZIndex));
             }
+
+            // Ordinal: идентификатор группы — не текст на языке пользователя.
+            if (!string.Equals(entry.Group, entry.BeforeGroup, StringComparison.Ordinal))
+            {
+                (changes ??= new List<DesignChange>()).Add(
+                    new DesignGroupChange(target, entry.BeforeGroup, entry.Group));
+            }
         }
 
         return changes ?? (IReadOnlyList<DesignChange>)Array.Empty<DesignChange>();
@@ -86,7 +98,9 @@ internal sealed class DesignEditScope
             Position = position,
             Size = size,
             BeforeZIndex = target.ZIndex,
-            ZIndex = target.ZIndex
+            ZIndex = target.ZIndex,
+            BeforeGroup = Attached.DesignGroup.GetId(target),
+            Group = Attached.DesignGroup.GetId(target)
         };
 
         _entries[target] = entry;

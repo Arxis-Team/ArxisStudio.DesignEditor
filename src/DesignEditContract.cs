@@ -30,7 +30,17 @@ public enum DesignEditKind
     /// разных действия уже путало: обработчик, написанный на «изменился порядок»,
     /// молча ловил половину случаев.
     /// </remarks>
-    Order
+    Order,
+
+    /// <summary>
+    /// Изменение принадлежности к design-time группе.
+    /// </summary>
+    /// <remarks>
+    /// Группа — пометка на контролах (<see cref="Attached.DesignGroup"/>), а не узел дерева:
+    /// редактор его не правит. Поэтому у группировки есть шов записи и единица редактирования,
+    /// в отличие от перестановки среди соседей, которая структурна и уходит запросом.
+    /// </remarks>
+    Group
 }
 
 /// <summary>
@@ -80,6 +90,35 @@ public sealed class DesignOrderChange : DesignChange
     /// Получает порядок перекрытия после изменения.
     /// </summary>
     public int NewZIndex { get; }
+}
+
+/// <summary>
+/// Описывает изменение принадлежности одного design target к группе.
+/// </summary>
+public sealed class DesignGroupChange : DesignChange
+{
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DesignGroupChange"/>.
+    /// </summary>
+    /// <param name="target">Изменённый контрол.</param>
+    /// <param name="oldId">Группа до изменения.</param>
+    /// <param name="newId">Группа после изменения.</param>
+    public DesignGroupChange(Control target, string? oldId, string? newId)
+        : base(target)
+    {
+        OldId = oldId;
+        NewId = newId;
+    }
+
+    /// <summary>
+    /// Получает группу до изменения.
+    /// </summary>
+    public string? OldId { get; }
+
+    /// <summary>
+    /// Получает группу после изменения.
+    /// </summary>
+    public string? NewId { get; }
 }
 
 /// <summary>

@@ -35,7 +35,8 @@ public partial class DesignEditor
         out Control? primaryControl,
         out IReadOnlyList<SelectionAdornerInfo> secondaryAdorners,
         out bool hasMultipleNestedSelection,
-        out bool hasMultipleContainerSelection)
+        out bool hasMultipleContainerSelection,
+        out bool hasGroupSelection)
     {
         bounds = default;
         selectedCount = 0;
@@ -44,6 +45,7 @@ public partial class DesignEditor
         secondaryAdorners = Array.Empty<SelectionAdornerInfo>();
         hasMultipleNestedSelection = false;
         hasMultipleContainerSelection = false;
+        hasGroupSelection = false;
 
         var items = SelectedItems;
         if (items == null || items.Count == 0)
@@ -118,7 +120,12 @@ public partial class DesignEditor
         hasMultipleContainerSelection = selectedCount > 1 && containerTargetCount == selectedCount;
         hasMultipleNestedSelection = selectedCount > 1 && nestedTargetCount == selectedCount;
 
-        if (hasMultipleNestedSelection)
+        // Группа рисуется одной рамкой: контуры участников по отдельности сказали бы,
+        // что элементов несколько, а жест применяется к ним как к одному.
+        hasGroupSelection = hasMultipleNestedSelection
+            && IsWholeGroupSelected(perTargetBounds.Select(a => a.Target!).ToList());
+
+        if (hasMultipleNestedSelection && !hasGroupSelection)
         {
             foreach (var adorner in perTargetBounds)
             {
@@ -127,12 +134,16 @@ public partial class DesignEditor
             }
         }
 
-        secondaryAdorners = hasMultipleNestedSelection ? perTargetBounds : Array.Empty<SelectionAdornerInfo>();
+        secondaryAdorners = hasMultipleNestedSelection && !hasGroupSelection
+            ? perTargetBounds
+            : Array.Empty<SelectionAdornerInfo>();
         return true;
     }
 
     private void UpdateSelectionOverlayState()
     {
+        SyncEnteredGroup();
+
         if (TryGetSelectedDesignBounds(
                 out var bounds,
                 out var selectedCount,
@@ -140,15 +151,18 @@ public partial class DesignEditor
                 out var primaryControl,
                 out var secondaryAdorners,
                 out var hasMultipleNestedSelection,
-                out var hasMultipleContainerSelection))
+                out var hasMultipleContainerSelection,
+                out var hasGroupSelection))
         {
             CleanupSelectionTargets();
             SelectionBounds = bounds;
             SecondarySelectionAdorners = secondaryAdorners;
             HasSingleSelection = selectedCount == 1;
             HasMultipleSelection = selectedCount > 1;
-            HasMultipleNestedSelection = hasMultipleNestedSelection;
+            HasMultipleNestedSelection = hasMultipleNestedSelection && !hasGroupSelection;
             HasMultipleContainerSelection = hasMultipleContainerSelection;
+            HasGroupSelection = hasGroupSelection;
+            ShowsGroupFrame = hasMultipleContainerSelection || hasGroupSelection;
             _primarySelectionItem = primaryItem;
             _primarySelectionControl = primaryControl;
             UpdatePrimaryPlacementReadout(primaryControl);
@@ -165,6 +179,8 @@ public partial class DesignEditor
         HasMultipleSelection = false;
         HasMultipleNestedSelection = false;
         HasMultipleContainerSelection = false;
+        HasGroupSelection = false;
+        ShowsGroupFrame = false;
         _primarySelectionItem = null;
         _primarySelectionControl = null;
         UpdatePrimaryPlacementReadout(null);

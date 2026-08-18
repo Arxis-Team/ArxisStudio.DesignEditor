@@ -40,18 +40,18 @@
 
 ## Публичная поверхность
 
-Библиотека экспортирует 40 типов. Всё остальное — реализация и может меняться без предупреждения.
+Библиотека экспортирует 42 типа. Всё остальное — реализация и может меняться без предупреждения.
 
 | Область | Типы |
 |---|---|
 | Редактор | `DesignEditor`, `DesignEditorItem` |
 | Контролы для шаблонов и тем | `AbsolutePanel`, `DesignGrid`, `SelectionAdorner`, `SelectionAdornerRole`, `ResizeDirection`, `ResizeDeltaEventArgs`, `ResizeStartedEventArgs` |
-| Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
+| Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy`, `DesignGroup` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions` |
 | Содержимое контейнера | `DesignContentMode` |
 | Запросы к приложению | `DesignEditorDeleteRequestedEventArgs`, `DesignEditorReorderRequestedEventArgs`, `DesignEditorHistoryRequestedEventArgs` |
 | Выделение | `DesignSelectionTarget`, `DesignSelectionScope`, `DesignSelectionChangedEventArgs` |
-| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignEditKind`, `DesignEditCompletedEventArgs` |
+| Контракт изменений | `DesignChange`, `DesignGeometryChange`, `DesignOrderChange`, `DesignGroupChange`, `DesignEditKind`, `DesignEditCompletedEventArgs` |
 | События контейнера | `DragStartedEventArgs`, `DragDeltaEventArgs`, `DragCompletedEventArgs` |
 | Контекстные действия | `IDesignEditorContextActionProvider`, `IDesignEditorContextPresenter`, `ContextMenuContextPresenter`, `DesignEditorContextAction`, `DesignEditorContextRequest`, `DesignEditorContextScope`, `DesignEditorContextSource`, `DesignEditorContextRequestingEventArgs`, `DesignEditorContextRequestedEventArgs` |
 
@@ -443,6 +443,32 @@ editor.ReorderRequested += (_, e) =>
 Равными делаются именно зазоры, а не расстояния между центрами: при разной ширине элементов это разные результаты, и ровные центры выглядят неровно как раз потому, что зазоры при них разные.
 
 Операция целиком укладывается в одну единицу редактирования, поэтому отмена возвращает весь ряд. Меньше трёх элементов — отказ; заблокированный политикой промежуточный элемент отменяет операцию целиком, а политика крайних роли не играет.
+
+### Группы
+
+Несколько контролов можно объединить в группу: она рисуется одной рамкой и ведёт себя как один элемент — перетаскивается и масштабируется целиком.
+
+```csharp
+editor.GroupSelection();     // из текущего выделения
+editor.UngroupSelection();   // распустить группы выделения
+```
+
+Группа — это **пометка на контролах**, а не новый узел разметки:
+
+```xml
+<Border attached:DesignGroup.Id="toolbar" />
+```
+
+Так решено не из экономии. Редактор не правит дерево контролов (см. [ADR 0001](docs/adr/0001-the-editor-reads-the-tree-and-never-writes-it.md)) — переложить участников в созданный им контейнер значило бы изменить проекцию, не изменив источник, и первая же пересборка документа вернула бы всё назад. Пометка живёт там же, где `Layout.X`/`Y` и `DesignInteraction`, и сохраняется тем же способом, каким приложение уже сохраняет координаты. Если группа нужна именно контейнером в разметке, её создаёт хост — он владеет деревом.
+
+Отсюда правила, каждое закрыто тестом:
+
+- **Группа не выходит за пределы одной формы.** Выделение двухслойно, и группа поперёк форм разошлась бы с индексным слоем. Собрать такой набор нельзя и самим выделением — добавление требует общего design host.
+- **Прежняя группа участника входит в новую целиком.** Иначе её половина осталась бы со старой пометкой, и рамок стало бы две там, где собирали одну.
+- **Роспуск распускает группу целиком**, а не выбранную её часть: группа — отношение между участниками, и «разгруппировать половину» оставило бы остальных в группе из одного.
+- **Группировка попадает в контракт изменений** (`DesignEditKind.Group`, `DesignGroupChange`) и отменяется как перемещение или порядок.
+
+Двойной клик по участнику **входит** в группу и выбирает один контрол; клик мимо неё закрывает вход обратно. Без этого отредактировать участника можно было бы только распустив группу.
 
 ### Пользовательские направляющие
 

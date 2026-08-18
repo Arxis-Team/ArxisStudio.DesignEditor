@@ -341,6 +341,23 @@ public partial class DesignEditor
         AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasMultipleSelection), o => o.HasMultipleSelection, (o, v) => o.HasMultipleSelection = v);
 
     /// <summary>
+    /// Идентификатор свойства, указывающего, что выбрана design-time группа целиком.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, bool> HasGroupSelectionProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(HasGroupSelection), o => o.HasGroupSelection, (o, v) => o.HasGroupSelection = v);
+
+    /// <summary>
+    /// Идентификатор свойства, по которому шаблон показывает единую рамку выделения.
+    /// </summary>
+    /// <remarks>
+    /// Internal намеренно: это признак отрисовки, а не состояние выбора. Хосту нужны
+    /// <see cref="HasMultipleContainerSelection"/> и <see cref="HasGroupSelection"/>,
+    /// а какой рамкой редактор их показывает — его дело.
+    /// </remarks>
+    internal static readonly DirectProperty<DesignEditor, bool> ShowsGroupFrameProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, bool>(nameof(ShowsGroupFrame), o => o.ShowsGroupFrame, (o, v) => o.ShowsGroupFrame = v);
+
+    /// <summary>
     /// Идентификатор свойства, указывающего на множественное выделение nested targets.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, bool> HasMultipleNestedSelectionProperty =
@@ -921,6 +938,32 @@ public partial class DesignEditor
     {
         get => _hasMultipleSelection;
         private set => SetAndRaise(HasMultipleSelectionProperty, ref _hasMultipleSelection, value);
+    }
+
+    private bool _hasGroupSelection;
+
+    /// <summary>
+    /// Получает значение, указывающее, что выделение — это ровно одна design-time группа.
+    /// </summary>
+    /// <remarks>
+    /// Группа рисуется одной рамкой и ведёт себя как один элемент. Признак снимается,
+    /// когда в группу вошли двойным кликом: внутри неё выбран уже конкретный контрол.
+    /// </remarks>
+    public bool HasGroupSelection
+    {
+        get => _hasGroupSelection;
+        private set => SetAndRaise(HasGroupSelectionProperty, ref _hasGroupSelection, value);
+    }
+
+    private bool _showsGroupFrame;
+
+    /// <summary>
+    /// Получает значение, указывающее, что выделение показывается единой рамкой.
+    /// </summary>
+    internal bool ShowsGroupFrame
+    {
+        get => _showsGroupFrame;
+        private set => SetAndRaise(ShowsGroupFrameProperty, ref _showsGroupFrame, value);
     }
 
     private bool _hasMultipleNestedSelection;

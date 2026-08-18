@@ -109,6 +109,12 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
                 isLocked ? "Разблокировать" : "Блокировать",
                 () => ToggleNestedLock(request),
                 isEnabled: hasTarget),
+            Separator("nested.sep-group"),
+            Action(
+                "nested.ungroup",
+                "Разгруппировать",
+                () => editor.UngroupSelection(),
+                editor.CanUngroupSelection()),
             Separator("nested.sep2"),
             Action(
                 "nested.delete-owner",
@@ -125,6 +131,21 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
             Action("selection.center", "Центрировать выделение", editor.CenterOnSelection),
             Action("selection.fit", "Вписать выделение", editor.FitSelectionToView),
             Separator("selection.sep1"),
+
+            // Группировка спрашивается у редактора, а не выводится из числа выбранных:
+            // правила у неё свои — одна форма, только вложенные контролы, — и повторять
+            // их в хосте значило бы разойтись с ними при первой же правке.
+            Action(
+                "selection.group",
+                "Группировать",
+                () => editor.GroupSelection(),
+                editor.CanGroupSelection()),
+            Action(
+                "selection.ungroup",
+                "Разгруппировать",
+                () => editor.UngroupSelection(),
+                editor.CanUngroupSelection()),
+            Separator("selection.sep-group"),
 
             // Распределять есть что от трёх элементов: два уже задают отрезок.
             Action(

@@ -360,7 +360,8 @@ public partial class DesignEditor
     {
         var selectedTargets = SelectedDesignTargets;
         var selectedTargetCount = selectedTargets.Count;
-        var isNestedGroupSelection = HasMultipleNestedSelection && selectedTargetCount > 1;
+        // Группа ведёт себя как множественный выбор вложенных: одна рамка, один жест.
+        var isNestedGroupSelection = (HasMultipleNestedSelection || HasGroupSelection) && selectedTargetCount > 1;
         var hasAnyMoveLockedTarget = false;
         var hasAnyMoveEnabledTarget = false;
 

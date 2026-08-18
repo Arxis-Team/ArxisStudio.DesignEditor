@@ -61,6 +61,10 @@ public partial class DesignEditor
                 ApplyOrder(order.Target, revert ? order.OldZIndex : order.NewZIndex);
                 break;
 
+            case DesignGroupChange group:
+                ApplyGroup(group.Target, revert ? group.OldId : group.NewId);
+                break;
+
         }
     }
 

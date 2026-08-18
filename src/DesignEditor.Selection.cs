@@ -305,7 +305,7 @@ public partial class DesignEditor
         }
     }
 
-    internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
+    internal void UpdateSelectionTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers, int clickCount = 1)
     {
         // Оба слоя пишутся одной транзакцией. Раньше индексный слой писало состояние
         // контейнера, а этот метод дописывал слой target'ов уже после — и между двумя
@@ -322,7 +322,7 @@ public partial class DesignEditor
                     Selection.Select(ownerIndex);
             }
 
-            ApplyTargetFromPoint(container, screenPoint, modifiers);
+            ApplyTargetFromPoint(container, screenPoint, modifiers, clickCount);
         }
 
         UpdateSelectionOverlayState();
@@ -357,7 +357,7 @@ public partial class DesignEditor
     /// Оверлей отсюда не пересобирается: это половина транзакции, и пересборка
     /// на её середине публиковала бы состояние, которого пользователь не просил.
     /// </remarks>
-    private void ApplyTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers)
+    private void ApplyTargetFromPoint(DesignEditorItem container, Point screenPoint, KeyModifiers modifiers, int clickCount)
     {
         if (ShouldUseContainerInteraction(modifiers))
         {
@@ -386,11 +386,39 @@ public partial class DesignEditor
             return;
         }
 
+        // Вход в группу и выход из неё решаются до записи: двойной клик открывает
+        // группу под курсором, любой клик мимо неё закрывает открытую. Иначе режим
+        // пережил бы жест, ради которого его включали.
+        UpdateEnteredGroup(target, clickCount);
+
         var isAdditive = ShouldUseAdditiveSelection(modifiers);
         // Грубая проверка по владельцу верхнего уровня плюс точная по design host:
         // target уже известен, поэтому уровень вложенности можно сверить честно.
         if (isAdditive && (!CanAddNestedTargetToContainer(container) || !SharesDesignHostWithSelection(target)))
             return;
+
+        var groupHost = FindDesignHost(target) ?? container;
+        if (!isAdditive)
+        {
+            // Клик по участнику закрытой группы выбирает её целиком.
+            if (ExpandToGroup(groupHost, target) is { Count: > 1 } members)
+            {
+                _selectedTargets.Clear();
+                foreach (var member in members)
+                    AddSelectedTarget(member);
+
+                return;
+            }
+
+            // Внутри открытой группы клик выбирает участника поодиночке. Общее правило
+            // «клик по уже выбранному участнику группы её не схлопывает» здесь не годится:
+            // ради этого в группу и входили.
+            if (IsInsideEnteredGroup(target))
+            {
+                SetSingleSelectedTarget(target);
+                return;
+            }
+        }
 
         if (isAdditive)
         {
@@ -613,6 +641,74 @@ public partial class DesignEditor
             Focus();
 
         return SelectedDesignTargets.Any(selected => ReferenceEquals(selected.Target, target));
+    }
+
+    /// <summary>
+    /// Записывает выделение из нескольких target'ов одной транзакцией.
+    /// </summary>
+    /// <remarks>
+    /// Пакетная запись была отложена до появления потребителя, и потребитель — группа:
+    /// клик по её участнику обязан выбрать всех сразу, а разложить это на вызовы по
+    /// одному target'у нельзя, не потеряв гарантию одного события. Правила те же, что
+    /// и у записи одного: все участники обязаны жить в одной форме, иначе индексный слой
+    /// и слой target'ов разойдутся.
+    /// </remarks>
+    private bool ApplySelection(IReadOnlyList<Control> targets, SelectionIntent intent)
+    {
+        if (targets.Count == 0)
+            return false;
+
+        if (targets.Count == 1)
+            return ApplySelection(targets[0], intent);
+
+        if (IsSelecting || CurrentState is not EditorIdleState)
+            return false;
+
+        DesignEditorItem? host = null;
+        foreach (var target in targets)
+        {
+            var current = FindDesignHost(target);
+            if (current == null || !IsEditableTarget(target, current))
+                return false;
+
+            if (host == null)
+                host = current;
+            else if (!ReferenceEquals(host, current))
+                return false;
+        }
+
+        var owner = ResolveOwningItemForTarget(targets[0]);
+        if (owner == null)
+            return false;
+
+        var index = IndexFromContainer(owner);
+        if (index < 0)
+            return false;
+
+        using (Selection.BatchUpdate())
+        {
+            if (intent == SelectionIntent.Replace)
+            {
+                Selection.Clear();
+                _selectedTargets.Clear();
+            }
+            else
+            {
+                MaterialiseImplicitTargets();
+            }
+
+            foreach (var target in targets)
+                AddSelectedTarget(target);
+
+            Selection.Select(index);
+        }
+
+        UpdateSelectionOverlayState();
+
+        if (!IsKeyboardFocusWithin)
+            Focus();
+
+        return true;
     }
 
     /// <summary>

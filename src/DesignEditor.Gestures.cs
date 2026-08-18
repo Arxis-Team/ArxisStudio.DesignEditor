@@ -748,7 +748,7 @@ public partial class DesignEditor
     {
         operation = null;
 
-        if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _, out _, out _)
+        if (!TryGetSelectedDesignBounds(out var selectionBounds, out var selectedCount, out _, out _, out _, out _, out _, out _)
             || selectedCount <= 1)
         {
             return false;

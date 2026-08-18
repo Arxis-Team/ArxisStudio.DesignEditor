@@ -299,7 +299,7 @@ public partial class DesignEditor
     /// </remarks>
     public void CenterOnSelection()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _, out _))
             CenterOn(bounds);
     }
 
@@ -311,7 +311,7 @@ public partial class DesignEditor
     /// </remarks>
     public void FitSelectionToView()
     {
-        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _))
+        if (TryGetSelectedDesignBounds(out var bounds, out _, out _, out _, out _, out _, out _, out _))
             FitToView(bounds);
     }
 }

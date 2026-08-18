@@ -219,7 +219,7 @@ internal class ItemIdleState : DesignEditorItemState
         // Признак «владельца выбрали именно сейчас» снимается до записи.
         _shouldSkipSelectionToggle = !owner.IsSelected;
 
-        editor.UpdateSelectionTargetFromPoint(owner, e.GetPosition(editor), e.KeyModifiers);
+        editor.UpdateSelectionTargetFromPoint(owner, e.GetPosition(editor), e.KeyModifiers, e.ClickCount);
     }
 
     private void HandleSelectionOnRelease(PointerReleasedEventArgs e)

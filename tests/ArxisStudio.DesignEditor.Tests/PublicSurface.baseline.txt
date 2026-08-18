@@ -1,3 +1,7 @@
+static class ArxisStudio.Attached.DesignGroup
+    avalonia IdProperty -> Id : String (attached) = null
+    method String GetId(AvaloniaObject)
+    method Void SetId(AvaloniaObject, String)
 static class ArxisStudio.Attached.DesignInteraction
     avalonia MovePolicyProperty -> MovePolicy : MovePolicy (attached) = Both
     avalonia ResizePolicyProperty -> ResizePolicy : ResizePolicy (attached) = All
@@ -187,6 +191,7 @@ sealed class ArxisStudio.DesignEditCompletedEventArgs : EventArgs
     property DesignEditKind Kind { get; }
     property IReadOnlyList<DesignChange> Changes { get; }
 enum ArxisStudio.DesignEditKind
+    value Group = 3
     value Move = 0
     value Order = 2
     value Resize = 1
@@ -196,6 +201,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia DpiScaledViewportTransformProperty -> DpiScaledViewportTransform : Transform (styled) = <TransformGroup>
     avalonia GuidePreviewProperty -> GuidePreview : Nullable<DesignGuide> (direct)
     avalonia GuidesProperty -> Guides : IEnumerable<DesignGuide> (styled) = null
+    avalonia HasGroupSelectionProperty -> HasGroupSelection : Boolean (direct)
     avalonia HasMultipleContainerSelectionProperty -> HasMultipleContainerSelection : Boolean (direct)
     avalonia HasMultipleNestedSelectionProperty -> HasMultipleNestedSelection : Boolean (direct)
     avalonia HasMultipleSelectionProperty -> HasMultipleSelection : Boolean (direct)
@@ -243,18 +249,23 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     event EventHandler<DesignSelectionChangedEventArgs> DesignSelectionChanged
     method Boolean BringForward()
     method Boolean BringToFront()
+    method Boolean CanGroupSelection()
+    method Boolean CanUngroupSelection()
     method Boolean DistributeHorizontally()
     method Boolean DistributeVertically()
+    method Boolean GroupSelection()
     method Boolean NeedsContainerOverride(Object, Int32, Object&)
     method Boolean SelectDesignTarget(Control, Boolean)
     method Boolean SendBackward()
     method Boolean SendToBack()
+    method Boolean UngroupSelection()
     method Control CreateContainerForItemOverride(Object, Int32, Object)
     method Point GetPositionForInput(Visual)
     method Point GetWorldPosition(Point)
     method Task RequestContextAsync(CancellationToken)
     method Task RequestContextAsync(DesignEditorContextSource, Point, KeyModifiers, CancellationToken)
     method Void ApplyGeometry(Control, Rect)
+    method Void ApplyGroup(Control, String)
     method Void ApplyOrder(Control, Int32)
     method Void CenterOn(Point)
     method Void CenterOn(Rect)
@@ -275,6 +286,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     method Void OnPointerWheelChanged(PointerWheelEventArgs)
     method Void Reapply(DesignChange)
     method Void Revert(DesignChange)
+    property Boolean HasGroupSelection { get; }
     property Boolean HasMultipleContainerSelection { get; }
     property Boolean HasMultipleNestedSelection { get; }
     property Boolean HasMultipleSelection { get; }
@@ -458,6 +470,10 @@ sealed class ArxisStudio.DesignGeometryChange : DesignChange
     ctor .ctor(Control, Rect, Rect)
     property Rect NewBounds { get; }
     property Rect OldBounds { get; }
+sealed class ArxisStudio.DesignGroupChange : DesignChange
+    ctor .ctor(Control, String, String)
+    property String NewId { get; }
+    property String OldId { get; }
 struct ArxisStudio.DesignGuide : ValueType
     ctor .ctor(DesignGuideOrientation, Double)
     method Boolean Equals(DesignGuide)
