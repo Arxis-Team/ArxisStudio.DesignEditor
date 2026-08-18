@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using Xunit;
 
@@ -117,15 +117,14 @@ public class PublicSurfaceTests
     }
 
     [Fact]
-    public void Snap_Guides_Are_Not_Public()
+    public void Guide_Arithmetic_Is_Not_Public()
     {
-        // Направляющие только появились: их форма должна отлежаться внутри
-        // библиотеки. Шаблон привязывается к ним и так — AXAML компилируется
-        // в ту же сборку.
-        var leaked = Leaked(name => name.StartsWith("ArxisStudio.Guides.", StringComparison.Ordinal)
-                                    || name.Contains("SnapGuideLayer", StringComparison.Ordinal));
+        // Слой и модель направляющих опубликованы сознательно: без них слой нечем
+        // заменить снаружи. Резолверы — нет: это арифметика, у которой нет потребителя
+        // за пределами библиотеки, а форма у неё меняется с каждым новым правилом.
+        var leaked = Leaked(name => name.Contains("Resolver", StringComparison.Ordinal));
 
-        Assert.True(leaked.Count == 0, "Направляющие должны быть internal:\n" + string.Join("\n", leaked));
+        Assert.True(leaked.Count == 0, "Резолверы должны быть internal:\n" + string.Join("\n", leaked));
     }
 
     [Fact]

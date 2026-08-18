@@ -5,7 +5,7 @@ namespace ArxisStudio.Guides;
 /// <summary>
 /// Ось, вдоль которой работает направляющая.
 /// </summary>
-internal enum DesignSnapGuideOrientation
+public enum DesignSnapGuideOrientation
 {
     /// <summary>Вертикальная линия: выравнивает по оси X.</summary>
     Vertical,
@@ -21,7 +21,7 @@ internal enum DesignSnapGuideOrientation
 /// Нужен только для оформления: по краю и по центру принято показывать разным цветом,
 /// потому что это разные отношения — «встал вплотную» и «встал симметрично».
 /// </remarks>
-internal enum DesignSnapGuideKind
+public enum DesignSnapGuideKind
 {
     /// <summary>Выравнивание, в котором участвует хотя бы один край.</summary>
     Edge,
@@ -43,7 +43,7 @@ internal enum DesignSnapGuideKind
 /// выравнивание, — линия во весь холст этого не показывает.
 /// </para>
 /// </remarks>
-internal readonly struct DesignSnapGuide : IEquatable<DesignSnapGuide>
+public readonly struct DesignSnapGuide : IEquatable<DesignSnapGuide>
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="DesignSnapGuide"/>.

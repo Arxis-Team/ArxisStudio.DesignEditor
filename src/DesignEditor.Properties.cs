@@ -122,6 +122,12 @@ public partial class DesignEditor
         AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowGuides), true);
 
     /// <summary>
+    /// Идентификатор свойства видимости линий выравнивания.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowSnapGuidesProperty =
+        AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowSnapGuides), true);
+
+    /// <summary>
     /// Идентификатор свойства видимости линеек.
     /// </summary>
     public static readonly StyledProperty<bool> ShowRulersProperty =
@@ -224,7 +230,7 @@ public partial class DesignEditor
     /// <summary>
     /// Идентификатор свойства направляющей, показываемой во время её перемещения.
     /// </summary>
-    internal static readonly DirectProperty<DesignEditor, DesignGuide?> GuidePreviewProperty =
+    public static readonly DirectProperty<DesignEditor, DesignGuide?> GuidePreviewProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, DesignGuide?>(
             nameof(GuidePreview),
             o => o.GuidePreview);
@@ -232,7 +238,7 @@ public partial class DesignEditor
     /// <summary>
     /// Идентификатор свойства снимка пользовательских направляющих.
     /// </summary>
-    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignGuide>> UserGuidesProperty =
+    public static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignGuide>> UserGuidesProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignGuide>>(
             nameof(UserGuides),
             o => o.UserGuides);
@@ -240,12 +246,15 @@ public partial class DesignEditor
     /// <summary>
     /// Идентификатор свойства подсказок о равных интервалах.
     /// </summary>
-    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSpacingHint>> SpacingHintsProperty =
+    public static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSpacingHint>> SpacingHintsProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSpacingHint>>(
             nameof(SpacingHints),
             o => o.SpacingHints);
 
-    internal static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSnapGuide>> SnapGuidesProperty =
+    /// <summary>
+    /// Идентификатор свойства линий выравнивания, найденных во время жеста.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, IReadOnlyList<DesignSnapGuide>> SnapGuidesProperty =
         AvaloniaProperty.RegisterDirect<DesignEditor, IReadOnlyList<DesignSnapGuide>>(
             nameof(SnapGuides),
             o => o.SnapGuides);
@@ -434,6 +443,25 @@ public partial class DesignEditor
     {
         get => GetValue(ShowGuidesProperty);
         set => SetValue(ShowGuidesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения линий выравнивания и подсказок об интервалах.
+    /// </summary>
+    /// <remarks>
+    /// Прячет только показ: сами выравнивание и интервалы продолжают работать, как сетка
+    /// при выключенном <see cref="ShowGrid"/>. Отключаются они через
+    /// <c>InteractionOptions.IsSnapToGuidesEnabled</c> и <c>IsEqualSpacingEnabled</c>.
+    /// <para>
+    /// Вместе с <see cref="ShowGuides"/> это способ погасить встроенный слой целиком —
+    /// то, что нужно хосту, который рисует направляющие сам, поставив свой
+    /// <see cref="Controls.SnapGuideLayer"/> или собственный контрол поверх редактора.
+    /// </para>
+    /// </remarks>
+    public bool ShowSnapGuides
+    {
+        get => GetValue(ShowSnapGuidesProperty);
+        set => SetValue(ShowSnapGuidesProperty, value);
     }
 
     /// <summary>
@@ -635,7 +663,7 @@ public partial class DesignEditor
     /// <summary>
     /// Получает направляющую, показываемую во время её перемещения.
     /// </summary>
-    internal DesignGuide? GuidePreview
+    public DesignGuide? GuidePreview
     {
         get => _guidePreview;
         private set => SetAndRaise(GuidePreviewProperty, ref _guidePreview, value);
@@ -667,7 +695,7 @@ public partial class DesignEditor
     /// перевычисляется только при смене идентичности значения, а хост вправе держать
     /// одну и ту же коллекцию и менять её содержимое.
     /// </remarks>
-    internal IReadOnlyList<DesignGuide> UserGuides
+    public IReadOnlyList<DesignGuide> UserGuides
     {
         get => _userGuides;
         private set => SetAndRaise(UserGuidesProperty, ref _userGuides, value);
@@ -678,7 +706,7 @@ public partial class DesignEditor
     /// <summary>
     /// Получает подсказки о равных интервалах, показанные во время жеста.
     /// </summary>
-    internal IReadOnlyList<DesignSpacingHint> SpacingHints
+    public IReadOnlyList<DesignSpacingHint> SpacingHints
     {
         get => _spacingHints;
         private set => SetAndRaise(SpacingHintsProperty, ref _spacingHints, value);
@@ -693,7 +721,7 @@ public partial class DesignEditor
     /// Набор пуст вне жеста и всегда, когда выравнивания не нашлось. Публикуется он
     /// только при фактическом изменении — см. <see cref="PublishSnapGuides"/>.
     /// </remarks>
-    internal IReadOnlyList<DesignSnapGuide> SnapGuides
+    public IReadOnlyList<DesignSnapGuide> SnapGuides
     {
         get => _snapGuides;
         private set => SetAndRaise(SnapGuidesProperty, ref _snapGuides, value);

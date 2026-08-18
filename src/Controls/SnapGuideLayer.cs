@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using ArxisStudio.Guides;
+using ArxisStudio.Helpers;
 
 namespace ArxisStudio.Controls;
 
@@ -21,7 +22,7 @@ namespace ArxisStudio.Controls;
 /// layout-прохода: рисование идёт целиком в <see cref="Render"/>.
 /// </para>
 /// </remarks>
-internal class SnapGuideLayer : Control
+public class SnapGuideLayer : Control
 {
     /// <summary>
     /// Идентификатор свойства набора направляющих в мировых координатах.
@@ -58,6 +59,18 @@ internal class SnapGuideLayer : Control
     /// </summary>
     public static readonly StyledProperty<IBrush?> LineBrushProperty =
         AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(LineBrush));
+
+    /// <summary>
+    /// Идентификатор свойства редактора, за которым следит слой.
+    /// </summary>
+    public static readonly StyledProperty<DesignEditor?> EditorProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, DesignEditor?>(nameof(Editor));
+
+    /// <summary>
+    /// Идентификатор свойства видимости линий выравнивания и подсказок об интервалах.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowSnapGuidesProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, bool>(nameof(ShowSnapGuides), true);
 
     /// <summary>
     /// Идентификатор свойства подсказок о равных интервалах.
@@ -107,12 +120,17 @@ internal class SnapGuideLayer : Control
     public static readonly StyledProperty<double> ViewportZoomProperty =
         AvaloniaProperty.Register<SnapGuideLayer, double>(nameof(ViewportZoom), 1.0);
 
+    private IDisposable? _editorSubscription;
+
     static SnapGuideLayer()
     {
+        EditorProperty.Changed.AddClassHandler<SnapGuideLayer>((layer, e) => layer.OnEditorChanged(e));
+
         AffectsRender<SnapGuideLayer>(
             GuidesProperty,
             UserGuidesProperty,
             ShowUserGuidesProperty,
+            ShowSnapGuidesProperty,
             GuidePreviewProperty,
             UserGuideBrushProperty,
             CentreLineBrushProperty,
@@ -178,6 +196,35 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(LineBrushProperty);
         set => SetValue(LineBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает редактор, за которым следит слой.
+    /// </summary>
+    /// <remarks>
+    /// Задавать его нужно только тому слою, который хост ставит сам — поверх редактора,
+    /// как линейку рядом с ним. Тогда положение, масштаб и все четыре набора линия берёт
+    /// оттуда, и их нельзя рассинхронизировать. Слой внутри шаблона получает то же самое
+    /// привязками и <c>Editor</c> не использует.
+    /// </remarks>
+    public DesignEditor? Editor
+    {
+        get => GetValue(EditorProperty);
+        set => SetValue(EditorProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения линий выравнивания и подсказок об интервалах.
+    /// </summary>
+    /// <remarks>
+    /// Отдельно от <see cref="ShowUserGuides"/>: это разные вещи — подсказка, живущая
+    /// внутри жеста, и линия, поставленная человеком. Хост, рисующий их сам, гасит
+    /// встроенный слой обеими.
+    /// </remarks>
+    public bool ShowSnapGuides
+    {
+        get => GetValue(ShowSnapGuidesProperty);
+        set => SetValue(ShowSnapGuidesProperty, value);
     }
 
     /// <summary>
@@ -280,6 +327,9 @@ internal class SnapGuideLayer : Control
         // Пользовательские направляющие рисуются первыми и всегда: они не привязаны
         // к жесту и лежат под линиями выравнивания, чтобы совпадение было видно.
         RenderUserGuides(context, origin, zoom, scaling, thickness);
+
+        if (!ShowSnapGuides)
+            return;
 
         RenderSpacingHints(context, origin, zoom, scaling, thickness);
 
@@ -425,5 +475,35 @@ internal class SnapGuideLayer : Control
                 context.DrawLine(pen, new Point(at - CapHalf, to), new Point(at + CapHalf, to));
             }
         }
+    }
+
+    /// <summary>
+    /// Пересобирает подписку на редактор.
+    /// </summary>
+    private void OnEditorChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        _editorSubscription?.Dispose();
+        _editorSubscription = null;
+
+        if (e.NewValue is not DesignEditor editor)
+        {
+            InvalidateVisual();
+            return;
+        }
+
+        _editorSubscription = PropertyMirror.Combine(
+            PropertyMirror.Bind(editor, DesignEditor.ViewportLocationProperty, this, ViewportLocationProperty),
+            PropertyMirror.Bind(editor, DesignEditor.ViewportZoomProperty, this, ViewportZoomProperty),
+            PropertyMirror.Bind(editor, DesignEditor.SnapGuidesProperty, this, GuidesProperty!),
+            PropertyMirror.Bind(editor, DesignEditor.UserGuidesProperty, this, UserGuidesProperty!),
+            PropertyMirror.Bind(editor, DesignEditor.GuidePreviewProperty, this, GuidePreviewProperty),
+            PropertyMirror.Bind(editor, DesignEditor.SpacingHintsProperty, this, SpacingHintsProperty!));
+
+        // Переносятся данные, но не выключатели показа. ShowGuides и ShowSnapGuides
+        // существуют, чтобы погасить встроенный слой; если бы их подхватывал и слой
+        // хоста, тот гасил бы вместе с чужим и свой — то есть заменить отрисовку
+        // было бы нечем. Своей видимостью слой снаружи распоряжается сам.
+
+        InvalidateVisual();
     }
 }

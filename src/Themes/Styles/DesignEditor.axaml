@@ -173,6 +173,7 @@
                                                  Guides="{TemplateBinding SnapGuides}"
                                                  UserGuides="{TemplateBinding UserGuides}"
                                                  ShowUserGuides="{TemplateBinding ShowGuides}"
+                                                 ShowSnapGuides="{TemplateBinding ShowSnapGuides}"
                                                  GuidePreview="{TemplateBinding GuidePreview}"
                                                  UserGuideBrush="{DynamicResource DesignEditor.UserGuideBrush}"
                                                  LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"

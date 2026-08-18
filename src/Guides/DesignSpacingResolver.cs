@@ -11,7 +11,7 @@ namespace ArxisStudio.Guides;
 /// <see cref="Start"/> и <see cref="End"/> — границы зазора по его оси,
 /// <see cref="Position"/> — координата, на которой отрезок рисуется по другой оси.
 /// </remarks>
-internal readonly struct DesignSpacingHint : IEquatable<DesignSpacingHint>
+public readonly struct DesignSpacingHint : IEquatable<DesignSpacingHint>
 {
     /// <summary>
     /// Инициализирует новый экземпляр <see cref="DesignSpacingHint"/>.
