@@ -118,8 +118,179 @@
                 BorderBrush="#3E4451" BorderThickness="0,0,0,1"
                 Padding="10,4">
 
+            <StackPanel Spacing="6">
+            <!-- Верхний ряд: чем редактор настраивают и как на него смотрят. -->
             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                            ToolTip.Tip="Шаг сетки в мировых единицах. К нему же идёт привязка при перетаскивании и изменении размера.">
+                    <PathIcon Data="M3,3V21H21V3H3M9,19H5V15H9V19M9,13H5V9H9V13M9,7H5V5H9V7M15,19H11V15H15V19M15,13H11V9H15V13M15,7H11V5H15V7M19,19H17V15H19V19M19,13H17V9H19V13M19,7H17V5H19V7Z"
+                              Width="12" Height="12" Foreground="#999"/>
+                    <TextBlock Text="Grid" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
+                    <ComboBox Name="GridStepBox"
+                              MinWidth="64"
+                              FontSize="11"
+                              VerticalAlignment="Center"
+                              ItemsSource="{Binding GridCellSizes}"
+                              SelectedItem="{Binding GridCellSize}"/>
+                    <CheckBox Name="SnapBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="snap"
+                              IsChecked="{Binding #Editor.InteractionOptions.IsSnapToGridEnabled}"/>
+                </StackPanel>
 
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
+                <!--
+                    Три выключателя показа. ShowGuides прячет направляющие, не трогая
+                    набор; ShowRulers убирает линейки целиком; IsScaleVisible оставляет
+                    полосу, с которой всё ещё вытягиваются направляющие, но без делений.
+                -->
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <CheckBox Name="SpacingBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="spacing"
+                              IsChecked="{Binding #Editor.InteractionOptions.IsEqualSpacingEnabled}"/>
+                    <CheckBox Name="GuidesBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="guides"
+                              IsChecked="{Binding #Editor.ShowGuides}"/>
+                    <CheckBox Name="RulersBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="rulers"
+                              IsChecked="{Binding #Editor.ShowRulers}"/>
+                    <CheckBox Name="ScaleBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="ticks"
+                              IsEnabled="{Binding #Editor.ShowRulers}"
+                              IsChecked="{Binding #TopRuler.IsScaleVisible}"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <PathIcon Data="M15.5,14L14.71,14L14.43,13.73C15.41,12.59 16,11.11 16,9.5C16,5.91 13.09,3 9.5,3C5.91,3 3,5.91 3,9.5C3,13.09 5.91,16 9.5,16C11.11,16 12.59,15.41 13.73,14.43L14,14.71L14,15.5L19,20.5L20.5,19L15.5,14M9.5,14C7.01,14 5,11.99 5,9.5C5,7.01 7.01,5 9.5,5C11.99,5 14,7.01 14,9.5C14,11.99 11.99,14 9.5,14Z"
+                              Width="14" Height="14" Foreground="#999"/>
+
+                    <Slider Width="80" VerticalAlignment="Center"
+                            Minimum="{Binding #Editor.MinZoom}"
+                            Maximum="{Binding #Editor.MaxZoom}"
+                            Value="{Binding #Editor.ViewportZoom}"
+                            TickFrequency="0.1" IsSnapToTickEnabled="False"/>
+
+                    <Button Classes="toolBtn" ToolTip.Tip="Reset Zoom (100%)"
+                            Command="{Binding ResetZoomCommand}"
+                            Padding="4,2">
+                        <TextBlock Text="{Binding #Editor.ViewportZoom, StringFormat='{}{0:P0}'}"
+                                   Foreground="White" FontSize="11" Width="35" TextAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Center active item in view"
+                        Click="CenterActiveItem_OnClick"
+                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12,2A10,10 0 0 1 22,12A10,10 0 0 1 12,22A10,10 0 0 1 2,12A10,10 0 0 1 12,2M11,7V11H7V13H11V17H13V13H17V11H13V7H11Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Center"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Fit active item to view"
+                        Click="FitActiveItem_OnClick"
+                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M3,3H9V5H5V9H3V3M21,3V9H19V5H15V3H21M3,21V15H5V19H9V21H3M21,21H15V19H19V15H21V21Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Fit"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Center selected items in view"
+                        Click="CenterSelection_OnClick"
+                        IsVisible="{Binding HasSelection}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12,2L15,9H22L16.5,13.5L18.5,21L12,16.5L5.5,21L7.5,13.5L2,9H9L12,2Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Center Sel"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        ToolTip.Tip="Fit selected items to view"
+                        Click="FitSelection_OnClick"
+                        IsVisible="{Binding HasSelection}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M4,4H9V6H6V9H4V4M20,4V9H18V6H15V4H20M4,20V15H6V18H9V20H4M20,20H15V18H18V15H20V20M9,9H15V15H9V9Z"
+                                  Width="14"
+                                  Height="14"
+                                  Foreground="#4C97FF"/>
+                        <TextBlock Text="Fit Sel"
+                                   Foreground="White"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
+                <Button Classes="toolBtn"
+                        Name="UndoButton"
+                        ToolTip.Tip="Undo"
+                        Click="Undo_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M12.5,8C9.85,8 7.45,8.99 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"
+                                  Width="14" Height="14" Foreground="#4C97FF"/>
+                        <TextBlock Text="Undo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="toolBtn"
+                        Name="RedoButton"
+                        ToolTip.Tip="Redo"
+                        Click="Redo_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M18.4,10.6C16.55,8.99 14.15,8 11.5,8C6.85,8 2.92,11.03 1.53,15.22L3.9,16C4.95,12.81 7.96,10.5 11.5,10.5C13.46,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z"
+                                  Width="14" Height="14" Foreground="#4C97FF"/>
+                        <TextBlock Text="Redo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!--
+                Нижний ряд — читалка: что выбрано и какие у него числа. Она меняется
+                на каждый клик, поэтому и отделена от кнопок, которые стоят на месте.
+            -->
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Opacity="0.85">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" ToolTip.Tip="Selected Items">
                     <PathIcon Data="M12.5,17.5L17.5,12.5L12.5,12.5L12.5,17.5ZM6.5,7.5L6.5,12.5L11.5,12.5L6.5,7.5ZM19,3L19,9L21,9L21,3C21,1.9 20.1,1 19,1L13,1L13,3L19,3ZM3,21C3,22.1 3.9,23 5,23L11,23L11,21L5,21L5,15L3,15L3,21ZM3,9L5,9L5,3L11,3L11,1L5,1C3.9,1 3,1.9 3,3L3,9ZM21,15L19,15L19,21L13,21L13,23L19,23C20.1,23 21,22.1 21,21L21,15Z"
                               Width="14" Height="14" Foreground="#4C97FF"/>
@@ -233,175 +404,12 @@
 
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>
 
-                <!-- Шаг сетки. Привязка следует за ним сама: SnapStep по умолчанию
-                     равен NaN, и редактор берёт шаг у сетки шаблона. -->
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                            ToolTip.Tip="Шаг сетки в мировых единицах. К нему же идёт привязка при перетаскивании и изменении размера.">
-                    <PathIcon Data="M3,3V21H21V3H3M9,19H5V15H9V19M9,13H5V9H9V13M9,7H5V5H9V7M15,19H11V15H15V19M15,13H11V9H15V13M15,7H11V5H15V7M19,19H17V15H19V19M19,13H17V9H19V13M19,7H17V5H19V7Z"
-                              Width="12" Height="12" Foreground="#999"/>
-                    <TextBlock Text="Grid" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
-                    <ComboBox Name="GridStepBox"
-                              MinWidth="64"
-                              FontSize="11"
-                              VerticalAlignment="Center"
-                              ItemsSource="{Binding GridCellSizes}"
-                              SelectedItem="{Binding GridCellSize}"/>
-                    <CheckBox Name="SnapBox"
-                              FontSize="10"
-                              Foreground="#999"
-                              VerticalAlignment="Center"
-                              Content="snap"
-                              IsChecked="{Binding #Editor.InteractionOptions.IsSnapToGridEnabled}"/>
-                </StackPanel>
-
-                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
-
-                <!--
-                    Три выключателя показа. ShowGuides прячет направляющие, не трогая
-                    набор; ShowRulers убирает линейки целиком; IsScaleVisible оставляет
-                    полосу, с которой всё ещё вытягиваются направляющие, но без делений.
-                -->
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <CheckBox Name="SpacingBox"
-                              FontSize="10"
-                              Foreground="#999"
-                              VerticalAlignment="Center"
-                              Content="spacing"
-                              IsChecked="{Binding #Editor.InteractionOptions.IsEqualSpacingEnabled}"/>
-                    <CheckBox Name="GuidesBox"
-                              FontSize="10"
-                              Foreground="#999"
-                              VerticalAlignment="Center"
-                              Content="guides"
-                              IsChecked="{Binding #Editor.ShowGuides}"/>
-                    <CheckBox Name="RulersBox"
-                              FontSize="10"
-                              Foreground="#999"
-                              VerticalAlignment="Center"
-                              Content="rulers"
-                              IsChecked="{Binding #Editor.ShowRulers}"/>
-                    <CheckBox Name="ScaleBox"
-                              FontSize="10"
-                              Foreground="#999"
-                              VerticalAlignment="Center"
-                              Content="ticks"
-                              IsEnabled="{Binding #Editor.ShowRulers}"
-                              IsChecked="{Binding #TopRuler.IsScaleVisible}"/>
-                </StackPanel>
-
-                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
-
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Opacity="0.5">
                     <TextBlock Text="Viewport:" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding #Editor.ViewportLocation.X, StringFormat='{}{0:0}'}" Foreground="#999" FontSize="10"/>
                     <TextBlock Text="{Binding #Editor.ViewportLocation.Y, StringFormat='{}{0:0}'}" Foreground="#999" FontSize="10"/>
                 </StackPanel>
-
-                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <PathIcon Data="M15.5,14L14.71,14L14.43,13.73C15.41,12.59 16,11.11 16,9.5C16,5.91 13.09,3 9.5,3C5.91,3 3,5.91 3,9.5C3,13.09 5.91,16 9.5,16C11.11,16 12.59,15.41 13.73,14.43L14,14.71L14,15.5L19,20.5L20.5,19L15.5,14M9.5,14C7.01,14 5,11.99 5,9.5C5,7.01 7.01,5 9.5,5C11.99,5 14,7.01 14,9.5C14,11.99 11.99,14 9.5,14Z"
-                              Width="14" Height="14" Foreground="#999"/>
-
-                    <Slider Width="80" VerticalAlignment="Center"
-                            Minimum="{Binding #Editor.MinZoom}"
-                            Maximum="{Binding #Editor.MaxZoom}"
-                            Value="{Binding #Editor.ViewportZoom}"
-                            TickFrequency="0.1" IsSnapToTickEnabled="False"/>
-
-                    <Button Classes="toolBtn" ToolTip.Tip="Reset Zoom (100%)"
-                            Command="{Binding ResetZoomCommand}"
-                            Padding="4,2">
-                        <TextBlock Text="{Binding #Editor.ViewportZoom, StringFormat='{}{0:P0}'}"
-                                   Foreground="White" FontSize="11" Width="35" TextAlignment="Center"/>
-                    </Button>
-                </StackPanel>
-
-                <Button Classes="toolBtn"
-                        ToolTip.Tip="Center active item in view"
-                        Click="CenterActiveItem_OnClick"
-                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M12,2A10,10 0 0 1 22,12A10,10 0 0 1 12,22A10,10 0 0 1 2,12A10,10 0 0 1 12,2M11,7V11H7V13H11V17H13V13H17V11H13V7H11Z"
-                                  Width="14"
-                                  Height="14"
-                                  Foreground="#4C97FF"/>
-                        <TextBlock Text="Center"
-                                   Foreground="White"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <Button Classes="toolBtn"
-                        ToolTip.Tip="Fit active item to view"
-                        Click="FitActiveItem_OnClick"
-                        IsVisible="{Binding ActiveItem, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M3,3H9V5H5V9H3V3M21,3V9H19V5H15V3H21M3,21V15H5V19H9V21H3M21,21H15V19H19V15H21V21Z"
-                                  Width="14"
-                                  Height="14"
-                                  Foreground="#4C97FF"/>
-                        <TextBlock Text="Fit"
-                                   Foreground="White"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <!-- Отмена и повтор поверх DesignEditor.EditCompleted / ApplyGeometry. -->
-                <Button Classes="toolBtn"
-                        Name="UndoButton"
-                        ToolTip.Tip="Undo"
-                        Click="Undo_OnClick">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M12.5,8C9.85,8 7.45,8.99 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z"
-                                  Width="14" Height="14" Foreground="#4C97FF"/>
-                        <TextBlock Text="Undo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <Button Classes="toolBtn"
-                        Name="RedoButton"
-                        ToolTip.Tip="Redo"
-                        Click="Redo_OnClick">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M18.4,10.6C16.55,8.99 14.15,8 11.5,8C6.85,8 2.92,11.03 1.53,15.22L3.9,16C4.95,12.81 7.96,10.5 11.5,10.5C13.46,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z"
-                                  Width="14" Height="14" Foreground="#4C97FF"/>
-                        <TextBlock Text="Redo" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <Button Classes="toolBtn"
-                        ToolTip.Tip="Center selected items in view"
-                        Click="CenterSelection_OnClick"
-                        IsVisible="{Binding HasSelection}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M12,2L15,9H22L16.5,13.5L18.5,21L12,16.5L5.5,21L7.5,13.5L2,9H9L12,2Z"
-                                  Width="14"
-                                  Height="14"
-                                  Foreground="#4C97FF"/>
-                        <TextBlock Text="Center Sel"
-                                   Foreground="White"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <Button Classes="toolBtn"
-                        ToolTip.Tip="Fit selected items to view"
-                        Click="FitSelection_OnClick"
-                        IsVisible="{Binding HasSelection}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="M4,4H9V6H6V9H4V4M20,4V9H18V6H15V4H20M4,20V15H6V18H9V20H4M20,20H15V18H18V15H20V20M9,9H15V15H9V9Z"
-                                  Width="14"
-                                  Height="14"
-                                  Foreground="#4C97FF"/>
-                        <TextBlock Text="Fit Sel"
-                                   Foreground="White"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
+            </StackPanel>
             </StackPanel>
         </Border>
 
