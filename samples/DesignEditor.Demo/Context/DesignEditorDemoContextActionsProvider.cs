@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -125,6 +125,19 @@ public sealed class DesignEditorDemoContextActionsProvider : IDesignEditorContex
             Action("selection.center", "Центрировать выделение", editor.CenterOnSelection),
             Action("selection.fit", "Вписать выделение", editor.FitSelectionToView),
             Separator("selection.sep1"),
+
+            // Распределять есть что от трёх элементов: два уже задают отрезок.
+            Action(
+                "selection.distributeH",
+                "Распределить по горизонтали",
+                () => editor.DistributeHorizontally(),
+                editor.SelectedDesignTargetsCount >= 3),
+            Action(
+                "selection.distributeV",
+                "Распределить по вертикали",
+                () => editor.DistributeVertically(),
+                editor.SelectedDesignTargetsCount >= 3),
+            Separator("selection.sep2"),
             Action("selection.clear", "Снять выделение", () => editor.Selection.Clear())
         };
     }

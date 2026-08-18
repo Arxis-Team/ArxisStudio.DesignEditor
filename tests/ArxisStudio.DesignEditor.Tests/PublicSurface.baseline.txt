@@ -241,6 +241,8 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     event EventHandler<DesignSelectionChangedEventArgs> DesignSelectionChanged
     method Boolean BringForward()
     method Boolean BringToFront()
+    method Boolean DistributeHorizontally()
+    method Boolean DistributeVertically()
     method Boolean NeedsContainerOverride(Object, Int32, Object&)
     method Boolean SelectDesignTarget(Control, Boolean)
     method Boolean SendBackward()

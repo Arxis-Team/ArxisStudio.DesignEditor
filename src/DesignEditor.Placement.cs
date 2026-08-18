@@ -218,6 +218,99 @@ public partial class DesignEditor
         return true;
     }
 
+    /// <summary>
+    /// Распределяет выбранные элементы по горизонтали с равными зазорами.
+    /// </summary>
+    /// <returns><see langword="true"/>, если распределение выполнено.</returns>
+    /// <remarks>
+    /// Крайние элементы остаются на месте — они задают отрезок, — а промежуточные
+    /// расставляются так, чтобы зазоры между соседями стали равны.
+    /// </remarks>
+    public bool DistributeHorizontally() => TryDistribute(xAxis: true);
+
+    /// <summary>
+    /// Распределяет выбранные элементы по вертикали с равными зазорами.
+    /// </summary>
+    /// <returns><see langword="true"/>, если распределение выполнено.</returns>
+    public bool DistributeVertically() => TryDistribute(xAxis: false);
+
+    /// <summary>
+    /// Расставляет выбранные элементы с равными зазорами вдоль оси.
+    /// </summary>
+    /// <remarks>
+    /// Равными делаются <b>зазоры</b>, а не расстояния между центрами: тем же словарём
+    /// описан весь остальной интервал в библиотеке, и при разной ширине элементов
+    /// ровные центры выглядят неровно именно потому, что зазоры при них разные.
+    /// <para>
+    /// Меньше трёх элементов распределять нечего: два уже задают отрезок и никуда
+    /// не двигаются.
+    /// </para>
+    /// <para>
+    /// Заблокированный политикой промежуточный элемент отменяет операцию целиком.
+    /// Расставить часть значило бы выдать за распределение то, что им не является, —
+    /// то же правило, по которому смешанная группа не двигается вовсе.
+    /// </para>
+    /// </remarks>
+    private bool TryDistribute(bool xAxis)
+    {
+        var selection = SelectedDesignTargets;
+        if (selection.Count < 3)
+            return false;
+
+        var items = new List<(Control Target, Rect Bounds)>(selection.Count);
+        for (var i = 0; i < selection.Count; i++)
+        {
+            var target = selection[i].Target;
+            if (!TryGetDesignBounds(target, out var bounds))
+                return false;
+
+            items.Add((target, bounds));
+        }
+
+        items.Sort((a, b) => Position(a.Bounds).CompareTo(Position(b.Bounds)));
+
+        // Крайние задают отрезок и не двигаются, поэтому их политика роли не играет.
+        var axis = xAxis ? ArxisStudio.Attached.MovePolicy.X : ArxisStudio.Attached.MovePolicy.Y;
+        for (var i = 1; i < items.Count - 1; i++)
+        {
+            if (!GetEffectiveMovePolicy(items[i].Target).HasFlag(axis))
+                return false;
+        }
+
+        var first = items[0].Bounds;
+        var last = items[^1].Bounds;
+
+        var occupied = 0.0;
+        for (var i = 0; i < items.Count; i++)
+            occupied += Size(items[i].Bounds);
+
+        var gap = (Extent(last) - Position(first) - occupied) / (items.Count - 1);
+
+        BeginEdit(DesignEditKind.Move);
+
+        var cursor = Extent(first);
+        for (var i = 1; i < items.Count - 1; i++)
+        {
+            cursor += gap;
+
+            var (target, bounds) = items[i];
+            SetDesignPosition(target, xAxis
+                ? new Point(cursor, bounds.Y)
+                : new Point(bounds.X, cursor));
+
+            cursor += Size(bounds);
+        }
+
+        CommitEdit();
+        UpdateSelectionOverlayState();
+        return true;
+
+        double Position(Rect rect) => xAxis ? rect.X : rect.Y;
+        double Extent(Rect rect) => xAxis ? rect.Right : rect.Bottom;
+        double Size(Rect rect) => xAxis ? rect.Width : rect.Height;
+    }
+
+
     internal ArxisStudio.Attached.ResizePolicy GetResizePolicy(Control control)
     {
         return DesignInteraction.GetResizePolicy(control);
