@@ -235,6 +235,8 @@ public partial class DesignEditor
     /// Возвращает координату двигающегося края с учётом направляющих и сетки.
     /// </summary>
     /// <param name="edge">Координата края по своей оси.</param>
+    /// <param name="proposed">Предполагаемая геометрия элемента целиком.</param>
+    /// <param name="farEdge">Признак того, что двигается дальний край.</param>
     /// <param name="xAxis">Признак горизонтальной оси.</param>
     /// <param name="modifiers">Модификаторы текущего ввода.</param>
     /// <remarks>
@@ -243,7 +245,7 @@ public partial class DesignEditor
     /// один край, а не позиция целиком, — накапливать тут нечего, потому что
     /// край приходит уже посчитанным от применённой геометрии.
     /// </remarks>
-    internal double ResolveResizeEdge(double edge, bool xAxis, KeyModifiers modifiers)
+    internal double ResolveResizeEdge(double edge, Rect proposed, bool xAxis, bool farEdge, KeyModifiers modifiers)
     {
         if (IsSnapBypassed(modifiers))
             return edge;
@@ -253,6 +255,17 @@ public partial class DesignEditor
                 edge, _snapGuideNeighbours!, ResolveSnapGuideTolerance(), xAxis, out var guided))
         {
             return guided;
+        }
+
+        // Порядок тот же, что при перетаскивании: выравнивание, потом интервал,
+        // потом сетка. Разница только во входе — при resize неподвижный край задаёт
+        // свой зазор, и вопрос один: где должен встать двигающийся.
+        if (HasSnapGuideNeighbours &&
+            InteractionOptions.IsEqualSpacingEnabled &&
+            DesignSpacingResolver.TryResolveEdge(
+                proposed, _snapGuideNeighbours!, ResolveSnapGuideTolerance(), xAxis, farEdge, out var spaced))
+        {
+            return spaced;
         }
 
         return ShouldSnap(modifiers) ? SnapCoordinate(edge) : edge;
@@ -266,6 +279,10 @@ public partial class DesignEditor
         PublishSnapGuides(HasSnapGuideNeighbours
             ? DesignSnapGuideResolver.CollectGuides(bounds, _snapGuideNeighbours!)
             : Array.Empty<DesignSnapGuide>());
+
+        PublishSpacingHints(HasSnapGuideNeighbours && InteractionOptions.IsEqualSpacingEnabled
+            ? DesignSpacingResolver.CollectHints(bounds, _snapGuideNeighbours!)
+            : Array.Empty<DesignSpacingHint>());
     }
 
     /// <summary>

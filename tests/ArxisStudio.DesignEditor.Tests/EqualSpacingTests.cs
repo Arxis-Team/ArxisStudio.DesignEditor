@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using ArxisStudio.Attached;
 using ArxisStudio.Controls;
+using ArxisStudio.States;
 using Xunit;
 
 namespace ArxisStudio.Tests;
@@ -177,6 +178,91 @@ public class EqualSpacingTests
         Drag(harness, 64);
 
         Assert.Equal(268, PositionOf(harness));
+    }
+
+    // ---- Изменение размера ----------------------------------------------------
+
+    /// <summary>
+    /// Тянет правый край так, как его видит редактор: ручка стоит на применённом крае.
+    /// </summary>
+    private static void DragRightEdge(EditorHarness harness, double to)
+    {
+        var target = harness.Named(0, "Moving");
+        var container = harness.Container(0);
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        var applied = harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width;
+
+        state.OnResizeDelta(new ResizeDeltaEventArgs(
+            new Vector(to - applied, 0),
+            ResizeDirection.Right,
+            DesignEditorItem.ResizeDeltaEvent));
+
+        harness.RunLayout();
+    }
+
+    /// <summary>
+    /// Потянутый край повторяет зазор неподвижного.
+    /// </summary>
+    /// <remarks>
+    /// Левый зазор 30 (200 − 170), значит правый край обязан встать на 380 — на столько же
+    /// от левого края правого соседа.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Resize_Repeats_The_Fixed_Gap()
+    {
+        var harness = Create();
+
+        DragRightEdge(harness, 374);
+
+        var target = harness.Named(0, "Moving");
+        Assert.Equal(380, harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width);
+
+        // Неподвижный край остался на месте: привязывается край, а не размер.
+        Assert.Equal(Moving.X, harness.Editor.GetDesignPosition(target).X);
+    }
+
+    [AvaloniaFact]
+    public void Resize_Beyond_The_Tolerance_Keeps_The_Edge()
+    {
+        var harness = Create();
+
+        DragRightEdge(harness, 360);
+
+        var target = harness.Named(0, "Moving");
+        Assert.Equal(360, harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width);
+    }
+
+    [AvaloniaFact]
+    public void Disabled_Spacing_Leaves_The_Resized_Edge_Alone()
+    {
+        var harness = Create();
+        harness.Editor.InteractionOptions.IsEqualSpacingEnabled = false;
+
+        DragRightEdge(harness, 374);
+
+        var target = harness.Named(0, "Moving");
+        Assert.Equal(374, harness.Editor.GetDesignPosition(target).X + harness.Editor.GetDesignSize(target).Width);
+    }
+
+    /// <summary>
+    /// Подсказки показываются и при изменении размера.
+    /// </summary>
+    /// <remarks>
+    /// Публикация у resize своя точка входа, поэтому она проверяется отдельно:
+    /// на перетаскивании тот же набор собирается другим вызовом.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Resize_Shows_The_Hints_Too()
+    {
+        var harness = Create();
+
+        DragRightEdge(harness, 374);
+
+        var hints = harness.Editor.SpacingHints;
+        Assert.Equal(2, hints.Count);
+        Assert.All(hints, h => Assert.Equal(30, h.End - h.Start, 3));
     }
 
     // ---- Подсказки ------------------------------------------------------------

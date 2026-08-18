@@ -454,15 +454,19 @@ internal class ItemResizingState : DesignEditorItemState
         {
             var modifiers = editor.LastInputModifiers;
 
+            // Равные интервалы считаются по всему прямоугольнику, а не по одной
+            // координате: неподвижный край задаёт зазор, с которым сравнивается второй.
+            var proposed = new Rect(newX, newY, newW, newH);
+
             if (_direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
-                newW = editor.ResolveResizeEdge(newX + newW, xAxis: true, modifiers) - newX;
+                newW = editor.ResolveResizeEdge(newX + newW, proposed, xAxis: true, farEdge: true, modifiers) - newX;
             else if (_direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-                newW = fixedRight - editor.ResolveResizeEdge(fixedRight - newW, xAxis: true, modifiers);
+                newW = fixedRight - editor.ResolveResizeEdge(fixedRight - newW, proposed, xAxis: true, farEdge: false, modifiers);
 
             if (_direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
-                newH = editor.ResolveResizeEdge(newY + newH, xAxis: false, modifiers) - newY;
+                newH = editor.ResolveResizeEdge(newY + newH, proposed, xAxis: false, farEdge: true, modifiers) - newY;
             else if (_direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-                newH = fixedBottom - editor.ResolveResizeEdge(fixedBottom - newH, xAxis: false, modifiers);
+                newH = fixedBottom - editor.ResolveResizeEdge(fixedBottom - newH, proposed, xAxis: false, farEdge: false, modifiers);
         }
 
         // Приведение к Min/Max делается здесь, а не только внутри SetDesignSize:

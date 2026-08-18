@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 
@@ -103,6 +103,74 @@ internal static class DesignSpacingResolver
 
         offset = new Vector(spacedX ? dx : 0, spacedY ? dy : 0);
         return spacedX || spacedY;
+    }
+
+    /// <summary>
+    /// Ищет координату двигающегося края, при которой зазоры до соседей равны.
+    /// </summary>
+    /// <param name="proposed">Предполагаемая геометрия элемента.</param>
+    /// <param name="neighbours">Соседи в мировых координатах.</param>
+    /// <param name="tolerance">Радиус захвата в мировых единицах.</param>
+    /// <param name="xAxis">Признак горизонтальной оси.</param>
+    /// <param name="farEdge">Признак того, что двигается дальний край.</param>
+    /// <param name="resolved">Найденная координата края.</param>
+    /// <returns><see langword="true"/>, если координата найдена.</returns>
+    /// <remarks>
+    /// При перетаскивании элемент целиком встаёт посередине, и оба зазора считаются
+    /// заново. При resize неподвижный край остаётся на месте, поэтому его зазор задан
+    /// и остаётся один вопрос: где должен оказаться двигающийся край, чтобы второй
+    /// зазор стал таким же. Отсюда и одна точка входа вместо смещения по двум осям —
+    /// ровно так же устроена разница между перетаскиванием и resize у направляющих.
+    /// </remarks>
+    internal static bool TryResolveEdge(
+        Rect proposed,
+        IReadOnlyList<Rect> neighbours,
+        double tolerance,
+        bool xAxis,
+        bool farEdge,
+        out double resolved)
+    {
+        resolved = 0;
+
+        if (!TryFindRowNeighbours(proposed, neighbours, xAxis, out var before, out var after))
+            return false;
+
+        var beforeEnd = xAxis ? before.Right : before.Bottom;
+        var afterStart = xAxis ? after.X : after.Y;
+        var near = xAxis ? proposed.X : proposed.Y;
+        var far = xAxis ? proposed.Right : proposed.Bottom;
+
+        double target;
+        if (farEdge)
+        {
+            // Неподвижен ближний край: его зазор задан, дальний обязан стать таким же.
+            var fixedGap = near - beforeEnd;
+            if (fixedGap < 0)
+                return false;
+
+            target = afterStart - fixedGap;
+
+            // Схлопывать элемент ради равенства нельзя: это уже не изменение размера.
+            if (target <= near)
+                return false;
+        }
+        else
+        {
+            var fixedGap = afterStart - far;
+            if (fixedGap < 0)
+                return false;
+
+            target = beforeEnd + fixedGap;
+            if (target >= far)
+                return false;
+        }
+
+        var edge = farEdge ? far : near;
+        if (Math.Abs(target - edge) > tolerance)
+            return false;
+
+        resolved = target;
+        return true;
     }
 
     /// <summary>

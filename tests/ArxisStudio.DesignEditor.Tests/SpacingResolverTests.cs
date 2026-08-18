@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless.XUnit;
 using ArxisStudio.Guides;
 using Xunit;
@@ -122,6 +122,67 @@ public class SpacingResolverTests
         Assert.False(spacedX);
         Assert.True(spacedY);
         Assert.Equal(4, offset.Y);
+    }
+
+    // ---- Изменение размера ----------------------------------------------------
+
+    /// <summary>
+    /// При resize неподвижный край задаёт зазор, с которым сравнивается второй.
+    /// </summary>
+    /// <remarks>
+    /// Это и есть отличие от перетаскивания: там элемент целиком встаёт посередине
+    /// и оба зазора считаются заново, здесь один из них уже задан.
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Far_Edge_Repeats_The_Fixed_Gap()
+    {
+        // Левый зазор 50 (150 - 100), значит правый край обязан встать на 250.
+        var proposed = new Rect(150, 110, 94, 40);
+
+        var found = DesignSpacingResolver.TryResolveEdge(
+            proposed, Row, tolerance: 8, xAxis: true, farEdge: true, out var resolved);
+
+        Assert.True(found);
+        Assert.Equal(250, resolved);
+    }
+
+    [AvaloniaFact]
+    public void The_Near_Edge_Repeats_The_Fixed_Gap()
+    {
+        // Правый зазор 50 (300 - 250), значит левый край обязан встать на 150.
+        var proposed = new Rect(156, 110, 94, 40);
+
+        var found = DesignSpacingResolver.TryResolveEdge(
+            proposed, Row, tolerance: 8, xAxis: true, farEdge: false, out var resolved);
+
+        Assert.True(found);
+        Assert.Equal(150, resolved);
+    }
+
+    /// <summary>
+    /// Ради равенства элемент не схлопывается.
+    /// </summary>
+    /// <remarks>
+    /// Стенд подобран так, что отказ даёт именно это правило, а не радиус захвата:
+    /// край стоит на 206, ровное значение — 200, до него шесть при допуске восемь.
+    /// Но 200 это и есть неподвижный левый край, то есть нулевая ширина.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Collapsing_The_Element_Is_Refused()
+    {
+        var proposed = new Rect(200, 110, 6, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveEdge(
+            proposed, Row, tolerance: 8, xAxis: true, farEdge: true, out _));
+    }
+
+    [AvaloniaFact]
+    public void An_Edge_Beyond_The_Tolerance_Is_Left_Alone()
+    {
+        var proposed = new Rect(150, 110, 80, 40);
+
+        Assert.False(DesignSpacingResolver.TryResolveEdge(
+            proposed, Row, tolerance: 8, xAxis: true, farEdge: true, out _));
     }
 
     // ---- Подсказки ------------------------------------------------------------

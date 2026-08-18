@@ -184,14 +184,14 @@ internal sealed class GroupResizeOperation
         var bottom = bounds.Bottom;
 
         if (direction is ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight)
-            right = editor.ResolveResizeEdge(right, xAxis: true, modifiers);
+            right = editor.ResolveResizeEdge(right, bounds, xAxis: true, farEdge: true, modifiers);
         else if (direction is ResizeDirection.Left or ResizeDirection.TopLeft or ResizeDirection.BottomLeft)
-            left = editor.ResolveResizeEdge(left, xAxis: true, modifiers);
+            left = editor.ResolveResizeEdge(left, bounds, xAxis: true, farEdge: false, modifiers);
 
         if (direction is ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
-            bottom = editor.ResolveResizeEdge(bottom, xAxis: false, modifiers);
+            bottom = editor.ResolveResizeEdge(bottom, bounds, xAxis: false, farEdge: true, modifiers);
         else if (direction is ResizeDirection.Top or ResizeDirection.TopLeft or ResizeDirection.TopRight)
-            top = editor.ResolveResizeEdge(top, xAxis: false, modifiers);
+            top = editor.ResolveResizeEdge(top, bounds, xAxis: false, farEdge: false, modifiers);
 
         var width = Math.Max(minSize, right - left);
         var height = Math.Max(minSize, bottom - top);
