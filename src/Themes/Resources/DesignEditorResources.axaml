@@ -14,6 +14,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#190F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#0F6CBD" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#D6006C" />
+            <SolidColorBrush x:Key="DesignEditor.SnapGuide.CentreBrush" Color="#7A4DD6" />
             <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#0A84FF" />
             <SolidColorBrush x:Key="DesignEditor.Ruler.BackgroundBrush" Color="#F3F3F5" />
             <SolidColorBrush x:Key="DesignEditor.Ruler.TickBrush" Color="#8A8A93" />
@@ -50,6 +51,7 @@
             <SolidColorBrush x:Key="DesignEditor.MarqueeFillBrush" Color="#1A1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.ReorderIndicatorBrush" Color="#1E90FF" />
             <SolidColorBrush x:Key="DesignEditor.SnapGuideBrush" Color="#FF4FA3" />
+            <SolidColorBrush x:Key="DesignEditor.SnapGuide.CentreBrush" Color="#A98BFF" />
             <SolidColorBrush x:Key="DesignEditor.UserGuideBrush" Color="#4DA3FF" />
             <SolidColorBrush x:Key="DesignEditor.Ruler.BackgroundBrush" Color="#25252A" />
             <SolidColorBrush x:Key="DesignEditor.Ruler.TickBrush" Color="#6E6E78" />
@@ -92,6 +94,16 @@
 
     <!-- Направляющие. Толщина задана в пикселях устройства, как и у сетки. -->
     <x:Double x:Key="DesignEditor.SnapGuide.Thickness">1</x:Double>
+
+    <!--
+        Штрих направляющих. Длины заданы в толщинах пера, поэтому не зависят от DPI.
+
+        Линии выравнивания пунктирные, пользовательские сплошные, и это не вкус:
+        первые живут только внутри жеста и обязаны читаться как подсказка, вторые
+        поставлены пользователем и остаются на макете.
+    -->
+    <DashStyle x:Key="DesignEditor.SnapGuide.DashStyle" Dashes="4,3" Offset="0" />
+    <DashStyle x:Key="DesignEditor.UserGuide.DashStyle" Dashes="" Offset="0" />
 
     <!-- Линейки. Толщина одна на обе ориентации, чтобы угол между ними был квадратным. -->
     <x:Double x:Key="DesignEditor.Ruler.Thickness">20</x:Double>

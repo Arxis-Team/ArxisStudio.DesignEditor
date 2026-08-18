@@ -175,6 +175,9 @@
                                                  GuidePreview="{TemplateBinding GuidePreview}"
                                                  UserGuideBrush="{DynamicResource DesignEditor.UserGuideBrush}"
                                                  LineBrush="{DynamicResource DesignEditor.SnapGuideBrush}"
+                                                 CentreLineBrush="{DynamicResource DesignEditor.SnapGuide.CentreBrush}"
+                                                 LineDashStyle="{DynamicResource DesignEditor.SnapGuide.DashStyle}"
+                                                 UserGuideDashStyle="{DynamicResource DesignEditor.UserGuide.DashStyle}"
                                                  LineThickness="{DynamicResource DesignEditor.SnapGuide.Thickness}"
                                                  ViewportLocation="{TemplateBinding ViewportLocation}"
                                                  ViewportZoom="{TemplateBinding ViewportZoom}" />

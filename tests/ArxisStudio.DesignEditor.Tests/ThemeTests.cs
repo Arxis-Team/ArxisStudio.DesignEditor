@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
@@ -30,6 +30,14 @@ public class ThemeTests
         "DesignEditor.ReorderIndicatorBrush",
         "DesignEditor.SnapGuideBrush",
         "DesignEditor.SnapGuide.Thickness",
+        "DesignEditor.SnapGuide.CentreBrush",
+        "DesignEditor.SnapGuide.DashStyle",
+        "DesignEditor.UserGuideBrush",
+        "DesignEditor.UserGuide.DashStyle",
+        "DesignEditor.Ruler.BackgroundBrush",
+        "DesignEditor.Ruler.TickBrush",
+        "DesignEditor.Ruler.LabelBrush",
+        "DesignEditor.Ruler.Thickness",
         "DesignEditor.Grid.CellSize",
         "DesignEditor.Grid.MajorInterval",
         "DesignEditor.Grid.LineThickness",

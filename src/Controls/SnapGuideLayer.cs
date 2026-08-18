@@ -54,6 +54,24 @@ internal class SnapGuideLayer : Control
         AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(LineBrush));
 
     /// <summary>
+    /// Идентификатор свойства кисти линий выравнивания по центру.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> CentreLineBrushProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IBrush?>(nameof(CentreLineBrush));
+
+    /// <summary>
+    /// Идентификатор свойства штриха линий выравнивания.
+    /// </summary>
+    public static readonly StyledProperty<IDashStyle?> LineDashStyleProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IDashStyle?>(nameof(LineDashStyle));
+
+    /// <summary>
+    /// Идентификатор свойства штриха пользовательских направляющих.
+    /// </summary>
+    public static readonly StyledProperty<IDashStyle?> UserGuideDashStyleProperty =
+        AvaloniaProperty.Register<SnapGuideLayer, IDashStyle?>(nameof(UserGuideDashStyle));
+
+    /// <summary>
     /// Идентификатор свойства толщины линий в физических пикселях.
     /// </summary>
     public static readonly StyledProperty<double> LineThicknessProperty =
@@ -78,6 +96,9 @@ internal class SnapGuideLayer : Control
             UserGuidesProperty,
             GuidePreviewProperty,
             UserGuideBrushProperty,
+            CentreLineBrushProperty,
+            LineDashStyleProperty,
+            UserGuideDashStyleProperty,
             LineBrushProperty,
             LineThicknessProperty,
             ViewportLocationProperty,
@@ -127,6 +148,37 @@ internal class SnapGuideLayer : Control
     {
         get => GetValue(LineBrushProperty);
         set => SetValue(LineBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает кисть линий выравнивания по центру.
+    /// </summary>
+    /// <remarks>
+    /// Если не задана, линии центра рисуются той же кистью, что и линии по краю:
+    /// различение видов — настройка, а не обязанность темы.
+    /// </remarks>
+    public IBrush? CentreLineBrush
+    {
+        get => GetValue(CentreLineBrushProperty);
+        set => SetValue(CentreLineBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает штрих линий выравнивания.
+    /// </summary>
+    public IDashStyle? LineDashStyle
+    {
+        get => GetValue(LineDashStyleProperty);
+        set => SetValue(LineDashStyleProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает штрих пользовательских направляющих.
+    /// </summary>
+    public IDashStyle? UserGuideDashStyle
+    {
+        get => GetValue(UserGuideDashStyleProperty);
+        set => SetValue(UserGuideDashStyleProperty, value);
     }
 
     /// <summary>
@@ -188,11 +240,19 @@ internal class SnapGuideLayer : Control
         if (LineBrush is not { } brush)
             return;
 
-        var pen = new Pen(brush, thickness);
+        var dash = LineDashStyle;
+        var edgePen = new Pen(brush, thickness, dash);
+
+        // Перо центра собирается, только когда кисть задана: иначе оба вида рисуются
+        // одним пером, и это ровно прежнее поведение.
+        var centrePen = CentreLineBrush is { } centreBrush
+            ? new Pen(centreBrush, thickness, dash)
+            : edgePen;
 
         for (var i = 0; i < guides.Count; i++)
         {
             var guide = guides[i];
+            var pen = guide.Kind == DesignSnapGuideKind.Centre ? centrePen : edgePen;
             var vertical = guide.Orientation == DesignSnapGuideOrientation.Vertical;
 
             var lineOrigin = vertical ? origin.X : origin.Y;
@@ -225,7 +285,7 @@ internal class SnapGuideLayer : Control
         if ((guides == null || guides.Count == 0) && GuidePreview == null)
             return;
 
-        var pen = new Pen(brush, thickness);
+        var pen = new Pen(brush, thickness, UserGuideDashStyle);
         guides ??= Array.Empty<DesignGuide>();
 
         for (var i = 0; i < guides.Count; i++)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 
@@ -195,19 +195,29 @@ internal static class DesignSnapGuideResolver
             var end = xAxis ? bounds.Bottom : bounds.Right;
             var matched = false;
 
+            // Центральной линия считается, только когда центры совпали с обеих сторон.
+            // Совпадение центра с чужим краем — это всё ещё выравнивание по краю:
+            // симметрии, ради которой центр и красят иначе, в нём нет.
+            var centre = false;
+
             for (var i = 0; i < neighbours.Count; i++)
             {
                 var neighbour = neighbours[i];
 
+                // Перебираются все три выравнивания соседа, а не до первого совпавшего:
+                // у прямоугольника нулевой толщины — а это пользовательская направляющая —
+                // край и центр совпадают, и выход по первому навсегда прятал бы центр.
+                // Накопление start/end при этом идемпотентно, повтор ничего не портит.
                 foreach (var neighbourAlignment in Alignments)
                 {
                     if (Math.Abs(Coordinate(neighbour, neighbourAlignment, xAxis) - line) > Epsilon)
                         continue;
 
                     matched = true;
+                    centre |= alignment == DesignSnapGuideAlignment.Centre
+                              && neighbourAlignment == DesignSnapGuideAlignment.Centre;
                     start = Math.Min(start, xAxis ? neighbour.Y : neighbour.X);
                     end = Math.Max(end, xAxis ? neighbour.Bottom : neighbour.Right);
-                    break;
                 }
             }
 
@@ -218,7 +228,8 @@ internal static class DesignSnapGuideResolver
                 ? DesignSnapGuideOrientation.Vertical
                 : DesignSnapGuideOrientation.Horizontal;
 
-            (guides ??= new List<DesignSnapGuide>()).Add(new DesignSnapGuide(orientation, line, start, end));
+            var kind = centre ? DesignSnapGuideKind.Centre : DesignSnapGuideKind.Edge;
+            (guides ??= new List<DesignSnapGuide>()).Add(new DesignSnapGuide(orientation, line, start, end, kind));
         }
     }
 

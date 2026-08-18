@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace ArxisStudio.Guides;
 
@@ -12,6 +12,22 @@ internal enum DesignSnapGuideOrientation
 
     /// <summary>Горизонтальная линия: выравнивает по оси Y.</summary>
     Horizontal
+}
+
+/// <summary>
+/// Вид выравнивания, породившего направляющую.
+/// </summary>
+/// <remarks>
+/// Нужен только для оформления: по краю и по центру принято показывать разным цветом,
+/// потому что это разные отношения — «встал вплотную» и «встал симметрично».
+/// </remarks>
+internal enum DesignSnapGuideKind
+{
+    /// <summary>Выравнивание, в котором участвует хотя бы один край.</summary>
+    Edge,
+
+    /// <summary>Выравнивание центра к центру.</summary>
+    Centre
 }
 
 /// <summary>
@@ -36,12 +52,19 @@ internal readonly struct DesignSnapGuide : IEquatable<DesignSnapGuide>
     /// <param name="position">Координата линии по выравниваемой оси.</param>
     /// <param name="start">Начало линии по другой оси.</param>
     /// <param name="end">Конец линии по другой оси.</param>
-    public DesignSnapGuide(DesignSnapGuideOrientation orientation, double position, double start, double end)
+    /// <param name="kind">Вид выравнивания, породившего линию.</param>
+    public DesignSnapGuide(
+        DesignSnapGuideOrientation orientation,
+        double position,
+        double start,
+        double end,
+        DesignSnapGuideKind kind = DesignSnapGuideKind.Edge)
     {
         Orientation = orientation;
         Position = position;
         Start = start;
         End = end;
+        Kind = kind;
     }
 
     /// <summary>Получает ось, вдоль которой работает направляющая.</summary>
@@ -56,16 +79,20 @@ internal readonly struct DesignSnapGuide : IEquatable<DesignSnapGuide>
     /// <summary>Получает конец линии по другой оси.</summary>
     public double End { get; }
 
+    /// <summary>Получает вид выравнивания, породившего линию.</summary>
+    public DesignSnapGuideKind Kind { get; }
+
     /// <inheritdoc />
     public bool Equals(DesignSnapGuide other)
         => Orientation == other.Orientation
            && Position.Equals(other.Position)
            && Start.Equals(other.Start)
-           && End.Equals(other.End);
+           && End.Equals(other.End)
+           && Kind == other.Kind;
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is DesignSnapGuide other && Equals(other);
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Orientation, Position, Start, End);
+    public override int GetHashCode() => HashCode.Combine(Orientation, Position, Start, End, Kind);
 }
