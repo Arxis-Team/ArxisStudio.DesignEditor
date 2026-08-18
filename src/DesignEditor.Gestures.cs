@@ -609,7 +609,10 @@ public partial class DesignEditor
 
     private void OnGroupSelectionResizeStarted(object? sender, ResizeStartedEventArgs e)
     {
-        if (!HasMultipleContainerSelection)
+        // Жест принимает та же рамка, которую показывает шаблон: и группа контейнеров,
+        // и design-time группа. Условие обязано совпадать с ShowsGroupFrame, иначе
+        // ручки видны и берутся мышью, а жест молча не начинается.
+        if (!ShowsGroupFrame)
             return;
 
         // TryCreateGroupResizeOperation фиксирует текущие размеры target'ов,

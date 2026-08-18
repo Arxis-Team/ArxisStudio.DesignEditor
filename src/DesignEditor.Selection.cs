@@ -286,7 +286,12 @@ public partial class DesignEditor
 
         var groupResizePolicy = ArxisStudio.Attached.ResizePolicy.None;
         var groupMovePolicy = ArxisStudio.Attached.MovePolicy.None;
-        if (HasMultipleContainerSelection && SelectedDesignTargets.Count > 1)
+
+        // Условие обязано совпадать с тем, по которому шаблон показывает рамку.
+        // Locked-визуал — это не отдельное оформление, а adorner с политиками
+        // None/None: рамка, которой политики не посчитали, выглядит заблокированной
+        // и ручки у неё неинтерактивны. Одна причина на оба симптома.
+        if (ShowsGroupFrame && SelectedDesignTargets.Count > 1)
         {
             groupResizePolicy = ArxisStudio.Attached.ResizePolicy.All;
             groupMovePolicy = ArxisStudio.Attached.MovePolicy.Both;

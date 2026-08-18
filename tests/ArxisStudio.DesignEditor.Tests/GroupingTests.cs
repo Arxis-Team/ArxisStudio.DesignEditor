@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using ArxisStudio.Attached;
+using ArxisStudio.Controls;
 using Xunit;
 
 namespace ArxisStudio.Tests;
@@ -275,6 +277,58 @@ public class GroupingTests
         Assert.NotEqual(nestedBefore.X, nestedAfter.X);
         Assert.Equal(nestedAfter.X - nestedBefore.X, siblingAfter.X - siblingBefore.X, 1);
         Assert.Equal(nestedAfter.Y - nestedBefore.Y, siblingAfter.Y - siblingBefore.Y, 1);
+    }
+
+    private static SelectionAdorner GroupAdorner(EditorHarness harness)
+        => harness.Editor.GetVisualDescendants()
+            .OfType<SelectionAdorner>()
+            .Single(a => a.Name == "PART_GroupSelectionAdorner");
+
+    /// <summary>
+    /// Рамка группы не выглядит заблокированной.
+    /// </summary>
+    /// <remarks>
+    /// Locked-визуал — это не отдельное оформление, а то, как рисуется adorner с
+    /// политиками <c>None</c>/<c>None</c>. Поэтому рамка группы, которой политики не
+    /// посчитали, выглядела ровно как заблокированный элемент — и ручки у неё были
+    /// неинтерактивными по той же причине, а не по двум разным.
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Group_Frame_Is_Not_Drawn_Locked()
+    {
+        var harness = CreateGrouped();
+        var adorner = GroupAdorner(harness);
+
+        Assert.NotEqual(ResizePolicy.None, adorner.ResizePolicy);
+        Assert.NotEqual(MovePolicy.None, adorner.MovePolicy);
+    }
+
+    /// <summary>
+    /// Группа масштабируется ручкой рамки.
+    /// </summary>
+    /// <remarks>
+    /// Тянем тем же путём, которым тянет приложение: события поднимает сам adorner.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Resizing_The_Frame_Scales_The_Whole_Group()
+    {
+        var harness = CreateGrouped();
+        var nested = harness.Nested(0);
+        var sibling = harness.Named(0, "Sibling");
+
+        var widthBefore = harness.Editor.GetDesignSize(nested).Width;
+        var frameBefore = harness.Editor.SelectionBounds;
+
+        var adorner = GroupAdorner(harness);
+        var delta = new Vector(40, 0);
+        adorner.RaiseEvent(new ResizeStartedEventArgs(default, ResizeDirection.Right, SelectionAdorner.ResizeStartedEvent));
+        adorner.RaiseEvent(new ResizeDeltaEventArgs(delta, ResizeDirection.Right, SelectionAdorner.ResizeDeltaEvent));
+        adorner.RaiseEvent(new VectorEventArgs { RoutedEvent = SelectionAdorner.ResizeCompletedEvent, Vector = delta });
+        harness.RunLayout();
+
+        Assert.True(harness.Editor.SelectionBounds.Width > frameBefore.Width);
+        Assert.True(harness.Editor.GetDesignSize(nested).Width > widthBefore);
+        Assert.True(harness.Editor.GetDesignSize(sibling).Width > 0);
     }
 
     // ---- Контракт изменений -----------------------------------------------------
