@@ -16,8 +16,9 @@ internal class EditorSelectingState : EditorState
     /// Режим рамки, зафиксированный в момент нажатия.
     /// </summary>
     /// <remarks>
-    /// Модификатор читается один раз: жест не должен менять смысл, если пользователь
-    /// отпустит или нажмёт клавишу посреди протяжки.
+    /// Решается один раз, по точке нажатия и модификатору: жест не должен менять смысл,
+    /// если пользователь отпустит или нажмёт клавишу посреди протяжки. Владелец рамки,
+    /// в отличие от режима, пересчитывается каждый кадр.
     /// </remarks>
     private bool _useContainerSelection;
 
@@ -47,10 +48,14 @@ internal class EditorSelectingState : EditorState
 
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
-        _useContainerSelection = Editor.ShouldUseContainerInteraction(Editor.LastInputModifiers);
 
         // 2. Запоминаем точку старта в МИРОВЫХ координатах (с учетом зума и пана)
-        _startLocationWorld = Editor.GetWorldPosition(Editor.GetPositionForInput(Editor));
+        var pressPoint = Editor.GetPositionForInput(Editor);
+        _startLocationWorld = Editor.GetWorldPosition(pressPoint);
+
+        // Режим решает точка нажатия: снаружи форм рамка набирает формы, изнутри —
+        // их содержимое. Модификатор по-прежнему требует форм откуда угодно.
+        _useContainerSelection = Editor.ShouldUseContainerMarquee(pressPoint, Editor.LastInputModifiers);
 
         // 3. Сбрасываем текущее выделение, если не активен additive selection.
         var modifiers = Editor.LastInputModifiers;

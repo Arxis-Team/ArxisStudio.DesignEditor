@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -52,6 +52,29 @@ public class MarqueeGestureTests
         Assert.Equal(
             ContainerEmptyAreaDragGesture.Marquee,
             harness.Editor.InputGestures.ContainerEmptyAreaDrag);
+    }
+
+    /// <summary>
+    /// Рамка, начатая на пустом холсте, набирает формы, а не их содержимое.
+    /// </summary>
+    /// <remarks>
+    /// Снаружи контейнеров выбирать их содержимое не за что: пользователь видит формы
+    /// и обводит формы. Модификатор для этого не нужен — он остаётся способом
+    /// потребовать того же изнутри формы.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Marquee_From_Empty_Canvas_Collects_Containers()
+    {
+        var harness = CreatePlaced();
+
+        // Рамка накрывает форму целиком: иначе внутри неё не окажется ни одного
+        // вложенного контрола, сработает запасной путь «пустая рамка выбирает
+        // контейнер», и тест пройдёт, ничего не проверив.
+        Drag(harness, new Point(500, 400), new Point(50, 50));
+
+        var target = Assert.Single(harness.Editor.SelectedDesignTargets);
+        Assert.Equal(DesignSelectionScope.Container, target.Scope);
+        Assert.Same(harness.Container(0), target.Target);
     }
 
     [AvaloniaFact]
