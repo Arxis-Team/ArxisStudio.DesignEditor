@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -269,6 +269,77 @@ public class DesignRulerTests
         stand.Harness.RunLayout();
 
         Assert.Equal(DesignGuide.Horizontal((180 / 2.0) + 40), Assert.Single(stand.Requests).Guide);
+    }
+
+    // ---- Выключатели ----------------------------------------------------------
+
+    /// <summary>
+    /// Оба переключателя включены по умолчанию.
+    /// </summary>
+    [AvaloniaFact]
+    public void Rulers_And_Scale_Are_On_By_Default()
+    {
+        var stand = Create();
+
+        Assert.True(stand.Harness.Editor.ShowRulers);
+        Assert.True(stand.Top.IsScaleVisible);
+        Assert.True(stand.Top.IsVisible);
+    }
+
+    /// <summary>
+    /// <c>ShowRulers</c> гасит обе линейки разом.
+    /// </summary>
+    /// <remarks>
+    /// Линейка в шаблон редактора не входит, поэтому свойство работает подпиской:
+    /// линейка следит за ним у своего <c>Editor</c> так же, как за масштабом.
+    /// Одна настройка на пару — хосту не нужно держать свой флаг.
+    /// </remarks>
+    [AvaloniaFact]
+    public void ShowRulers_Hides_Both_Rulers()
+    {
+        var stand = Create();
+
+        stand.Harness.Editor.ShowRulers = false;
+        stand.Harness.RunLayout();
+
+        Assert.False(stand.Top.IsVisible);
+        Assert.False(stand.Left.IsVisible);
+
+        // Скрытая линейка не занимает места: строка и колонка Auto схлопываются,
+        // и редактор занимает всё окно.
+        Assert.Equal(0, stand.Harness.Editor.Bounds.X, 3);
+        Assert.Equal(0, stand.Harness.Editor.Bounds.Y, 3);
+
+        stand.Harness.Editor.ShowRulers = true;
+        stand.Harness.RunLayout();
+
+        Assert.True(stand.Top.IsVisible);
+        Assert.Equal(RulerSize, stand.Harness.Editor.Bounds.X, 3);
+    }
+
+    /// <summary>
+    /// Выключенная шкала оставляет полосу и жест на месте.
+    /// </summary>
+    /// <remarks>
+    /// Это разные вещи: «шкала мешает читать макет» и «линейка не нужна вовсе».
+    /// Без делений с линейки по-прежнему вытягивается направляющая.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Ruler_Without_Its_Scale_Still_Pulls_Guides()
+    {
+        var stand = Create();
+        stand.Top.IsScaleVisible = false;
+        stand.Harness.RunLayout();
+
+        Assert.True(stand.Top.IsVisible);
+        Assert.Equal(RulerSize, stand.Harness.Editor.Bounds.Y, 3);
+
+        stand.Harness.Window.MouseDown(InWindow(300, -10), MouseButton.Left);
+        stand.Harness.Window.MouseMove(InWindow(300, 180));
+        stand.Harness.Window.MouseUp(InWindow(300, 180), MouseButton.Left);
+        stand.Harness.RunLayout();
+
+        Assert.Equal(DesignGuide.Horizontal(180), Assert.Single(stand.Requests).Guide);
     }
 
     [AvaloniaFact]

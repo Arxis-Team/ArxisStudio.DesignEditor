@@ -52,6 +52,12 @@ public class DesignRuler : Control
         AvaloniaProperty.Register<DesignRuler, DesignEditor?>(nameof(Editor));
 
     /// <summary>
+    /// Идентификатор свойства видимости шкалы.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsScaleVisibleProperty =
+        AvaloniaProperty.Register<DesignRuler, bool>(nameof(IsScaleVisible), true);
+
+    /// <summary>
     /// Идентификатор свойства кисти делений.
     /// </summary>
     public static readonly StyledProperty<IBrush?> TickBrushProperty =
@@ -79,6 +85,7 @@ public class DesignRuler : Control
     {
         AffectsRender<DesignRuler>(
             OrientationProperty,
+            IsScaleVisibleProperty,
             TickBrushProperty,
             LabelBrushProperty,
             BackgroundProperty,
@@ -107,6 +114,21 @@ public class DesignRuler : Control
     {
         get => GetValue(EditorProperty);
         set => SetValue(EditorProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения шкалы.
+    /// </summary>
+    /// <remarks>
+    /// Выключенная шкала оставляет полосу линейки на месте: с неё по-прежнему
+    /// вытягиваются направляющие, просто без делений и подписей. Это разные вещи —
+    /// «шкала мешает читать макет» и «линейка не нужна вовсе», — и второе выключается
+    /// через <see cref="DesignEditor.ShowRulers"/>.
+    /// </remarks>
+    public bool IsScaleVisible
+    {
+        get => GetValue(IsScaleVisibleProperty);
+        set => SetValue(IsScaleVisibleProperty, value);
     }
 
     /// <summary>
@@ -170,7 +192,8 @@ public class DesignRuler : Control
 
         _viewportSubscription = new CompositeSubscription(
             editor.GetObservable(DesignEditor.ViewportLocationProperty).Subscribe(new Sink<Point>(this)),
-            editor.GetObservable(DesignEditor.ViewportZoomProperty).Subscribe(new Sink<double>(this)));
+            editor.GetObservable(DesignEditor.ViewportZoomProperty).Subscribe(new Sink<double>(this)),
+            editor.GetObservable(DesignEditor.ShowRulersProperty).Subscribe(new VisibilitySink(this)));
 
         InvalidateVisual();
     }
@@ -259,6 +282,9 @@ public class DesignRuler : Control
 
         if (Background is { } background)
             context.FillRectangle(background, new Rect(size));
+
+        if (!IsScaleVisible)
+            return;
 
         if (Editor is not { } editor || TickBrush is not { } tickBrush)
             return;
@@ -351,6 +377,26 @@ public class DesignRuler : Control
         return factor * magnitude;
     }
 
+    /// <summary>Приёмник переключателя линеек: правит видимость.</summary>
+    private sealed class VisibilitySink : IObserver<bool>
+    {
+        private readonly DesignRuler _ruler;
+
+        public VisibilitySink(DesignRuler ruler) => _ruler = ruler;
+
+        public void OnCompleted()
+        {
+        }
+
+        public void OnError(Exception error)
+        {
+        }
+
+        // SetCurrentValue, а не SetValue: привязка хоста к IsVisible должна пережить
+        // переключение, иначе одно выключение линеек навсегда её обрывало бы.
+        public void OnNext(bool value) => _ruler.SetCurrentValue(IsVisibleProperty, value);
+    }
+
     /// <summary>Приёмник изменений viewport: перерисовывает линейку.</summary>
     private sealed class Sink<T> : IObserver<T>
     {
@@ -369,22 +415,17 @@ public class DesignRuler : Control
         public void OnNext(T value) => _ruler.InvalidateVisual();
     }
 
-    /// <summary>Пара подписок, снимаемых вместе.</summary>
+    /// <summary>Набор подписок, снимаемых вместе.</summary>
     private sealed class CompositeSubscription : IDisposable
     {
-        private readonly IDisposable _first;
-        private readonly IDisposable _second;
+        private readonly IDisposable[] _subscriptions;
 
-        public CompositeSubscription(IDisposable first, IDisposable second)
-        {
-            _first = first;
-            _second = second;
-        }
+        public CompositeSubscription(params IDisposable[] subscriptions) => _subscriptions = subscriptions;
 
         public void Dispose()
         {
-            _first.Dispose();
-            _second.Dispose();
+            foreach (var subscription in _subscriptions)
+                subscription.Dispose();
         }
     }
 }

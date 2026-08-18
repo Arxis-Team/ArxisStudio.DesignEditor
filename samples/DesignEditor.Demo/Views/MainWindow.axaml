@@ -52,11 +52,13 @@
         -->
         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,*">
         <arxisControls:DesignRuler Grid.Row="0" Grid.Column="1"
+                                   x:Name="TopRuler"
                                    Orientation="Horizontal"
                                    Editor="{Binding #Editor}" />
         <arxisControls:DesignRuler Grid.Row="1" Grid.Column="0"
                                    Orientation="Vertical"
-                                   Editor="{Binding #Editor}" />
+                                   Editor="{Binding #Editor}"
+                                   IsScaleVisible="{Binding #TopRuler.IsScaleVisible}" />
 
         <arxisStudio:DesignEditor Grid.Row="1" Grid.Column="1"
                                  x:Name="Editor"
@@ -246,6 +248,29 @@
                               VerticalAlignment="Center"
                               Content="snap"
                               IsChecked="{Binding #Editor.InteractionOptions.IsSnapToGridEnabled}"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Height="16" Fill="#3E4451"/>
+
+                <!--
+                    Два разных выключателя: ShowRulers убирает линейки целиком,
+                    IsScaleVisible оставляет полосу, с которой всё ещё вытягиваются
+                    направляющие, но без делений и подписей.
+                -->
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <CheckBox Name="RulersBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="rulers"
+                              IsChecked="{Binding #Editor.ShowRulers}"/>
+                    <CheckBox Name="ScaleBox"
+                              FontSize="10"
+                              Foreground="#999"
+                              VerticalAlignment="Center"
+                              Content="scale"
+                              IsEnabled="{Binding #Editor.ShowRulers}"
+                              IsChecked="{Binding #TopRuler.IsScaleVisible}"/>
                 </StackPanel>
 
                 <Rectangle Width="1" Height="16" Fill="#3E4451"/>

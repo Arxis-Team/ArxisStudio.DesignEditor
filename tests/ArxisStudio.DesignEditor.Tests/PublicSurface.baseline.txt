@@ -73,6 +73,7 @@ class ArxisStudio.Controls.DesignGrid : Control
 class ArxisStudio.Controls.DesignRuler : Control
     avalonia BackgroundProperty -> Background : IBrush (styled) = null
     avalonia EditorProperty -> Editor : DesignEditor (styled) = null
+    avalonia IsScaleVisibleProperty -> IsScaleVisible : Boolean (styled) = true
     avalonia LabelBrushProperty -> LabelBrush : IBrush (styled) = null
     avalonia LabelFontSizeProperty -> LabelFontSize : Double (styled) = 9
     avalonia OrientationProperty -> Orientation : Orientation (styled) = Horizontal
@@ -83,6 +84,7 @@ class ArxisStudio.Controls.DesignRuler : Control
     method Void OnPointerPressed(PointerPressedEventArgs)
     method Void OnPointerReleased(PointerReleasedEventArgs)
     method Void Render(DrawingContext)
+    property Boolean IsScaleVisible { get; set; }
     property DesignEditor Editor { get; set; }
     property Double LabelFontSize { get; set; }
     property IBrush Background { get; set; }
@@ -184,6 +186,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia SelectionProperty -> Selection : ISelectionModel (direct)
     avalonia SelectionRectangleStyleProperty -> SelectionRectangleStyle : ControlTheme (styled) = null
     avalonia ShowGridProperty -> ShowGrid : Boolean (styled) = true
+    avalonia ShowRulersProperty -> ShowRulers : Boolean (styled) = true
     avalonia ViewportLocationProperty -> ViewportLocation : Point (styled) = 0, 0
     avalonia ViewportTransformProperty -> ViewportTransform : Transform (styled) = <TransformGroup>
     avalonia ViewportZoomProperty -> ViewportZoom : Double (styled) = 1
@@ -234,6 +237,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     property Boolean IsReordering { get; }
     property Boolean IsSelecting { get; set; }
     property Boolean ShowGrid { get; set; }
+    property Boolean ShowRulers { get; set; }
     property ControlTheme SelectionRectangleStyle { get; set; }
     property DesignEditorInputGestures InputGestures { get; set; }
     property DesignEditorInteractionOptions InteractionOptions { get; set; }

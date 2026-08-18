@@ -116,6 +116,12 @@ public partial class DesignEditor
         AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowGrid), true);
 
     /// <summary>
+    /// Идентификатор свойства видимости линеек.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowRulersProperty =
+        AvaloniaProperty.Register<DesignEditor, bool>(nameof(ShowRulers), true);
+
+    /// <summary>
     /// Идентификатор темы для прямоугольника выделения.
     /// </summary>
     public static readonly StyledProperty<ControlTheme> SelectionRectangleStyleProperty =
@@ -395,6 +401,25 @@ public partial class DesignEditor
     {
         get => GetValue(ShowGridProperty);
         set => SetValue(ShowGridProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает признак отображения линеек.
+    /// </summary>
+    /// <remarks>
+    /// Линейка в шаблон редактора не входит — её ставит хост, — поэтому свойство
+    /// не прячет её напрямую, а служит общим выключателем: <see cref="Controls.DesignRuler"/>
+    /// следит за ним у своего <c>Editor</c> так же, как за масштабом и положением.
+    /// Одна настройка гасит обе линейки, и хосту не нужно держать свой флаг.
+    /// <para>
+    /// Видимость ставится через <c>SetCurrentValue</c>, поэтому собственная привязка
+    /// хоста к <c>IsVisible</c> переживает переключение.
+    /// </para>
+    /// </remarks>
+    public bool ShowRulers
+    {
+        get => GetValue(ShowRulersProperty);
+        set => SetValue(ShowRulersProperty, value);
     }
 
     /// <summary>
