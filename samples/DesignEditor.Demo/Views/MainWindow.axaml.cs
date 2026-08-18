@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 using ArxisStudio;
 using DesignEditor.Demo.Context;
@@ -36,6 +37,16 @@ public partial class MainWindow : Window
 
             // Отмена строится поверх DesignEditor.EditCompleted и ApplyGeometry.
             _history = new EditHistory(editor);
+
+            // Соглашение этого приложения: повтор — Ctrl + X, вдобавок к принятым
+            // системой. Библиотека такого не навязывает: у неё по умолчанию стоят
+            // платформенные сочетания, а нестандартное задаёт тот, кому оно нужно.
+            editor.InputGestures.RedoGestures = new[]
+            {
+                new KeyGesture(Key.X, KeyModifiers.Control),
+                new KeyGesture(Key.Y, KeyModifiers.Control),
+                new KeyGesture(Key.Z, KeyModifiers.Control | KeyModifiers.Shift)
+            };
 
             // Клавиши истории редактор не выполняет сам — стек принадлежит хосту,
             // поэтому он спрашивает, а Handled говорит, что запрос выполнен.

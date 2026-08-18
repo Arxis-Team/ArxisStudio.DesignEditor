@@ -118,6 +118,39 @@ public class HistoryKeyTests
     }
 
     /// <summary>
+    /// Хост может задать свои сочетания вместо платформенных.
+    /// </summary>
+    /// <remarks>
+    /// Зашивать нестандартное сочетание в библиотеку нельзя: оно досталось бы всем,
+    /// включая тех, у кого <c>Ctrl + X</c> это «вырезать». Поэтому список задаётся
+    /// снаружи, а <see langword="null"/> означает «взять у платформы».
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Host_Can_Replace_The_Combinations()
+    {
+        var harness = Create();
+        harness.Editor.InputGestures.RedoGestures = new[] { new KeyGesture(Key.X, KeyModifiers.Control) };
+
+        Assert.Equal(1, Count(harness, PhysicalKey.X, RawInputModifiers.Control, undo: false));
+    }
+
+    /// <summary>
+    /// Заданный список заменяет платформенный, а не дополняет его.
+    /// </summary>
+    /// <remarks>
+    /// Иначе выключить платформенное сочетание было бы нечем, а «задал своё, а старое
+    /// продолжает работать» — худший вид сюрприза в настройке.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Custom_List_Replaces_The_Platform_One()
+    {
+        var harness = Create();
+        harness.Editor.InputGestures.RedoGestures = new[] { new KeyGesture(Key.X, KeyModifiers.Control) };
+
+        Assert.Equal(0, Count(harness, PhysicalKey.Y, RawInputModifiers.Control, undo: false));
+    }
+
+    /// <summary>
     /// Без подписчика нажатие остаётся необработанным.
     /// </summary>
     /// <remarks>

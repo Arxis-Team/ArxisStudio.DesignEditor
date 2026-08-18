@@ -375,12 +375,16 @@ class ArxisStudio.DesignEditorInputGestures : AvaloniaObject
     avalonia MarqueeModifiersProperty -> MarqueeModifiers : KeyModifiers (styled) = None
     avalonia PanButtonProperty -> PanButton : DesignEditorPointerButton (styled) = Middle
     avalonia PanModifiersProperty -> PanModifiers : KeyModifiers (styled) = None
+    avalonia RedoGesturesProperty -> RedoGestures : IReadOnlyList<KeyGesture> (styled) = null
     avalonia SnapBypassModifiersProperty -> SnapBypassModifiers : KeyModifiers (styled) = Alt
+    avalonia UndoGesturesProperty -> UndoGestures : IReadOnlyList<KeyGesture> (styled) = null
     avalonia ZoomModifiersProperty -> ZoomModifiers : KeyModifiers (styled) = None
     ctor .ctor()
     property ContainerEmptyAreaDragGesture ContainerEmptyAreaDrag { get; set; }
     property DesignEditorPointerButton MarqueeButton { get; set; }
     property DesignEditorPointerButton PanButton { get; set; }
+    property IReadOnlyList<KeyGesture> RedoGestures { get; set; }
+    property IReadOnlyList<KeyGesture> UndoGestures { get; set; }
     property KeyModifiers AdditiveSelectionModifiers { get; set; }
     property KeyModifiers ContainerInteractionModifiers { get; set; }
     property KeyModifiers LargeNudgeModifiers { get; set; }

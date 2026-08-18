@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Input;
 
@@ -90,6 +91,18 @@ public class DesignEditorInputGestures : AvaloniaObject
             DesignEditorPointerButton.Middle);
 
     /// <summary>
+    /// Идентификатор свойства сочетаний отмены.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<KeyGesture>?> UndoGesturesProperty =
+        AvaloniaProperty.Register<DesignEditorInputGestures, IReadOnlyList<KeyGesture>?>(nameof(UndoGestures));
+
+    /// <summary>
+    /// Идентификатор свойства сочетаний повтора.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<KeyGesture>?> RedoGesturesProperty =
+        AvaloniaProperty.Register<DesignEditorInputGestures, IReadOnlyList<KeyGesture>?>(nameof(RedoGestures));
+
+    /// <summary>
     /// Идентификатор свойства модификаторов клавиатуры для запуска панорамирования.
     /// </summary>
     /// <remarks>Значение по умолчанию: <see cref="KeyModifiers.None"/>.</remarks>
@@ -151,6 +164,37 @@ public class DesignEditorInputGestures : AvaloniaObject
     {
         get => GetValue(PanButtonProperty);
         set => SetValue(PanButtonProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает сочетания клавиш отмены.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> означает «взять у платформы»: на Windows и Linux это
+    /// <c>Ctrl + Z</c>, на macOS — <c>Cmd + Z</c>. Отмена — соглашение системы, и по
+    /// умолчанию библиотека его не переопределяет.
+    /// <para>
+    /// Задавать своё имеет смысл там, где у приложения уже есть собственное
+    /// соглашение и расходиться с ним хуже, чем с системным.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<KeyGesture>? UndoGestures
+    {
+        get => GetValue(UndoGesturesProperty);
+        set => SetValue(UndoGesturesProperty, value);
+    }
+
+    /// <summary>
+    /// Получает или задает сочетания клавиш повтора.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> означает «взять у платформы»: обычно это <c>Ctrl + Y</c>
+    /// и <c>Ctrl + Shift + Z</c>.
+    /// </remarks>
+    public IReadOnlyList<KeyGesture>? RedoGestures
+    {
+        get => GetValue(RedoGesturesProperty);
+        set => SetValue(RedoGesturesProperty, value);
     }
 
     /// <summary>

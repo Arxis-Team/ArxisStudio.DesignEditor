@@ -104,6 +104,11 @@ public partial class DesignEditor
         if (e.Handled)
             return;
 
+        // История разбирается до switch: сочетание задаётся целиком и настраивается,
+        // поэтому конкретная клавиша заранее не известна и ветвиться по ней нельзя.
+        if (TryHandleHistoryKey(e))
+            return;
+
         switch (e.Key)
         {
             case Key.Left:
@@ -126,14 +131,6 @@ public partial class DesignEditor
                 e.Handled = TrySelectAll();
                 break;
 
-            case Key.Z when Matches(HotkeyConfiguration?.Undo, e):
-                e.Handled = TryRequestHistory(UndoRequested);
-                break;
-
-            case Key.Y when Matches(HotkeyConfiguration?.Redo, e):
-            case Key.Z when Matches(HotkeyConfiguration?.Redo, e):
-                e.Handled = TryRequestHistory(RedoRequested);
-                break;
         }
     }
 
@@ -146,9 +143,31 @@ public partial class DesignEditor
     /// заводить свои свойства и потом объяснять, почему они не совпадают с остальным
     /// приложением.
     /// </remarks>
+    /// <summary>
+    /// Разбирает нажатие как отмену или повтор.
+    /// </summary>
+    /// <param name="e">Аргументы нажатия.</param>
+    /// <returns><see langword="true"/>, если нажатие обработано.</returns>
+    private bool TryHandleHistoryKey(KeyEventArgs e)
+    {
+        if (Matches(InputGestures.UndoGestures ?? HotkeyConfiguration?.Undo, e))
+        {
+            e.Handled = TryRequestHistory(UndoRequested);
+            return e.Handled;
+        }
+
+        if (Matches(InputGestures.RedoGestures ?? HotkeyConfiguration?.Redo, e))
+        {
+            e.Handled = TryRequestHistory(RedoRequested);
+            return e.Handled;
+        }
+
+        return false;
+    }
+
     private PlatformHotkeyConfiguration? HotkeyConfiguration => this.GetPlatformSettings()?.HotkeyConfiguration;
 
-    private static bool Matches(System.Collections.Generic.List<KeyGesture>? gestures, KeyEventArgs e)
+    private static bool Matches(IReadOnlyList<KeyGesture>? gestures, KeyEventArgs e)
     {
         if (gestures == null)
             return false;

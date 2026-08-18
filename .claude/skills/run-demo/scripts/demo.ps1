@@ -35,10 +35,11 @@ param(
     [ValidateSet('None', 'Ctrl', 'Shift', 'Alt', 'CtrlShift')]
     [string]$Modifier = 'None',
 
-    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A', 'Z', 'Y')]
+    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A', 'Z', 'Y', 'X')]
     [string]$Key = 'Right',
 
     [int]$Notches = 3,
+    [int]$Repeat = 1,
     [int]$TimeoutSec = 20
 )
 
@@ -101,6 +102,35 @@ public static class DemoDriver
     public static RECT Rect(IntPtr h) { RECT r; GetWindowRect(h, out r); return r; }
 
     public static void Focus(IntPtr h) { SetForegroundWindow(h); System.Threading.Thread.Sleep(600); }
+
+    // Клавиши идут тем же низкоуровневым путём, что и мышь. SendKeys здесь не работал:
+    // замер показывал, что Ctrl + A не меняет выделение, то есть нажатие до приложения
+    // не доходило вовсе.
+    public static void Key(IntPtr h, byte vk, string modifier)
+    {
+        Focus(h);
+        byte[] mods = Modifiers(modifier);
+
+        foreach (byte m in mods) keybd_event(m, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(40);
+        keybd_event(vk, 0, 0, IntPtr.Zero);
+        System.Threading.Thread.Sleep(40);
+        keybd_event(vk, 0, 2, IntPtr.Zero);
+        for (int i = mods.Length - 1; i >= 0; i--) keybd_event(mods[i], 0, 2, IntPtr.Zero);
+        System.Threading.Thread.Sleep(400);
+    }
+
+    static byte[] Modifiers(string modifier)
+    {
+        switch (modifier)
+        {
+            case "Ctrl": return new byte[] { 0x11 };
+            case "Shift": return new byte[] { 0x10 };
+            case "Alt": return new byte[] { 0x12 };
+            case "CtrlShift": return new byte[] { 0x11, 0x10 };
+            default: return new byte[0];
+        }
+    }
 
     public static void Shot(IntPtr h, string path)
     {
@@ -308,42 +338,25 @@ switch ($Action) {
     'key' {
         $p = Require-Demo
 
-        # ВНИМАНИЕ: этот путь сейчас не работает. Замер: Ctrl + A (выбрать всё —
-        # давняя возможность, закрытая тестами) через него не меняет выделение,
-        # значит нажатие до приложения не доходит. Мышь при этом работает: mouse_event
-        # адресуется точкой экрана, а не фокусом.
-        #
-        # Здесь стоял комментарий, утверждавший обратное — что SendKeys выбран
-        # потому, что keybd_event не доходит. Проверять клавиатуру этим действием
-        # нельзя: оно молча ничего не делает. Клавиатурные сценарии закрыты
-        # headless-тестами, где нажатия идут через настоящий ввод Avalonia.
-        $token = switch ($Key) {
-            'Left'   { '{LEFT}' }
-            'Right'  { '{RIGHT}' }
-            'Up'     { '{UP}' }
-            'Down'   { '{DOWN}' }
-            'Delete' { '{DELETE}' }
-            'Escape' { '{ESC}' }
-            'A'      { 'a' }
-            'Z'      { 'z' }
-            'Y'      { 'y' }
+        $vk = switch ($Key) {
+            'Left'   { 0x25 }
+            'Right'  { 0x27 }
+            'Up'     { 0x26 }
+            'Down'   { 0x28 }
+            'Delete' { 0x2E }
+            'Escape' { 0x1B }
+            'A'      { 0x41 }
+            'Z'      { 0x5A }
+            'Y'      { 0x59 }
+            'X'      { 0x58 }
         }
 
-        $prefix = switch ($Modifier) {
-            'Ctrl'  { '^' }
-            'Shift' { '+' }
-            'Alt'   { '%' }
-            default { '' }
+        for ($i = 0; $i -lt $Repeat; $i++) {
+            [DemoDriver]::Key($p.MainWindowHandle, [byte]$vk, $Modifier)
         }
 
-        $shell = New-Object -ComObject WScript.Shell
-        $null = $shell.AppActivate($p.Id)
-        Start-Sleep -Milliseconds 400
-        $shell.SendKeys(($prefix + $token) * [Math]::Max(1, $Notches))
-        Start-Sleep -Milliseconds 900
-        "key $Key modifier=$Modifier repeat=$Notches"
+        "key $Key modifier=$Modifier repeat=$Repeat"
     }
-
     'wheel' {
         $p = Require-Demo
         [DemoDriver]::Wheel($p.MainWindowHandle, $X, $Y, $Notches)

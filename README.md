@@ -252,7 +252,17 @@ editor.UndoRequested += (_, e) =>
 };
 ```
 
-Сами сочетания берутся у платформы (`PlatformHotkeyConfiguration`), а не задаются библиотекой: на macOS это `Cmd`, и повтор там пишется иначе. Клавиша без модификатора историю не трогает.
+По умолчанию сочетания берутся у платформы (`PlatformHotkeyConfiguration`): на macOS это `Cmd`, и повтор там пишется иначе. Клавиша без модификатора историю не трогает.
+
+Если у приложения своё соглашение, список задаётся снаружи и **заменяет** платформенный:
+
+```csharp
+editor.InputGestures.RedoGestures = new[]
+{
+    new KeyGesture(Key.X, KeyModifiers.Control),
+    new KeyGesture(Key.Y, KeyModifiers.Control)
+};
+```
 
 ### Контейнер как хост загруженной формы
 
