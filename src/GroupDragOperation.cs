@@ -10,16 +10,42 @@ internal sealed class GroupDragOperation
     private readonly IReadOnlyList<GroupDragTarget> _targets;
     private Vector _accumulatedDelta;
 
-    private GroupDragOperation(DesignEditorItem sourceContainer, Control sourceTarget, IReadOnlyList<GroupDragTarget> targets)
+    private GroupDragOperation(
+        DesignEditorItem sourceContainer,
+        Control sourceTarget,
+        IReadOnlyList<GroupDragTarget> targets,
+        Rect frame,
+        Vector frameOffset)
     {
         SourceContainer = sourceContainer;
         SourceTarget = sourceTarget;
         _targets = targets;
         _accumulatedDelta = Vector.Zero;
+        Frame = frame;
+        FrameOffset = frameOffset;
     }
 
     public DesignEditorItem SourceContainer { get; }
     public Control SourceTarget { get; }
+
+    /// <summary>
+    /// Рамка группы на момент начала жеста, в design-координатах.
+    /// </summary>
+    /// <remarks>
+    /// Снимается один раз: внутри жеста группа двигается целиком, и её размер
+    /// не меняется. К ней и идёт притяжение — как у группового resize и как
+    /// выглядит происходящее на экране.
+    /// </remarks>
+    public Rect Frame { get; }
+
+    /// <summary>
+    /// Смещение левого верхнего угла рамки от позиции источника.
+    /// </summary>
+    /// <remarks>
+    /// Им позиция рамки переводится в позицию источника и обратно: жест ведёт
+    /// источник, а притягивается рамка.
+    /// </remarks>
+    public Vector FrameOffset { get; }
 
     public static GroupDragOperation? TryCreate(DesignEditor editor, DesignEditorItem sourceContainer, Control sourceTarget)
     {
@@ -48,9 +74,20 @@ internal sealed class GroupDragOperation
             }
         }
 
-        return targets.Count > 0
-            ? new GroupDragOperation(sourceContainer, sourceTarget, targets)
-            : null;
+        if (targets.Count == 0)
+            return null;
+
+        if (!editor.TryGetDesignBounds(sourceTarget, out var frame))
+            return null;
+
+        var sourceOrigin = frame.Position;
+        for (var i = 0; i < targets.Count; i++)
+        {
+            if (editor.TryGetDesignBounds(targets[i].Target, out var bounds))
+                frame = frame.Union(bounds);
+        }
+
+        return new GroupDragOperation(sourceContainer, sourceTarget, targets, frame, frame.Position - sourceOrigin);
     }
 
     public bool CanHandle(DesignEditorItem sourceContainer)

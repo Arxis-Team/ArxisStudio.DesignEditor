@@ -149,6 +149,29 @@ public partial class DesignEditor
     /// </remarks>
     internal Point ResolveDragPosition(Control target, Point proposed, KeyModifiers modifiers)
     {
+        // Группа притягивается рамкой выделения, а не тем элементом, за который её
+        // схватили: так уже устроен групповой resize, и так же выглядит происходящее
+        // на экране — пользователь ведёт рамку, её и надо ставить на место.
+        //
+        // Отображение стоит снаружи всего разрешения, а не внутри ветки направляющих:
+        // правило одно на всю привязку, и сетка обязана ставить на узел ту же рамку.
+        if (_groupDragOperation is { } group && ReferenceEquals(target, group.SourceTarget))
+        {
+            var frame = ResolveOrigin(proposed + group.FrameOffset, group.Frame.Size, modifiers);
+            return frame - group.FrameOffset;
+        }
+
+        return ResolveOrigin(proposed, GetDesignSize(target), modifiers);
+    }
+
+    /// <summary>
+    /// Ставит прямоугольник на место по направляющим, интервалам и сетке.
+    /// </summary>
+    /// <param name="proposed">Предполагаемое положение левого верхнего угла.</param>
+    /// <param name="size">Размер прямоугольника.</param>
+    /// <param name="modifiers">Модификаторы текущего ввода.</param>
+    private Point ResolveOrigin(Point proposed, Size size, KeyModifiers modifiers)
+    {
         var neighbours = _snapGuideNeighbours;
 
         if (neighbours is not { Count: > 0 } || IsSnapBypassed(modifiers))
@@ -158,7 +181,6 @@ public partial class DesignEditor
             return SnapPosition(proposed, modifiers);
         }
 
-        var size = GetDesignSize(target);
         var snapToGrid = ShouldSnap(modifiers);
 
         DesignSnapGuideResolver.TryResolveOffset(

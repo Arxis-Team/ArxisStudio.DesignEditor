@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -179,9 +179,12 @@ public class SnapToGridTests
         var nestedAfter = DesignPositionOf(harness, "Nested");
         var siblingAfter = DesignPositionOf(harness, "Sibling");
 
-        // По группе идёт уже привязанное смещение источника, поэтому взаимное
+        // По группе идёт уже привязанное смещение рамки, поэтому взаимное
         // расположение сохраняется. Привязывай редактор каждого по отдельности —
         // соседи сошлись бы к общим узлам и группа «слиплась» бы.
+        //
+        // Здесь Nested — левый верхний угол рамки, поэтому её узел и его узел
+        // совпадают; случай, где они расходятся, закреплён в GroupSnapTests.
         Assert.Equal(140, nestedAfter.X, 1);
         Assert.Equal(siblingBefore.X - nestedBefore.X, siblingAfter.X - nestedAfter.X, 1);
         Assert.Equal(siblingBefore.Y - nestedBefore.Y, siblingAfter.Y - nestedAfter.Y, 1);
