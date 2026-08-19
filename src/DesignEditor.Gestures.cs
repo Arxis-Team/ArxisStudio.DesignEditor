@@ -646,6 +646,29 @@ public partial class DesignEditor
         e.Handled = true;
     }
 
+    private Point? _pointerWorld;
+
+    /// <summary>
+    /// Последнее известное положение указателя в мировых координатах.
+    /// </summary>
+    /// <remarks>
+    /// Изменение размера обязано считать поправку от указателя, а не от того, успела ли
+    /// ручка переехать. <c>Thumb.DragDelta</c> меряет смещение относительно самой ручки,
+    /// и приращённым оно бывает лишь пока между двумя движениями проходит layout. Стоит
+    /// указателю обогнать раскладку — а на занятом UI-потоке это обычное дело, — и каждая
+    /// дельта несёт всё расстояние заново; сложенные, они растят размер квадратично.
+    /// <para>
+    /// <see langword="null"/> до первого движения: жест, начатый без него, считает
+    /// по-старому.
+    /// </para>
+    /// </remarks>
+    internal Point? PointerWorld => _pointerWorld;
+
+    private void OnTrackPointer(object? sender, PointerEventArgs e)
+    {
+        _pointerWorld = GetWorldPosition(e.GetPosition(this));
+    }
+
     private Vector NormalizeResizeDelta(Vector delta)
     {
         var zoom = Math.Max(0.0001, ViewportZoom);
@@ -792,7 +815,8 @@ public partial class DesignEditor
             direction,
             selectionBounds,
             targets,
-            Math.Max(0.0, InteractionOptions.ResizeMinSize));
+            Math.Max(0.0, InteractionOptions.ResizeMinSize),
+            PointerWorld);
 
         return true;
     }

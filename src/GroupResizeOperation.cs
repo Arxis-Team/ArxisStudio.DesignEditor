@@ -19,13 +19,45 @@ internal sealed class GroupResizeOperation
     // всё, что съели привязка или границы формы, вернётся в следующей дельте.
     private Rect _currentBounds;
 
-    public GroupResizeOperation(ResizeDirection direction, Rect initialBounds, IReadOnlyList<GroupResizeTarget> targets, double minSize)
+    /// <summary>
+    /// Насколько указатель отстоял от двигающегося края рамки в момент захвата.
+    /// </summary>
+    private readonly Vector? _grabOffset;
+
+    public GroupResizeOperation(ResizeDirection direction, Rect initialBounds, IReadOnlyList<GroupResizeTarget> targets, double minSize, Point? pointerWorld = null)
     {
         _direction = direction;
         _initialBounds = initialBounds;
         _targets = targets;
         _minSize = minSize;
         _currentBounds = initialBounds;
+
+        if (pointerWorld is { } pointer)
+            _grabOffset = pointer - MovingEdge(direction, initialBounds);
+    }
+
+    /// <summary>
+    /// Точка двигающегося края: угол для диагоналей, край для сторон.
+    /// </summary>
+    /// <remarks>
+    /// У односторонних направлений вторая координата в арифметику не входит, поэтому
+    /// берётся верхний левый угол — лишь бы согласованно с местом, где считают поправку.
+    /// </remarks>
+    internal static Point MovingEdge(ResizeDirection direction, Rect bounds)
+    {
+        var x = direction switch
+        {
+            ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight => bounds.Right,
+            _ => bounds.X
+        };
+
+        var y = direction switch
+        {
+            ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight => bounds.Bottom,
+            _ => bounds.Y
+        };
+
+        return new Point(x, y);
     }
 
     /// <summary>
@@ -36,6 +68,12 @@ internal sealed class GroupResizeOperation
 
     public void Update(DesignEditor editor, Vector worldDelta)
     {
+        // Дельта считается от указателя по той же причине, что и у одиночного resize:
+        // ручка отдаёт смещение относительно себя, и приращённым оно бывает лишь пока
+        // между движениями проходит layout.
+        if (editor.PointerWorld is { } pointer && _grabOffset is { } grab)
+            worldDelta = (pointer - grab) - MovingEdge(_direction, _currentBounds);
+
         var nextBounds = CalculateResizedBounds(_currentBounds, _direction, worldDelta, _minSize);
 
         // Для группы привязывается рамка целиком: привязка каждого target'а

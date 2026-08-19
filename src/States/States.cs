@@ -372,6 +372,15 @@ internal class ItemResizingState : DesignEditorItemState
     private Size _size;
 
     /// <summary>
+    /// Насколько указатель отстоял от двигающегося края в момент захвата.
+    /// </summary>
+    /// <remarks>
+    /// Ручку берут не за край, а за её середину плюс-минус несколько пикселей. Без этой
+    /// поправки край на первом же движении прыгнул бы к указателю на величину захвата.
+    /// </remarks>
+    private Vector? _grabOffset;
+
+    /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemResizingState"/>.
     /// </summary>
     /// <param name="container">Контейнер, размер которого изменяется.</param>
@@ -396,6 +405,9 @@ internal class ItemResizingState : DesignEditorItemState
         editor?.SetDesignSize(_target, size);
         _size = size;
 
+        if (editor?.PointerWorld is { } pointer)
+            _grabOffset = pointer - GroupResizeOperation.MovingEdge(_direction, new Rect(_location, _size));
+
         // Соседи снимаются здесь по той же причине, что и при перетаскивании:
         // внутри жеста они не двигаются, и линия обязана стоять там, где её
         // увидел пользователь.
@@ -407,6 +419,7 @@ internal class ItemResizingState : DesignEditorItemState
     {
         Container.FindAncestorOfType<DesignEditor>()?.EndSnapGuides();
     }
+
 
     /// <inheritdoc />
     public override void OnResizeDelta(ResizeDeltaEventArgs e)
@@ -430,8 +443,17 @@ internal class ItemResizingState : DesignEditorItemState
         double fixedRight = _location.X + _size.Width;
         double fixedBottom = _location.Y + _size.Height;
 
-        double dx = e.Delta.X;
-        double dy = e.Delta.Y;
+        // Дельта считается от указателя, а не от того, успела ли переехать ручка.
+        // Смысл величины прежний — «насколько указатель убежал от применённого края», —
+        // поэтому остаток, съеденный привязкой или ограничением, по-прежнему возвращается
+        // следующим движением, а элемент не отстаёт от курсора. Изменилось только то,
+        // чем этот остаток измеряется: раньше положением ручки, теперь самим указателем.
+        var delta = e.Delta;
+        if (editor?.PointerWorld is { } pointer && _grabOffset is { } grab)
+            delta = (pointer - grab) - GroupResizeOperation.MovingEdge(_direction, new Rect(_location, _size));
+
+        double dx = delta.X;
+        double dy = delta.Y;
 
         switch (_direction)
         {

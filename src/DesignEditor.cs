@@ -148,6 +148,11 @@ public partial class DesignEditor : SelectingItemsControl
         // под ней. Через всплытие это не сделать — контейнер обработает нажатие
         // первым, захватит указатель и начнёт своё перетаскивание.
         AddHandler(PointerPressedEvent, OnTunnelPointerPressed, RoutingStrategies.Tunnel);
+
+        // Положение указателя нужно изменению размера, а ручка о нём не сообщает.
+        // Туннель и handledEventsToo: во время жеста указатель захвачен ручкой,
+        // и она помечает движение обработанным.
+        AddHandler(PointerMovedEvent, OnTrackPointer, RoutingStrategies.Tunnel, handledEventsToo: true);
         SelectionMode = SelectionMode.Multiple;
         // Набор создан инициализатором поля и здесь только подхватывается: прежде
         // конструктор заводил второй и первый выбрасывал, а подписан оказывался

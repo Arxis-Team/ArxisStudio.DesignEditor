@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using ArxisStudio.Controls;
 using ArxisStudio.States;
@@ -178,5 +179,50 @@ public class ResizeStabilityTests
         // Упёршись в край формы, размер обязан замереть, а не пульсировать.
         Assert.Equal(widths[^2], widths[^1], 1);
         Assert.InRange(appliedRight, limit - 0.01, limit + 0.01);
+    }
+
+    /// <summary>
+    /// Дельта считается от указателя, а не от того, успела ли переехать ручка.
+    /// </summary>
+    /// <remarks>
+    /// <c>Thumb.DragDelta</c> отдаёт смещение относительно самой ручки, и приращённым оно
+    /// бывает лишь пока ручка успевает за указателем. Без layout-прохода между двумя
+    /// движениями ручка стоит, и каждая дельта несёт всё расстояние заново — 10, 20, 30,
+    /// левая колонка <c>ThumbDeltaProbeTests</c>. Складывая их, редактор растил ширину
+    /// квадратично: замер на живом демо давал +116 на протяжку в 20 пикселей.
+    /// <para>
+    /// Здесь ручка не двигается вовсе, а указатель уезжает на 10, 20, 30. Ширина обязана
+    /// следовать за указателем.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void Resize_Follows_The_Pointer_When_The_Handle_Lags()
+    {
+        var harness = EditorHarness.Create();
+        var container = harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+        var target = harness.Nested(0);
+
+        var start = Right(harness, target);
+        var y = harness.Editor.GetDesignPosition(target).Y + 5;
+        var width0 = harness.Editor.GetDesignSize(target).Width;
+
+        harness.Window.MouseMove(new Point(start, y));
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        for (var i = 1; i <= 3; i++)
+        {
+            harness.Window.MouseMove(new Point(start + (i * 10), y));
+
+            // Ручка не переехала: Thumb отдаёт накопленную дельту.
+            state.OnResizeDelta(new ResizeDeltaEventArgs(
+                new Vector(i * 10, 0),
+                ResizeDirection.Right,
+                DesignEditorItem.ResizeDeltaEvent));
+
+            harness.RunLayout();
+        }
+
+        Assert.Equal(width0 + 30, harness.Editor.GetDesignSize(target).Width, 1);
     }
 }
