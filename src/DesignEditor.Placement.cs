@@ -79,17 +79,20 @@ public partial class DesignEditor
     /// а пользователь видел другое.
     /// <para>
     /// При <c>Max &lt; Min</c> побеждает минимум — так же, как в самой Avalonia.
-    /// Минимальный размер редактора (<see cref="DesignEditorInteractionOptions.ResizeMinSize"/>)
-    /// участвует наравне с <c>MinWidth</c>, поэтому правило остаётся одно.
+    /// </para>
+    /// <para>
+    /// Минимум редактора (<see cref="DesignEditorInteractionOptions.ResizeMinSize"/>) сюда
+    /// <b>не входит</b>: он предел жеста, а не свойство контрола. Пока он стоял здесь, его
+    /// получала любая запись размера — в том числе та, которой вход в жест фиксирует
+    /// текущий размер, и та, которой отмена возвращает записанный. Контрол мельче порога
+    /// раздувался от простого нажатия на ручку, а отмена не возвращала его обратно.
     /// </para>
     /// </remarks>
     internal Size CoerceDesignSize(Control control, Size size)
     {
-        var floor = Math.Max(0.0, InteractionOptions.ResizeMinSize);
-
         return new Size(
-            ClampSize(size.Width, Math.Max(floor, control.MinWidth), control.MaxWidth),
-            ClampSize(size.Height, Math.Max(floor, control.MinHeight), control.MaxHeight));
+            ClampSize(size.Width, control.MinWidth, control.MaxWidth),
+            ClampSize(size.Height, control.MinHeight, control.MaxHeight));
     }
 
     private static double ClampSize(double value, double min, double max)

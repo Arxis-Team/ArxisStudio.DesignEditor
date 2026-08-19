@@ -825,7 +825,10 @@ public partial class DesignEditor
             direction,
             selectionBounds,
             targets,
-            Math.Max(0.0, InteractionOptions.ResizeMinSize),
+            // Предел не поднимается выше рамки, которую тянут: см. ItemResizingState.
+            Math.Min(
+                Math.Max(0.0, InteractionOptions.ResizeMinSize),
+                Math.Min(selectionBounds.Width, selectionBounds.Height)),
             PointerSample);
 
         return true;

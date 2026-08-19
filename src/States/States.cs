@@ -382,6 +382,11 @@ internal class ItemResizingState : DesignEditorItemState
     private Vector _grabOffset;
 
     /// <summary>
+    /// Размер на входе в жест: выше него предел редактора не поднимается.
+    /// </summary>
+    private Size _startSize;
+
+    /// <summary>
     /// Инициализирует новый экземпляр <see cref="ItemResizingState"/>.
     /// </summary>
     /// <param name="container">Контейнер, размер которого изменяется.</param>
@@ -405,6 +410,7 @@ internal class ItemResizingState : DesignEditorItemState
 
         editor?.SetDesignSize(_target, size);
         _size = size;
+        _startSize = size;
 
         _grabSample = editor?.PointerSample;
         if (_grabSample is { } sample)
@@ -435,9 +441,13 @@ internal class ItemResizingState : DesignEditorItemState
         double newX = _location.X;
         double newY = _location.Y;
         var editor = Container.FindAncestorOfType<DesignEditor>();
+        // Предел редактора не увеличивает: он существует, чтобы контрол нельзя было
+        // схлопнуть в точку и потерять, а про контрол, который автор сделал мельче,
+        // он ничего не знает. Иначе первая же протяжка за нижний край подбрасывала бы
+        // высоту вверх — и именно так это и выглядело.
         double editorMinSize = Math.Max(0.0, editor?.InteractionOptions.ResizeMinSize ?? 10.0);
-        double minWidth = Math.Max(editorMinSize, _target.MinWidth);
-        double minHeight = Math.Max(editorMinSize, _target.MinHeight);
+        double minWidth = Math.Max(Math.Min(editorMinSize, _startSize.Width), _target.MinWidth);
+        double minHeight = Math.Max(Math.Min(editorMinSize, _startSize.Height), _target.MinHeight);
 
         // Неподвижный край берётся из текущей геометрии, поэтому он остаётся
         // на месте на всём жесте, даже когда размер во что-нибудь упёрся.
@@ -522,7 +532,14 @@ internal class ItemResizingState : DesignEditorItemState
                 }
             }
 
-            var coerced = editor.CoerceDesignSize(_target, new Size(newW, newH));
+            // Предел жеста применяется здесь, а не на шве записи: шов проходят и
+            // фиксация текущего размера на входе в жест, и отмена, и им предел
+            // не адресован. Min/Max самого контрола сильнее — их накладывает
+            // CoerceDesignSize следом.
+            var coerced = editor.CoerceDesignSize(
+                _target,
+                new Size(Math.Max(minWidth, newW), Math.Max(minHeight, newH)));
+
             newW = coerced.Width;
             newH = coerced.Height;
         }
