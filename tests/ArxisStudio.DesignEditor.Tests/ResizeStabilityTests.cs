@@ -225,4 +225,76 @@ public class ResizeStabilityTests
 
         Assert.Equal(width0 + 30, harness.Editor.GetDesignSize(target).Width, 1);
     }
+
+    /// <summary>
+    /// Жест без своего указателя считает по дельте, даже если мышь до этого возили.
+    /// </summary>
+    /// <remarks>
+    /// Снимок указателя переживает жест, поэтому «указатель известен» и «указатель
+    /// двигался внутри этого жеста» — разные вещи. Первая версия правки перепутала их,
+    /// и жест, поднятый хостом через публичные <c>ResizeStarted</c>/<c>ResizeDelta</c>,
+    /// молча переставал что-либо менять: поправка выходила нулевой, потому что
+    /// сравнивалась с положением, где мышь побывала до жеста.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Gesture_Without_Its_Own_Pointer_Falls_Back_To_The_Delta()
+    {
+        var harness = EditorHarness.Create();
+        var container = harness.PlaceContainer(0, ContainerLocation, ContainerSize);
+        var target = harness.Nested(0);
+        var width0 = harness.Editor.GetDesignSize(target).Width;
+
+        // Мышь побывала где-то в редакторе и больше не двигается.
+        harness.Window.MouseMove(new Point(500, 400));
+
+        var state = new ItemResizingState(container, target, ResizeDirection.Right);
+        container.PushState(state);
+
+        for (var i = 0; i < 3; i++)
+        {
+            state.OnResizeDelta(new ResizeDeltaEventArgs(
+                new Vector(10, 0),
+                ResizeDirection.Right,
+                DesignEditorItem.ResizeDeltaEvent));
+
+            harness.RunLayout();
+        }
+
+        Assert.Equal(width0 + 30, harness.Editor.GetDesignSize(target).Width, 1);
+    }
+
+    /// <summary>
+    /// Правило допуска указателя к жесту.
+    /// </summary>
+    /// <remarks>
+    /// Проверяется предикат напрямую: в headless-стенде указатель один, и разыграть
+    /// перо рядом с мышью нечем — а именно от этого случая половина правила и стоит.
+    /// Оба условия нужны, и каждое закрывает ошибку, которая уже была сделана:
+    /// чужое устройство уводило бы край к себе, а снимок, переживший жест, выдавал бы
+    /// нулевую поправку вместо дельты.
+    /// </remarks>
+    [AvaloniaTheory]
+    [InlineData(1, 6, 1, 5, true)]    // то же устройство, движение после начала
+    [InlineData(2, 6, 1, 5, false)]   // чужое устройство
+    [InlineData(1, 5, 1, 5, false)]   // движения после начала не было
+    [InlineData(1, 4, 1, 5, false)]   // снимок старше начала жеста
+    public void The_Gesture_Only_Takes_Its_Own_Pointer(
+        int currentId, int currentCount, int grabId, int grabCount, bool expected)
+    {
+        var current = new PointerSample(currentId, new Point(100, 50), currentCount);
+        var grab = new PointerSample(grabId, new Point(10, 10), grabCount);
+
+        Assert.Equal(expected, DesignEditor.TryGetGesturePointer(current, grab, out var world));
+        if (expected)
+            Assert.Equal(new Point(100, 50), world);
+    }
+
+    [AvaloniaFact]
+    public void Without_A_Grab_Sample_The_Pointer_Is_Not_Used()
+    {
+        var current = new PointerSample(1, new Point(100, 50), 7);
+
+        Assert.False(DesignEditor.TryGetGesturePointer(current, null, out _));
+        Assert.False(DesignEditor.TryGetGesturePointer(null, current, out _));
+    }
 }

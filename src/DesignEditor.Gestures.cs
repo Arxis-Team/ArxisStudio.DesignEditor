@@ -646,10 +646,10 @@ public partial class DesignEditor
         e.Handled = true;
     }
 
-    private Point? _pointerWorld;
+    private PointerSample? _pointerSample;
 
     /// <summary>
-    /// Последнее известное положение указателя в мировых координатах.
+    /// Последнее движение указателя: чьё, куда и каким по счёту.
     /// </summary>
     /// <remarks>
     /// Изменение размера обязано считать поправку от указателя, а не от того, успела ли
@@ -658,15 +658,25 @@ public partial class DesignEditor
     /// указателю обогнать раскладку — а на занятом UI-потоке это обычное дело, — и каждая
     /// дельта несёт всё расстояние заново; сложенные, они растят размер квадратично.
     /// <para>
-    /// <see langword="null"/> до первого движения: жест, начатый без него, считает
-    /// по-старому.
+    /// Одного положения мало, и это выяснилось замером. Во-первых, снимок переживает
+    /// жест: гость, поднявший события resize сам, попадал на «указатель не двигался»
+    /// и получал нулевую поправку вместо своей дельты — жест переставал работать молча.
+    /// Во-вторых, движение приходит от любого устройства: перо, зависшее над холстом,
+    /// пока мышь тянет ручку, увело бы край к перу. Поэтому снимок несёт и устройство,
+    /// и номер движения, а пользоваться им можно, только если <b>это же</b> устройство
+    /// двинулось <b>после</b> начала жеста.
     /// </para>
     /// </remarks>
-    internal Point? PointerWorld => _pointerWorld;
+    internal PointerSample? PointerSample => _pointerSample;
+
+    private int _pointerMoveCount;
 
     private void OnTrackPointer(object? sender, PointerEventArgs e)
     {
-        _pointerWorld = GetWorldPosition(e.GetPosition(this));
+        _pointerSample = new PointerSample(
+            e.Pointer.Id,
+            GetWorldPosition(e.GetPosition(this)),
+            ++_pointerMoveCount);
     }
 
     private Vector NormalizeResizeDelta(Vector delta)
@@ -816,7 +826,7 @@ public partial class DesignEditor
             selectionBounds,
             targets,
             Math.Max(0.0, InteractionOptions.ResizeMinSize),
-            PointerWorld);
+            PointerSample);
 
         return true;
     }

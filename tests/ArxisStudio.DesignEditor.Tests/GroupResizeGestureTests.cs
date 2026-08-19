@@ -124,4 +124,46 @@ public class GroupResizeGestureTests
         harness.Window.MouseUp(centre, MouseButton.Left, modifiers);
         harness.RunLayout();
     }
+
+    /// <summary>
+    /// Групповая рамка тоже считает дельту от указателя.
+    /// </summary>
+    /// <remarks>
+    /// Половина правки, которую не держал ни один тест: её ветку в
+    /// <c>GroupResizeOperation.Update</c> можно было удалить целиком, не уронив ничего.
+    /// Здесь ручка не двигается вовсе, а указатель уезжает на 10, 20, 30, и рамка обязана
+    /// следовать за ним, а не сложить накопленные дельты в 60.
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Group_Frame_Follows_The_Pointer_When_The_Handle_Lags()
+    {
+        var harness = CreateWithContainerSelection();
+        var width0 = harness.Editor.SelectionBounds.Width;
+
+        var right = harness.Editor.SelectionBounds.Right;
+        var y = harness.Editor.SelectionBounds.Y + 5;
+
+        // Указатель на ручке — с этого снимка и начинается жест.
+        harness.Window.MouseMove(new Point(right, y));
+
+        var adorner = GroupAdorner(harness);
+        adorner.RaiseEvent(new ResizeStartedEventArgs(default, ResizeDirection.Right, SelectionAdorner.ResizeStartedEvent));
+
+        for (var i = 1; i <= 3; i++)
+        {
+            harness.Window.MouseMove(new Point(right + (i * 10), y));
+
+            adorner.RaiseEvent(new ResizeDeltaEventArgs(
+                new Vector(i * 10, 0),
+                ResizeDirection.Right,
+                SelectionAdorner.ResizeDeltaEvent));
+
+            harness.RunLayout();
+        }
+
+        adorner.RaiseEvent(new VectorEventArgs { RoutedEvent = SelectionAdorner.ResizeCompletedEvent, Vector = new Vector(30, 0) });
+        harness.RunLayout();
+
+        Assert.Equal(width0 + 30, harness.Editor.SelectionBounds.Width, 1);
+    }
 }

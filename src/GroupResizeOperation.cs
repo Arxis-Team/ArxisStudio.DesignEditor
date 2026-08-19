@@ -20,45 +20,24 @@ internal sealed class GroupResizeOperation
     private Rect _currentBounds;
 
     /// <summary>
-    /// Насколько указатель отстоял от двигающегося края рамки в момент захвата.
+    /// Указатель, которым начали жест, и насколько он отстоял от двигающегося края.
     /// </summary>
-    private readonly Vector? _grabOffset;
+    private readonly PointerSample? _grabSample;
+    private readonly Vector _grabOffset;
 
-    public GroupResizeOperation(ResizeDirection direction, Rect initialBounds, IReadOnlyList<GroupResizeTarget> targets, double minSize, Point? pointerWorld = null)
+    public GroupResizeOperation(ResizeDirection direction, Rect initialBounds, IReadOnlyList<GroupResizeTarget> targets, double minSize, PointerSample? pointer = null)
     {
         _direction = direction;
         _initialBounds = initialBounds;
         _targets = targets;
         _minSize = minSize;
         _currentBounds = initialBounds;
+        _grabSample = pointer;
 
-        if (pointerWorld is { } pointer)
-            _grabOffset = pointer - MovingEdge(direction, initialBounds);
+        if (pointer is { } sample)
+            _grabOffset = sample.World - DesignEditor.MovingEdge(direction, initialBounds);
     }
 
-    /// <summary>
-    /// Точка двигающегося края: угол для диагоналей, край для сторон.
-    /// </summary>
-    /// <remarks>
-    /// У односторонних направлений вторая координата в арифметику не входит, поэтому
-    /// берётся верхний левый угол — лишь бы согласованно с местом, где считают поправку.
-    /// </remarks>
-    internal static Point MovingEdge(ResizeDirection direction, Rect bounds)
-    {
-        var x = direction switch
-        {
-            ResizeDirection.Right or ResizeDirection.TopRight or ResizeDirection.BottomRight => bounds.Right,
-            _ => bounds.X
-        };
-
-        var y = direction switch
-        {
-            ResizeDirection.Bottom or ResizeDirection.BottomLeft or ResizeDirection.BottomRight => bounds.Bottom,
-            _ => bounds.Y
-        };
-
-        return new Point(x, y);
-    }
 
     /// <summary>
     /// Любой из участников группы. Годится для снимка соседей: он и так
@@ -71,8 +50,8 @@ internal sealed class GroupResizeOperation
         // Дельта считается от указателя по той же причине, что и у одиночного resize:
         // ручка отдаёт смещение относительно себя, и приращённым оно бывает лишь пока
         // между движениями проходит layout.
-        if (editor.PointerWorld is { } pointer && _grabOffset is { } grab)
-            worldDelta = (pointer - grab) - MovingEdge(_direction, _currentBounds);
+        if (DesignEditor.TryGetGesturePointer(editor.PointerSample, _grabSample, out var pointer))
+            worldDelta = (pointer - _grabOffset) - DesignEditor.MovingEdge(_direction, _currentBounds);
 
         var nextBounds = CalculateResizedBounds(_currentBounds, _direction, worldDelta, _minSize);
 
