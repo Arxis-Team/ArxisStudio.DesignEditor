@@ -112,7 +112,15 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Шаги сетки, доступные в верхней панели.
     /// </summary>
-    public IReadOnlyList<double> GridCellSizes { get; } = new double[] { 5, 10, 20, 25, 40, 50 };
+    /// <remarks>
+    /// Шаг 1 — это привязка к целым единицам, то есть практически свободное
+    /// размещение. Сама сетка при этом на обычном масштабе не рисуется: у неё есть
+    /// порог детализации (<c>DesignEditor.Grid.MinCellSize</c>), и клетка мельче него
+    /// превратилась бы в сплошную заливку. С приближением она возвращается крупными
+    /// линиями: на 500 % видно шаг в пять единиц. Притяжение при этом работает
+    /// независимо от показа — как и при выключенном <c>ShowGrid</c>.
+    /// </remarks>
+    public IReadOnlyList<double> GridCellSizes { get; } = new double[] { 1, 5, 10, 20, 25, 40, 50 };
 
     [ObservableProperty]
     private double _gridCellSize = 20;
