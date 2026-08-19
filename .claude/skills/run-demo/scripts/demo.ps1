@@ -40,7 +40,7 @@ param(
     [ValidateSet('None', 'Ctrl', 'Shift', 'Alt', 'CtrlShift')]
     [string]$Modifier = 'None',
 
-    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A', 'Z', 'Y', 'X')]
+    [ValidateSet('Left', 'Right', 'Up', 'Down', 'Delete', 'Escape', 'A', 'Z', 'Y', 'X', 'F12')]
     [string]$Key = 'Right',
 
     [int]$Notches = 3,
@@ -475,6 +475,7 @@ switch ($Action) {
             'Down'   { 0x28 }
             'Delete' { 0x2E }
             'Escape' { 0x1B }
+            'F12'    { 0x7B }   # DevTools демо
             'A'      { 0x41 }
             'Z'      { 0x5A }
             'Y'      { 0x59 }

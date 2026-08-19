@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using ArxisStudio;
-using AvaDevTools;
 using DesignEditor.Demo.Context;
 using DesignEditor.Demo.ViewModels;
 
@@ -16,11 +15,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-
-#if DEBUG
-        this.AttachAvaDevTools(); // all windows, F12 opens the tools
-#endif
-
 
         if (this.FindControl<ArxisStudio.DesignEditor>("Editor") is { } editor)
         {

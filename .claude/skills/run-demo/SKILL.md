@@ -87,12 +87,16 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 ```
 
 ```bash
-# клавиатура: стрелки, Shift+стрелки, Delete, Escape
+# клавиатура: стрелки, Shift+стрелки, Delete, Escape, Ctrl+Z/X/Y, Ctrl+A, F12
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key Right -Notches 5
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key Down -Modifier Shift -Notches 2
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key Z -Modifier Ctrl
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action key -Key F12
 ```
 
-Клавиатура идёт через `SendKeys`, а не `keybd_event`: последний до приложения не доходит, хотя окно и foreground. Мышь работает иначе, потому что `mouse_event` адресуется точкой экрана, а не фокусом.
+Клавиатура идёт через `keybd_event`, а не `SendKeys`: последний до приложения не доходит, хотя окно и foreground — `Ctrl + A` через него не делал ничего. Мышь работает иначе, потому что `mouse_event` адресуется точкой экрана, а не фокусом.
+
+`F12` открывает DevTools демо (`AvaDevTools`, подключены в `App.Initialize` под `#if DEBUG`). Окно инструментов — **отдельное**, и после его открытия `-Action shot` снимает уже его: `MainWindowHandle` процесса указывает на переднее окно. Чтобы вернуться к снимкам самой демо, инструменты надо закрыть.
 
 Перед клавиатурным жестом нужно что-нибудь выделить кликом — иначе у редактора нет фокуса.
 
