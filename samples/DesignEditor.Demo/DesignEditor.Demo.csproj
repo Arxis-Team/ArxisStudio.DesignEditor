@@ -7,16 +7,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia"/>
-        <PackageReference Include="Avalonia.Desktop"/>
-        <PackageReference Include="Avalonia.Themes.Fluent"/>
-        <PackageReference Include="Avalonia.Fonts.Inter"/>
-        <!-- Avalonia.Diagnostics не выпущен для 12.x; DevTools в демо не подключались. -->
-        <PackageReference Include="CommunityToolkit.Mvvm"/>
+        <PackageReference Include="AvaDevTools" />
+        <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Themes.Fluent" />
+        <PackageReference Include="Avalonia.Fonts.Inter" />
+        <PackageReference Include="CommunityToolkit.Mvvm" />
     </ItemGroup>
 
     <ItemGroup>
