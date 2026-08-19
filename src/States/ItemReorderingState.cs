@@ -97,6 +97,22 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         Container.FindAncestorOfType<DesignEditor>()?.CancelReorder();
     }
 
+    /// <summary>
+    /// Расстояние от точки до прямоугольника; ноль, если точка внутри.
+    /// </summary>
+    /// <remarks>
+    /// По прямоугольнику, а не по центру: тогда поперечная ось лишь отсекает чужие
+    /// ряды, а внутри ряда выбор идёт вдоль потока — как и задумано. По центрам
+    /// поперечная ось начинала соревноваться с продольной, и ширина соседа влияла
+    /// на то, между какими элементами встанет перетаскиваемый.
+    /// </remarks>
+    private static double DistanceTo(Rect bounds, Point point)
+    {
+        var dx = Math.Max(0, Math.Max(bounds.X - point.X, point.X - bounds.Right));
+        var dy = Math.Max(0, Math.Max(bounds.Y - point.Y, point.Y - bounds.Bottom));
+        return Math.Sqrt((dx * dx) + (dy * dy));
+    }
+
     private void UpdateIndicator(DesignEditor editor, Point pointerInEditor)
     {
         if (_panel == null || _panel.Children.Count == 0)
@@ -110,6 +126,13 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         // с серединами верхнего, и элемент уезжал в чужой ряд. В однорядной
         // раскладке вторая ось у всех детей общая и на выбор не влияет,
         // поэтому правило остаётся одно на оба случая.
+        //
+        // Расстояние считается до прямоугольника ребёнка, а не до его центра.
+        // По центрам ответ зависел от того, за какое место схватили элемент:
+        // в колонке из широких строк узкая кнопка внизу прижата влево, её центр
+        // по X близок к левому краю строк — и указатель у левого края оказывался
+        // ближе к ней, чем к центрам самих строк. Точка вставки прыгала в конец
+        // списка, стоило взять элемент слева, и вела себя верно, если взять справа.
         var nearest = -1;
         var nearestDistance = double.PositiveInfinity;
         var nearestBounds = default(Rect);
@@ -119,11 +142,7 @@ internal sealed class ItemReorderingState : DesignEditorItemState
             if (!editor.TryGetDesignBounds(_panel.Children[i], out var childBounds))
                 continue;
 
-            var centre = new Point(
-                childBounds.X + (childBounds.Width / 2),
-                childBounds.Y + (childBounds.Height / 2));
-
-            var distance = Vector.Distance(world, centre);
+            var distance = DistanceTo(childBounds, world);
             if (distance >= nearestDistance)
                 continue;
 

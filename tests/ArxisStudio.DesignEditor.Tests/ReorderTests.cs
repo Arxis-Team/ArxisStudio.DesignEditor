@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using ArxisStudio.Attached;
 using Xunit;
+using DesignLayout = ArxisStudio.Attached.Layout;
 
 namespace ArxisStudio.Tests;
 
@@ -493,5 +494,114 @@ public class ReorderTests
         var edit = Assert.Single(edits);
         Assert.Equal(DesignEditKind.Move, edit.Kind);
         Assert.IsType<DesignGeometryChange>(Assert.Single(edit.Changes));
+    }
+
+    // ---- Точка вставки не зависит от места захвата -------------------------------
+
+    /// <summary>
+    /// Стенд с узким соседом: колонка широких строк и прижатая влево кнопка в конце.
+    /// </summary>
+    /// <remarks>
+    /// Именно так устроен экран сценария в демо: три строки во всю ширину и
+    /// «+ Добавить действие» под ними. На стенде из одинаково растянутых детей дефект
+    /// не воспроизводится — все центры стоят на одной вертикали.
+    /// </remarks>
+    private static EditorHarness CreateColumnWithNarrowTail()
+    {
+        var nodes = new List<TestNode> { new("rows0") };
+
+        var editor = new DesignEditor
+        {
+            ItemsSource = nodes,
+            ItemTemplate = new FuncDataTemplate<TestNode>((_, _) =>
+            {
+                var panel = new StackPanel { Name = "Rows", Spacing = 10 };
+
+                for (var i = 0; i < 3; i++)
+                {
+                    var row = new Border { Name = "Row" + i, Height = 40, IsHitTestVisible = false };
+                    DesignLayout.SetIsTracked(row, true);
+                    panel.Children.Add(row);
+                }
+
+                var add = new Button
+                {
+                    Name = "Add",
+                    Content = "+",
+                    Width = 60,
+                    Height = 30,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    IsHitTestVisible = false
+                };
+
+                DesignLayout.SetIsTracked(add, true);
+                panel.Children.Add(add);
+                DesignLayout.SetIsTracked(panel, true);
+                return panel;
+            }, supportsRecycling: false)
+        };
+
+        var window = new Window { Width = 800, Height = 600, Content = editor };
+        editor.InteractionOptions.IsSnapToGridEnabled = false;
+        editor.InteractionOptions.IsSnapToGuidesEnabled = false;
+        window.Show();
+
+        var harness = EditorHarness.Adopt(window, editor, nodes);
+        harness.RunLayout();
+        harness.PlaceContainer(0, new Point(100, 100), new Size(400, 300));
+        return harness;
+    }
+
+    /// <summary>
+    /// Точка вставки не зависит от того, за какое место схватили элемент.
+    /// </summary>
+    /// <remarks>
+    /// Ближайший сосед искался по расстоянию до его <b>центра</b>, и поперечная ось
+    /// соревновалась с продольной. Узкая кнопка внизу прижата влево, её центр по X
+    /// близок к левому краю строк — указатель у левого края оказывался ближе к ней,
+    /// чем к центрам самих строк, и точка вставки уезжала вниз. Взятый за правый край
+    /// тот же элемент вставал верно.
+    /// <para>
+    /// Замер до правки: одна и та же протяжка вниз на 55 давала индекс 2 от левого края
+    /// и 1 от центра и от правого.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Insertion_Point_Ignores_Where_The_Element_Was_Grabbed()
+    {
+        var indices = new List<int>();
+
+        foreach (var grab in new[] { 6.0, 0.5, -6.0 })
+        {
+            var harness = CreateColumnWithNarrowTail();
+            harness.Editor.ReorderRequested += (_, e) =>
+            {
+                indices.Add(e.NewIndex);
+                e.Handled = true;
+            };
+
+            var row = harness.Find<Border>(0, "Row0");
+            var origin = harness.Editor.GetDesignPosition(row);
+            var size = harness.Editor.GetDesignSize(row);
+
+            // 6 от левого края, середина, 6 от правого.
+            var x = grab switch
+            {
+                > 1 => origin.X + grab,
+                < 0 => origin.X + size.Width + grab,
+                _ => origin.X + (size.Width / 2)
+            };
+
+            var from = new Point(x, origin.Y + (size.Height / 2));
+            harness.Window.MouseDown(from, MouseButton.Left);
+            harness.Window.MouseMove(from + new Vector(0, 6));
+            harness.Window.MouseMove(from + new Vector(0, 55));
+            harness.Window.MouseUp(from + new Vector(0, 55), MouseButton.Left);
+            harness.RunLayout();
+        }
+
+        Assert.Equal(3, indices.Count);
+        Assert.Equal(indices[0], indices[1]);
+        Assert.Equal(indices[1], indices[2]);
     }
 }
