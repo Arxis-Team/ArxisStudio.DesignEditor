@@ -33,6 +33,10 @@ param(
     # которое живёт отдельным окном. Сторож откажет, если сверху чужое окно.
     [switch]$Screen,
 
+    # Поднять MCP-эндпоинт DevTools на 127.0.0.1:5171 (только при -Action start).
+    # Выключен по умолчанию: порт открывается только когда об этом просят.
+    [switch]$Mcp,
+
     [int]$X = 0,
     [int]$Y = 0,
     [int]$ToX = 0,
@@ -401,6 +405,13 @@ switch ($Action) {
 
         $logDir = Join-Path $env:TEMP 'designeditor-demo'
         if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+
+        # Переменную читает сам AvaDevTools; дочерний процесс наследует её.
+        # Только чтение: ввод и заморозка требуют отдельных AVA_DEVTOOLS_MCP_INPUT
+        # и AVA_DEVTOOLS_MCP_HOLD, и включать их по умолчанию нельзя — клик из
+        # агента выполняет обработчики приложения.
+        if ($Mcp) { $env:AVA_DEVTOOLS_MCP = '1' } else { Remove-Item Env:\AVA_DEVTOOLS_MCP -ErrorAction SilentlyContinue }
+
         $p = Start-Process -FilePath $exe -PassThru `
              -RedirectStandardOutput (Join-Path $logDir 'out.log') `
              -RedirectStandardError  (Join-Path $logDir 'err.log')
@@ -413,7 +424,8 @@ switch ($Action) {
             }
             $p.Refresh()
             if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
-                "started pid=$($p.Id) window='$($p.MainWindowTitle)' logs=$logDir"
+                $mcpNote = if ($Mcp) { " mcp=http://127.0.0.1:5171/" } else { "" }
+                "started pid=$($p.Id) window='$($p.MainWindowTitle)' logs=$logDir$mcpNote"
                 break
             }
             Start-Sleep -Milliseconds 400
