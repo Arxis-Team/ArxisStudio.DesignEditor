@@ -424,17 +424,6 @@ public partial class DesignEditor
         };
     }
 
-    private bool TryGetDesignBounds(DesignEditorItem item, out Rect bounds)
-    {
-        if (item == null)
-        {
-            bounds = default;
-            return false;
-        }
-
-        return TryGetDesignBounds(ResolveSelectionTarget(item), out bounds);
-    }
-
     internal bool TryGetDesignBounds(Control control, out Rect bounds)
     {
         if (!ReferenceEquals(control.FindAncestorOfType<DesignEditor>(), this))

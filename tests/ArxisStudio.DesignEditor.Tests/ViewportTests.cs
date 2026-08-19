@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless.XUnit;
 using Xunit;
 
@@ -89,5 +89,58 @@ public class ViewportTests
         editor.FitToView(new Rect(0, 0, 100, 100));
 
         Assert.Equal(before, editor.ViewportZoom, 6);
+    }
+
+    // ---- Наведение на контейнер -------------------------------------------------
+
+    /// <summary>
+    /// Наведение на контейнер меряет контейнер, а не то, что внутри него выбрано.
+    /// </summary>
+    /// <remarks>
+    /// Перегрузка для <see cref="DesignEditorItem"/> считала границы через
+    /// <c>ResolveSelectionTarget</c>, то есть по вложенному контролу, который был бы
+    /// выбран внутри формы. Кнопки «Center» и «Fit» в демо наводились из-за этого
+    /// на карточку внутри экрана вместо самого экрана и совпадали с «Center Sel»
+    /// и «Fit Sel» до последнего знака.
+    /// <para>
+    /// Что ветка была ошибочной, видно и без замера: fallback того же метода считает
+    /// по <c>item.Location</c> и <c>item.Bounds</c> — по самому контейнеру.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void CenterOnItem_Centres_The_Container_Not_Its_Nested_Target()
+    {
+        var harness = EditorHarness.Create();
+        var container = harness.PlaceContainer(0, new Point(100, 100), new Size(400, 300));
+
+        harness.Editor.CenterOnItem(container);
+        harness.RunLayout();
+
+        var centre = harness.Editor.GetWorldPosition(
+            new Point(harness.Editor.Bounds.Width / 2, harness.Editor.Bounds.Height / 2));
+
+        Assert.Equal(300, centre.X, 1);
+        Assert.Equal(250, centre.Y, 1);
+    }
+
+    /// <summary>
+    /// Вписывание контейнера считает по контейнеру.
+    /// </summary>
+    /// <remarks>
+    /// Вложенный контрол стенда много меньше контейнера, поэтому масштабы
+    /// у двух прочтений расходятся, и подмена видна числом.
+    /// </remarks>
+    [AvaloniaFact]
+    public void FitToView_Uses_The_Container_Bounds()
+    {
+        var harness = EditorHarness.Create();
+        var container = harness.PlaceContainer(0, new Point(100, 100), new Size(400, 300));
+
+        harness.Editor.FitToView(container);
+        harness.RunLayout();
+
+        // Стенд 800x600, контейнер 400x300 — вписывание даёт около 1,9.
+        // Вложенный контрол 60x40; вписав его, редактор ушёл бы к верхней границе зума.
+        Assert.InRange(harness.Editor.ViewportZoom, 1.0, 3.0);
     }
 }
