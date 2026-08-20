@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -158,6 +158,7 @@ public class PanningTests
     public void The_Cursor_Is_Restored_When_The_Gesture_Ends()
     {
         var harness = Create();
+        var before = harness.Editor.Cursor;
 
         harness.Window.MouseDown(EmptyCanvas, MouseButton.Middle);
         harness.Window.MouseMove(EmptyCanvas + new Vector(30, 20));
@@ -170,7 +171,12 @@ public class PanningTests
         // Курсор — единственная видимая часть состояния панорамирования, и именно
         // по застрявшей руке замечали брошенный жест. Оба конца проверяются вместе:
         // «стало рукой» без «вернулось» ничего не гарантирует.
-        Assert.NotEqual(Cursor.Default, duringGesture);
-        Assert.Equal(Cursor.Default, harness.Editor.Cursor);
+        Assert.Same(harness.Editor.Cursors.ResolvePan(), duringGesture);
+        Assert.Same(before, harness.Editor.Cursor);
+
+        // Возвращается прежнее значение, а не Cursor.Default: прежняя версия писала
+        // на выходе Default и тем затирала курсор, заданный хостом. Проверка на этом
+        // и стояла, закрепляя затирание, — см. CursorTests.
+        Assert.Null(harness.Editor.Cursor);
     }
 }

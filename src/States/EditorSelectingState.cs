@@ -10,6 +10,7 @@ namespace ArxisStudio.States;
 internal class EditorSelectingState : EditorState
 {
     private readonly IPointer _pointer;
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private Point _startLocationWorld;
 
     /// <summary>
@@ -46,6 +47,8 @@ internal class EditorSelectingState : EditorState
         // жеста они не должны, иначе охват обещал бы одно, а применилось другое.
         Editor.BeginContainerSnapshot();
 
+        _cursor.Apply(Editor, Editor.Cursors.ResolveMarquee());
+
         // 1. Включаем режим отрисовки рамки в Editor
         Editor.IsSelecting = true;
 
@@ -80,6 +83,8 @@ internal class EditorSelectingState : EditorState
         // на обычном отпускании: иначе он пережил бы жест и следующее чтение
         // контейнеров пошло бы по устаревшему списку. Exit проходит на обоих путях.
         Editor.EndContainerSnapshot();
+
+        _cursor.Restore();
 
         // Если выход вызван самой потерей захвата, это no-op; на обычном отпускании
         // симметрично снимает то, что взял Enter.

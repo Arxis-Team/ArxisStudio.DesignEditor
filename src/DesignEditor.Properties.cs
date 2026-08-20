@@ -159,6 +159,15 @@ public partial class DesignEditor
             (o, v) => o.InteractionOptions = v);
 
     /// <summary>
+    /// Идентификатор объекта с курсорами жестов редактора.
+    /// </summary>
+    public static readonly DirectProperty<DesignEditor, DesignEditorCursors> CursorsProperty =
+        AvaloniaProperty.RegisterDirect<DesignEditor, DesignEditorCursors>(
+            nameof(Cursors),
+            o => o.Cursors,
+            (o, v) => o.Cursors = v);
+
+    /// <summary>
     /// Идентификатор модификаторов, принудительно переключающих взаимодействие на уровень контейнера.
     /// </summary>
     public static readonly DirectProperty<DesignEditor, KeyModifiers> ContainerInteractionModifiersProperty =
@@ -612,6 +621,31 @@ public partial class DesignEditor
         {
             var options = value ?? new DesignEditorInteractionOptions();
             SetAndRaise(InteractionOptionsProperty, ref _interactionOptions, options);
+        }
+    }
+
+    private DesignEditorCursors _cursors = new DesignEditorCursors();
+
+    /// <summary>
+    /// Получает или задает курсоры, которыми редактор показывает идущий жест.
+    /// </summary>
+    /// <remarks>
+    /// Здесь настраиваются курсоры жестов, у которых нет своего элемента под указателем:
+    /// перемещения, панорамирования, рамки, перестановки и переноса направляющей. Курсоры
+    /// ручек изменения размера и линейки задаются ресурсами темы — их видно и на них наводят,
+    /// поэтому курсор принадлежит самой части.
+    /// <para>
+    /// Значение читается на входе в жест, поэтому подписки на набор редактору не нужно:
+    /// смена курсора посреди протяжки описывала бы жест, который уже идёт.
+    /// </para>
+    /// </remarks>
+    public DesignEditorCursors Cursors
+    {
+        get => _cursors;
+        set
+        {
+            var cursors = value ?? new DesignEditorCursors();
+            SetAndRaise(CursorsProperty, ref _cursors, cursors);
         }
     }
 

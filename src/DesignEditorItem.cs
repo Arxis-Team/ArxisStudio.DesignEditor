@@ -323,7 +323,21 @@ public class DesignEditorItem : ContentControl, ISelectable
     /// Сбрасывает вложенные состояния, если контейнер теряет захват указателя.
     /// </summary>
     /// <param name="e">Аргументы потери захвата указателя.</param>
-    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); while (_states.Count > 1) PopState(); }
+    /// <inheritdoc />
+    /// <remarks>
+    /// Стек разбирается до базового состояния, а базовому о брошенном жесте говорится
+    /// отдельно: снять его нечем, а нажатие, за которым не последует отпускания,
+    /// иначе осталось бы у него записанным.
+    /// </remarks>
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+
+        while (_states.Count > 1)
+            PopState();
+
+        CurrentState.OnPointerCaptureLost();
+    }
 
     internal void OnResizeStarted(Vector vector) => RaiseEvent(new VectorEventArgs { RoutedEvent = ResizeStartedEvent, Vector = vector });
     internal void OnResizeDelta(ResizeDeltaEventArgs e) => RaiseEvent(e);

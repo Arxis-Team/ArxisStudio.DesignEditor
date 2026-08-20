@@ -14,6 +14,7 @@ namespace ArxisStudio.States;
 internal class EditorGuideDraggingState : EditorState
 {
     private readonly IPointer _pointer;
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private readonly DesignGuide _original;
     private DesignGuide _current;
 
@@ -35,9 +36,7 @@ internal class EditorGuideDraggingState : EditorState
     {
         _pointer.Capture(Editor);
 
-        Editor.Cursor = new Cursor(_original.Orientation == DesignGuideOrientation.Vertical
-            ? StandardCursorType.SizeWestEast
-            : StandardCursorType.SizeNorthSouth);
+        _cursor.Apply(Editor, Editor.Cursors.ResolveGuide(_original.Orientation));
 
         Editor.SetGuidePreview(_current);
     }
@@ -46,7 +45,7 @@ internal class EditorGuideDraggingState : EditorState
     public override void Exit()
     {
         Editor.SetGuidePreview(null);
-        Editor.Cursor = Cursor.Default;
+        _cursor.Restore();
 
         if (ReferenceEquals(_pointer.Captured, Editor))
             _pointer.Capture(null);

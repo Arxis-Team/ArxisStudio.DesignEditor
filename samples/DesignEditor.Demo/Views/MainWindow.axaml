@@ -89,6 +89,22 @@
                                                            ResizeMinSize="10" />
             </arxisStudio:DesignEditor.InteractionOptions>
 
+            <!--
+                Курсоры жестов. Значения здесь совпадают с библиотечными: блок стоит
+                как документация настройки, а не как её изменение. Курсоры ручек
+                изменения размера и линейки задаются иначе — ресурсами темы: у них
+                есть свой элемент под указателем.
+            -->
+            <arxisStudio:DesignEditor.Cursors>
+                <arxisStudio:DesignEditorCursors Move="SizeAll"
+                                                 Blocked="No"
+                                                 Pan="Hand"
+                                                 Marquee="Cross"
+                                                 Reorder="DragMove"
+                                                 GuideHorizontal="SizeNorthSouth"
+                                                 GuideVertical="SizeWestEast" />
+            </arxisStudio:DesignEditor.Cursors>
+
             <arxisStudio:DesignEditor.DataTemplates>
                 <DataTemplate DataType="{x:Type vm:HomeScreenViewModel}">
                     <screens:HomeScreenView />

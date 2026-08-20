@@ -9,6 +9,7 @@ namespace ArxisStudio.States;
 internal class EditorPanningState : EditorState
 {
     private readonly IPointer _pointer;
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private Point _startMousePosition;
     private Point _startViewportLocation;
 
@@ -31,7 +32,7 @@ internal class EditorPanningState : EditorState
         _startMousePosition = Editor.GetPositionForInput(Editor);
         _startViewportLocation = Editor.ViewportLocation;
 
-        Editor.Cursor = new Cursor(StandardCursorType.Hand);
+        _cursor.Apply(Editor, Editor.Cursors.ResolvePan());
 
         // Захват берётся явно. Утверждение «Avalonia захватывает сама, поэтому
         // можно не захватывать» стояло здесь и было причиной дефекта: захват
@@ -43,7 +44,7 @@ internal class EditorPanningState : EditorState
     /// <inheritdoc />
     public override void Exit()
     {
-        Editor.Cursor = Cursor.Default;
+        _cursor.Restore();
 
         if (ReferenceEquals(_pointer.Captured, Editor))
             _pointer.Capture(null);

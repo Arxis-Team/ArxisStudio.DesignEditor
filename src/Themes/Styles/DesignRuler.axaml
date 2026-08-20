@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="clr-namespace:ArxisStudio.Controls">
 
@@ -17,12 +17,12 @@
 
         <Style Selector="^[Orientation=Horizontal]">
             <Setter Property="Height" Value="{DynamicResource DesignEditor.Ruler.Thickness}" />
-            <Setter Property="Cursor" Value="SizeNorthSouth" />
+            <Setter Property="Cursor" Value="{DynamicResource DesignEditor.Ruler.CursorHorizontal}" />
         </Style>
 
         <Style Selector="^[Orientation=Vertical]">
             <Setter Property="Width" Value="{DynamicResource DesignEditor.Ruler.Thickness}" />
-            <Setter Property="Cursor" Value="SizeWestEast" />
+            <Setter Property="Cursor" Value="{DynamicResource DesignEditor.Ruler.CursorVertical}" />
         </Style>
     </ControlTheme>
 

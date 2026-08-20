@@ -198,6 +198,7 @@ enum ArxisStudio.DesignEditKind
 class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia AdditiveSelectionModifiersProperty -> AdditiveSelectionModifiers : KeyModifiers (direct)
     avalonia ContainerInteractionModifiersProperty -> ContainerInteractionModifiers : KeyModifiers (direct)
+    avalonia CursorsProperty -> Cursors : DesignEditorCursors (direct)
     avalonia DpiScaledViewportTransformProperty -> DpiScaledViewportTransform : Transform (styled) = <TransformGroup>
     avalonia GuidePreviewProperty -> GuidePreview : Nullable<DesignGuide> (direct)
     avalonia GuidesProperty -> Guides : IEnumerable<DesignGuide> (styled) = null
@@ -298,6 +299,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     property Boolean ShowRulers { get; set; }
     property Boolean ShowSnapGuides { get; set; }
     property ControlTheme SelectionRectangleStyle { get; set; }
+    property DesignEditorCursors Cursors { get; set; }
     property DesignEditorInputGestures InputGestures { get; set; }
     property DesignEditorInteractionOptions InteractionOptions { get; set; }
     property DesignEditorItem MarqueeScope { get; }
@@ -371,6 +373,22 @@ enum ArxisStudio.DesignEditorContextSource
     value Keyboard = 1
     value Pointer = 0
     value Programmatic = 2
+class ArxisStudio.DesignEditorCursors : AvaloniaObject
+    avalonia BlockedProperty -> Blocked : Cursor (styled) = null
+    avalonia GuideHorizontalProperty -> GuideHorizontal : Cursor (styled) = null
+    avalonia GuideVerticalProperty -> GuideVertical : Cursor (styled) = null
+    avalonia MarqueeProperty -> Marquee : Cursor (styled) = null
+    avalonia MoveProperty -> Move : Cursor (styled) = null
+    avalonia PanProperty -> Pan : Cursor (styled) = null
+    avalonia ReorderProperty -> Reorder : Cursor (styled) = null
+    ctor .ctor()
+    property Cursor Blocked { get; set; }
+    property Cursor GuideHorizontal { get; set; }
+    property Cursor GuideVertical { get; set; }
+    property Cursor Marquee { get; set; }
+    property Cursor Move { get; set; }
+    property Cursor Pan { get; set; }
+    property Cursor Reorder { get; set; }
 sealed class ArxisStudio.DesignEditorDeleteRequestedEventArgs : EventArgs
     ctor .ctor(IReadOnlyList<DesignSelectionTarget>)
     property Boolean Handled { get; set; }

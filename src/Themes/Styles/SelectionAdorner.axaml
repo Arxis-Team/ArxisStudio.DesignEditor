@@ -89,15 +89,15 @@
                             </Style>
                         </Grid.Styles>
 
-                        <Thumb Name="PART_TopLeft"     Grid.Row="0" Grid.Column="0" Cursor="TopLeftCorner" />
-                        <Thumb Name="PART_TopRight"    Grid.Row="0" Grid.Column="2" Cursor="TopRightCorner" />
-                        <Thumb Name="PART_BottomLeft"  Grid.Row="2" Grid.Column="0" Cursor="BottomLeftCorner" />
-                        <Thumb Name="PART_BottomRight" Grid.Row="2" Grid.Column="2" Cursor="BottomRightCorner" />
+                        <Thumb Name="PART_TopLeft"     Grid.Row="0" Grid.Column="0" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorTopLeft}" />
+                        <Thumb Name="PART_TopRight"    Grid.Row="0" Grid.Column="2" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorTopRight}" />
+                        <Thumb Name="PART_BottomLeft"  Grid.Row="2" Grid.Column="0" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorBottomLeft}" />
+                        <Thumb Name="PART_BottomRight" Grid.Row="2" Grid.Column="2" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorBottomRight}" />
 
-                        <Thumb Name="PART_Top"    Grid.Row="0" Grid.Column="1" Cursor="TopSide" HorizontalAlignment="Stretch" />
-                        <Thumb Name="PART_Bottom" Grid.Row="2" Grid.Column="1" Cursor="BottomSide" HorizontalAlignment="Stretch" />
-                        <Thumb Name="PART_Left"   Grid.Row="1" Grid.Column="0" Cursor="LeftSide" VerticalAlignment="Stretch" />
-                        <Thumb Name="PART_Right"  Grid.Row="1" Grid.Column="2" Cursor="RightSide" VerticalAlignment="Stretch" />
+                        <Thumb Name="PART_Top"    Grid.Row="0" Grid.Column="1" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorTop}" HorizontalAlignment="Stretch" />
+                        <Thumb Name="PART_Bottom" Grid.Row="2" Grid.Column="1" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorBottom}" HorizontalAlignment="Stretch" />
+                        <Thumb Name="PART_Left"   Grid.Row="1" Grid.Column="0" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorLeft}" VerticalAlignment="Stretch" />
+                        <Thumb Name="PART_Right"  Grid.Row="1" Grid.Column="2" Cursor="{DynamicResource DesignEditor.SelectionAdorner.CursorRight}" VerticalAlignment="Stretch" />
                     </Grid>
                 </Grid>
             </ControlTemplate>

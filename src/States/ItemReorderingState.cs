@@ -23,6 +23,7 @@ namespace ArxisStudio.States;
 internal sealed class ItemReorderingState : DesignEditorItemState
 {
     private readonly Point _initialPointerPosition;
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private Control? _target;
     private Panel? _panel;
     private int _initialIndex = -1;
@@ -52,6 +53,9 @@ internal sealed class ItemReorderingState : DesignEditorItemState
         _insertBefore = _initialIndex;
 
         UpdateIndicator(editor, _initialPointerPosition);
+
+        // Курсор ставится контейнеру: захват взял он, ещё в ItemIdleState.
+        _cursor.Apply(Container, editor.Cursors.ResolveReorder());
     }
 
     /// <inheritdoc />
@@ -95,6 +99,7 @@ internal sealed class ItemReorderingState : DesignEditorItemState
     public override void Exit()
     {
         Container.FindAncestorOfType<DesignEditor>()?.CancelReorder();
+        _cursor.Restore();
     }
 
     /// <summary>

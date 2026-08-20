@@ -64,6 +64,17 @@ internal abstract class DesignEditorItemState
     /// </summary>
     /// <param name="e">Аргументы изменения размера.</param>
     public virtual void OnResizeDelta(ResizeDeltaEventArgs e) { }
+
+    /// <summary>
+    /// Вызывается у базового состояния после потери захвата указателя.
+    /// </summary>
+    /// <remarks>
+    /// Вложенные состояния о потере захвата узнают через <c>Exit</c> — контейнер
+    /// разбирает стек. Базовое состояние не снимается никогда, поэтому о брошенном
+    /// жесте ему нужно сказать отдельно: нажатие, за которым не последует отпускания,
+    /// иначе осталось бы записанным.
+    /// </remarks>
+    public virtual void OnPointerCaptureLost() { }
 }
 
 /// <summary>
@@ -71,6 +82,7 @@ internal abstract class DesignEditorItemState
 /// </summary>
 internal class ItemIdleState : DesignEditorItemState
 {
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private Point _startPoint;
     private bool _isPressed;
     private bool _shouldSkipSelectionToggle;
@@ -86,6 +98,14 @@ internal class ItemIdleState : DesignEditorItemState
     {
         _isPressed = false;
         _shouldSkipSelectionToggle = false;
+        _cursor.Restore();
+    }
+
+    /// <inheritdoc />
+    public override void OnPointerCaptureLost()
+    {
+        _isPressed = false;
+        _cursor.Restore();
     }
 
     /// <inheritdoc />
@@ -131,6 +151,15 @@ internal class ItemIdleState : DesignEditorItemState
         var editor = Container.FindAncestorOfType<DesignEditor>();
         var semantics = DesignMoveSemantics.Reposition;
 
+        // Порог считается до проверок, а не после: курсор запрета имеет смысл только
+        // тогда, когда пользователь уже повёл элемент. На дрожании в пределах порога
+        // он мигал бы на каждом нажатии.
+        var currentPoint = editor != null
+            ? e.GetPosition(editor)
+            : e.GetPosition((Visual)parent);
+        var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
+        var beyondThreshold = Vector.Distance(_startPoint, currentPoint) > dragStartThreshold;
+
         if (editor != null)
         {
             // Спрашиваем не про родителя контейнера, а про фактическую цель жеста:
@@ -142,11 +171,17 @@ internal class ItemIdleState : DesignEditorItemState
             // Пользовательский запрет сильнее любой раскладки — в том числе
             // сильнее перестановки.
             if (editor.GetMovePolicy(moveTarget) == ArxisStudio.Attached.MovePolicy.None)
+            {
+                RefuseDrag(editor, beyondThreshold);
                 return;
+            }
 
             semantics = DesignEditor.GetPlacementStrategy(moveTarget).MoveSemantics;
             if (semantics == DesignMoveSemantics.None)
+            {
+                RefuseDrag(editor, beyondThreshold);
                 return;
+            }
         }
         else if (parent is not AbsolutePanel)
         {
@@ -155,32 +190,48 @@ internal class ItemIdleState : DesignEditorItemState
             return;
         }
 
-        var currentPoint = editor != null
-            ? e.GetPosition(editor)
-            : e.GetPosition((Visual)parent);
-        var dragStartThreshold = Math.Max(0.0, editor?.InteractionOptions.DragStartThreshold ?? 3.0);
-        if (Vector.Distance(_startPoint, currentPoint) > dragStartThreshold)
+        if (!beyondThreshold)
+            return;
+
+        if (semantics == DesignMoveSemantics.Reorder)
         {
-            if (semantics == DesignMoveSemantics.Reorder)
-            {
-                // Перестановку выполняет приложение, и без подписчика она
-                // не произойдёт. Жест тогда не начинается вовсе: вести точку
-                // вставки за курсором, зная, что на отпускании ничего не будет,
-                // — то же самое, что предлагать заблокированное перемещение.
-                if (editor is { CanRequestReorder: true })
-                    Container.PushState(new ItemReorderingState(Container, _startPoint));
+            // Перестановку выполняет приложение, и без подписчика она
+            // не произойдёт. Жест тогда не начинается вовсе: вести точку
+            // вставки за курсором, зная, что на отпускании ничего не будет,
+            // — то же самое, что предлагать заблокированное перемещение.
+            if (editor is { CanRequestReorder: true })
+                Container.PushState(new ItemReorderingState(Container, _startPoint));
+            else
+                RefuseDrag(editor, true);
 
-                return;
-            }
-
-            if (editor != null && editor.ShouldBlockNestedGroupDrag())
-            {
-                e.Handled = true;
-                return;
-            }
-
-            Container.PushState(new ItemDraggingState(Container, _startPoint));
+            return;
         }
+
+        if (editor != null && editor.ShouldBlockNestedGroupDrag())
+        {
+            RefuseDrag(editor, true);
+            e.Handled = true;
+            return;
+        }
+
+        Container.PushState(new ItemDraggingState(Container, _startPoint));
+    }
+
+    /// <summary>
+    /// Показывает курсором, что перетаскивание не начнётся.
+    /// </summary>
+    /// <remarks>
+    /// Отказ живёт здесь, а не в <see cref="ItemDraggingState"/>: заблокированный
+    /// элемент до состояния перетаскивания не доходит вовсе — его отсекают проверки
+    /// выше. Это то же правило «не предлагать жест, который ничего не делает»,
+    /// только выраженное курсором.
+    /// </remarks>
+    private void RefuseDrag(DesignEditor? editor, bool beyondThreshold)
+    {
+        if (editor == null || !beyondThreshold)
+            return;
+
+        _cursor.Apply(Container, editor.Cursors.ResolveBlocked());
     }
 
     /// <inheritdoc />
@@ -190,6 +241,7 @@ internal class ItemIdleState : DesignEditorItemState
         {
             HandleSelectionOnRelease(e);
             _isPressed = false;
+            _cursor.Restore();
             e.Pointer.Capture(null);
             e.Handled = true;
         }
@@ -257,6 +309,7 @@ internal class ItemDraggingState : DesignEditorItemState
     private Point _elementStartLocation;
     private Control _dragTarget = null!;
     private Vector _previousAppliedDelta;
+    private readonly GestureCursorScope _cursor = new GestureCursorScope();
     private bool _accepted;
 
     /// <summary>
@@ -289,11 +342,19 @@ internal class ItemDraggingState : DesignEditorItemState
         // ветках. Без этой проверки отклонённый жест продолжал писать геометрию
         // каждый кадр при закрытой единице, то есть мимо undo.
         _accepted = editor == null || editor.HasActiveEdit;
+
+        // Курсор ставится контейнеру: захват взял он, ещё в ItemIdleState. Курсор запрета
+        // сюда не приходит — до этого состояния отклонённый жест не доходит вовсе,
+        // его отсекает ItemIdleState, и ставить запрет надо там.
+        if (editor != null)
+            _cursor.Apply(Container, editor.Cursors.ResolveMove());
     }
 
     /// <inheritdoc />
     public override void Exit()
     {
+        _cursor.Restore();
+
         var editor = Container.FindAncestorOfType<DesignEditor>();
         editor?.EndSnapGuides();
 
