@@ -406,4 +406,162 @@ public class GroupingTests
 
         Assert.Throws<ArgumentNullException>(() => harness.Editor.ApplyGroup(null!, "x"));
     }
+
+    // ---- Состав группы ----------------------------------------------------------
+
+    /// <summary>Панель-корень формы: обход её выдаёт, а выделение — нет.</summary>
+    private static Control HostPanel(EditorHarness harness) =>
+        (Control)harness.Nested(0).GetVisualParent()!;
+
+    /// <summary>
+    /// Участником считается только то, что редактор даёт выбрать.
+    /// </summary>
+    /// <remarks>
+    /// В режиме <see cref="DesignContentMode.Annotated"/> target'ом становится контрол
+    /// с designer-метаданными, и корневая панель формы им не является. Пометку на ней
+    /// хост поставить может — руками или из разметки, — но раскрытие по клику обязано
+    /// остаться в пределах того, что вообще выбирается: иначе в выделении оказывается
+    /// то, чего указатель выбрать не может, и рамка рисуется вокруг чужой площади.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Mark_On_A_Non_Element_Is_Not_A_Member()
+    {
+        var harness = CreateGrouped();
+        var panel = HostPanel(harness);
+        DesignGroup.SetId(panel, DesignGroup.GetId(harness.Nested(0)));
+
+        Click(harness, NestedCentre);
+
+        Assert.DoesNotContain(harness.Editor.SelectedDesignTargets, t => ReferenceEquals(t.Target, panel));
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+    }
+
+    /// <summary>
+    /// Невидимая редактору пометка всё равно занимает идентификатор.
+    /// </summary>
+    /// <remarks>
+    /// Состав группы фильтруется, а сбор занятых номеров — нет, и это не
+    /// непоследовательность: новая группа, вставшая на чужой номер, слилась бы с ней
+    /// при первом же сохранении.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Hidden_Mark_Still_Reserves_Its_Identifier()
+    {
+        var harness = Create();
+        DesignGroup.SetId(HostPanel(harness), "group-1");
+
+        Click(harness, NestedCentre);
+        Click(harness, SiblingCentre, RawInputModifiers.Shift);
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        Assert.NotEqual("group-1", DesignGroup.GetId(harness.Nested(0)));
+    }
+
+    /// <summary>
+    /// Группировка уже выбранного набора публикуется.
+    /// </summary>
+    /// <remarks>
+    /// Контролы те же и в том же порядке, поэтому сравнение снимка по одним target'ам
+    /// признало бы его неизменившимся. Изменилась группа, а её редактор публикует, —
+    /// значит и сравнивать обязан: публикуется всё, что сравнивается.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Grouping_The_Current_Selection_Publishes_It()
+    {
+        var harness = Create();
+        Click(harness, NestedCentre);
+        Click(harness, SiblingCentre, RawInputModifiers.Shift);
+
+        var events = 0;
+        harness.Editor.DesignSelectionChanged += (_, _) => events++;
+
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        Assert.Equal(1, events);
+    }
+
+    // ---- Чтение групп -----------------------------------------------------------
+
+    [AvaloniaFact]
+    public void Groups_Are_Read_Back_From_The_Container()
+    {
+        var harness = CreateGrouped();
+        var container = harness.Container(0);
+
+        var groups = harness.Editor.GetGroups(container);
+
+        var group = Assert.Single(groups);
+        Assert.Same(container, group.Container);
+        Assert.Equal(DesignGroup.GetId(harness.Nested(0)), group.Id);
+        Assert.Equal(
+            new Control[] { harness.Nested(0), harness.Named(0, "Sibling") },
+            group.Members);
+    }
+
+    /// <summary>
+    /// Неизвестный идентификатор — это ответ, а не ошибка.
+    /// </summary>
+    /// <remarks>
+    /// Состав меняется под хостом: группа могла быть распущена между двумя его
+    /// запросами, и исключение на это заставило бы оборачивать каждое чтение.
+    /// </remarks>
+    [AvaloniaFact]
+    public void An_Unknown_Group_Reads_As_Empty()
+    {
+        var harness = CreateGrouped();
+
+        Assert.Empty(harness.Editor.GetGroupMembers(harness.Container(0), "group-404"));
+    }
+
+    /// <summary>
+    /// Порядок участников — порядок разметки, а не порядок выделения.
+    /// </summary>
+    /// <remarks>
+    /// Хост рисует по этому списку панель слоёв, и она не должна переставляться от того,
+    /// в каком порядке участников выделили перед группировкой.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Members_Keep_The_Order_Of_The_Markup()
+    {
+        var harness = Create();
+        Click(harness, SiblingCentre);
+        Click(harness, NestedCentre, RawInputModifiers.Shift);
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+
+        Assert.Equal(
+            new Control[] { harness.Nested(0), harness.Named(0, "Sibling") },
+            harness.Editor.GetGroupMembers(harness.Container(0), id));
+    }
+
+    [AvaloniaFact]
+    public void The_Selection_Target_Carries_Its_Group()
+    {
+        var harness = Create();
+        Click(harness, NestedCentre);
+        Assert.Null(harness.Editor.PrimarySelectionTarget!.GroupId);
+
+        Click(harness, SiblingCentre, RawInputModifiers.Shift);
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        Assert.All(
+            harness.Editor.SelectedDesignTargets,
+            t => Assert.Equal(DesignGroup.GetId(t.Target), t.GroupId));
+        Assert.NotNull(harness.Editor.PrimarySelectionTarget!.GroupId);
+    }
+
+    [AvaloniaFact]
+    public void Reading_Groups_Rejects_Null_Arguments()
+    {
+        var harness = CreateGrouped();
+
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.GetGroups(null!));
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.GetGroupMembers(null!, "x"));
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.GetGroupMembers(harness.Container(0), null!));
+    }
 }

@@ -1003,6 +1003,13 @@ public partial class DesignEditor
     /// Сравнивает наборы по контролам, а не по обёрткам <see cref="DesignSelectionTarget"/>:
     /// обёртки пересоздаются на каждой пересборке.
     /// </summary>
+    /// <remarks>
+    /// Вместе с контролом сравнивается и его группа: правило одно — <b>публикуется всё,
+    /// что сравнивается</b>. Группировка уже выбранного набора не меняет ни состав, ни
+    /// порядок, поэтому сравнение по одним target'ам признало бы снимок неизменившимся,
+    /// и хост, читающий <see cref="DesignSelectionTarget.GroupId"/>, остался бы со старым
+    /// значением.
+    /// </remarks>
     private static bool AreSameTargets(
         IReadOnlyList<DesignSelectionTarget> left,
         IReadOnlyList<DesignSelectionTarget> right)
@@ -1014,6 +1021,9 @@ public partial class DesignEditor
         for (var i = 0; i < left.Count; i++)
         {
             if (!ReferenceEquals(left[i].Target, right[i].Target))
+                return false;
+
+            if (!string.Equals(left[i].GroupId, right[i].GroupId, StringComparison.Ordinal))
                 return false;
         }
 

@@ -212,6 +212,76 @@ public partial class DesignEditor
     }
 
     /// <summary>
+    /// Возвращает группы формы вместе с их составом.
+    /// </summary>
+    /// <param name="container">Форма, группы которой перечисляются.</param>
+    /// <returns>Группы в порядке первого появления участника в разметке.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="container"/> равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Состав считается по дереву в момент вызова. Кэшировать его редактору нечем:
+    /// деревом владеет хост, пометку он вправе поставить в разметке или через
+    /// <see cref="Attached.DesignGroup.SetId"/>, и узнать об этом редактору неоткуда —
+    /// сохранённый снимок молча устарел бы. По той же причине нет и события об
+    /// изменении групп: о своих правках редактор сообщает через
+    /// <see cref="EditCompleted"/>, а о чужих сообщить не может.
+    /// <para>
+    /// Все группы снимаются за один обход: два раздельных запроса дали бы список
+    /// идентификаторов и состав, снятые в разные моменты.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<DesignGroupInfo> GetGroups(DesignEditorItem container)
+    {
+        if (container == null)
+            throw new ArgumentNullException(nameof(container));
+
+        var order = new List<string>();
+        var members = new Dictionary<string, List<Control>>(StringComparer.Ordinal);
+
+        foreach (var candidate in EnumerateGroupCandidates(container))
+        {
+            if (DesignGroupAttached.GetId(candidate) is not { } id)
+                continue;
+
+            if (!members.TryGetValue(id, out var group))
+            {
+                group = new List<Control>();
+                members[id] = group;
+                order.Add(id);
+            }
+
+            group.Add(candidate);
+        }
+
+        var result = new List<DesignGroupInfo>(order.Count);
+        foreach (var id in order)
+            result.Add(new DesignGroupInfo(container, id, members[id]));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Возвращает участников одной группы формы.
+    /// </summary>
+    /// <param name="container">Форма, которой принадлежит группа.</param>
+    /// <param name="id">Идентификатор группы.</param>
+    /// <returns>Участники в порядке обхода разметки; пустой список, если такой группы нет.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если любой из аргументов равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Неизвестный идентификатор — это ответ, а не ошибка: состав меняется под хостом,
+    /// и группа могла быть распущена между двумя его запросами.
+    /// </remarks>
+    public IReadOnlyList<Control> GetGroupMembers(DesignEditorItem container, string id)
+    {
+        if (container == null)
+            throw new ArgumentNullException(nameof(container));
+
+        if (id == null)
+            throw new ArgumentNullException(nameof(id));
+
+        return EnumerateGroupMembers(container, id).ToList();
+    }
+
+    /// <summary>
     /// Перечисляет участников группы внутри одной формы.
     /// </summary>
     /// <remarks>
@@ -220,7 +290,7 @@ public partial class DesignEditor
     /// </remarks>
     internal static IEnumerable<Control> EnumerateGroupMembers(DesignEditorItem host, string id)
     {
-        foreach (var candidate in EnumerateSelectionCandidates(host))
+        foreach (var candidate in EnumerateGroupCandidates(host))
         {
             if (string.Equals(DesignGroupAttached.GetId(candidate), id, StringComparison.Ordinal))
                 yield return candidate;
@@ -228,8 +298,32 @@ public partial class DesignEditor
     }
 
     /// <summary>
+    /// Перечисляет то, что вообще может оказаться участником группы.
+    /// </summary>
+    /// <remarks>
+    /// Отбор здесь один на всех потребителей — раскрытие по клику, роспуск, публичное
+    /// чтение, — иначе они разошлись бы в понимании состава. Без <c>IsSelectableTarget</c>
+    /// участником становился бы контрол, помеченный хостом, но не имеющий designer-метаданных:
+    /// клик по соседу раскрывал бы выделение на то, что указатель выбрать не может.
+    /// </remarks>
+    private static IEnumerable<Control> EnumerateGroupCandidates(DesignEditorItem host)
+    {
+        foreach (var candidate in EnumerateSelectionCandidates(host))
+        {
+            if (IsSelectableTarget(candidate, host))
+                yield return candidate;
+        }
+    }
+
+    /// <summary>
     /// Подбирает идентификатор, которого в этой форме ещё нет.
     /// </summary>
+    /// <remarks>
+    /// Обход здесь <b>не фильтруется</b>, в отличие от состава группы: пометка,
+    /// которую редактор не считает элементом, занимает идентификатор ничуть не меньше
+    /// видимой. Новая группа, вставшая на занятый номер, слилась бы с ней при первом же
+    /// сохранении — и разошлась бы у хоста с тем, что показывает редактор.
+    /// </remarks>
     private static string NextGroupId(DesignEditorItem host)
     {
         var used = new HashSet<string>(StringComparer.Ordinal);

@@ -261,6 +261,8 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     method Boolean SendToBack()
     method Boolean UngroupSelection()
     method Control CreateContainerForItemOverride(Object, Int32, Object)
+    method IReadOnlyList<Control> GetGroupMembers(DesignEditorItem, String)
+    method IReadOnlyList<DesignGroupInfo> GetGroups(DesignEditorItem)
     method Point GetPositionForInput(Visual)
     method Point GetWorldPosition(Point)
     method Task RequestContextAsync(CancellationToken)
@@ -492,6 +494,11 @@ sealed class ArxisStudio.DesignGroupChange : DesignChange
     ctor .ctor(Control, String, String)
     property String NewId { get; }
     property String OldId { get; }
+sealed class ArxisStudio.DesignGroupInfo
+    ctor .ctor(DesignEditorItem, String, IReadOnlyList<Control>)
+    property DesignEditorItem Container { get; }
+    property IReadOnlyList<Control> Members { get; }
+    property String Id { get; }
 struct ArxisStudio.DesignGuide : ValueType
     ctor .ctor(DesignGuideOrientation, Double)
     method Boolean Equals(DesignGuide)
@@ -540,6 +547,7 @@ sealed class ArxisStudio.DesignSelectionTarget
     property DesignSelectionScope Scope { get; }
     property Int32 Depth { get; }
     property String DisplayName { get; }
+    property String GroupId { get; }
 class ArxisStudio.DragCompletedEventArgs : RoutedEventArgs
     ctor .ctor(Double, Double, Boolean)
     property Boolean Canceled { get; }

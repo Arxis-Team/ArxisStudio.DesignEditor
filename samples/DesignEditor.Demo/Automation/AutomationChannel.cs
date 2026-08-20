@@ -257,6 +257,35 @@ internal sealed class AutomationChannel
                 return new Dictionary<string, object?> { ["guides"] = list };
             }
 
+            case "group":
+            {
+                var applied = Text("op") switch
+                {
+                    "group" => _editor.GroupSelection(),
+                    "ungroup" => _editor.UngroupSelection(),
+                    _ => throw new ArgumentException("op: group|ungroup")
+                };
+
+                return Result(new Dictionary<string, object?> { ["returned"] = applied });
+            }
+
+            case "groups":
+            {
+                // Состав читается у редактора тем же запросом, что доступен хосту:
+                // отвечает на вопрос «что получает живой потребитель», а не «что нарисовано».
+                var container = ContainerAt(Number("index"));
+                var list = _editor.GetGroups(container)
+                    .Select(g => new Dictionary<string, object?>
+                    {
+                        ["id"] = g.Id,
+                        ["container"] = NameOf(g.Container),
+                        ["members"] = g.Members.Select(NameOf).ToList()
+                    })
+                    .ToList();
+
+                return new Dictionary<string, object?> { ["groups"] = list };
+            }
+
             case "events":
             {
                 var drained = _events.Select(entry => entry).ToList();
@@ -358,7 +387,8 @@ internal sealed class AutomationChannel
         ["type"] = target.Target.GetType().Name,
         ["scope"] = target.Scope.ToString(),
         ["container"] = NameOf(target.Container),
-        ["display"] = target.DisplayName
+        ["display"] = target.DisplayName,
+        ["groupId"] = target.GroupId
     };
 
     private static string NameOf(Control control) =>

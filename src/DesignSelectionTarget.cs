@@ -121,6 +121,7 @@ public sealed class DesignSelectionTarget
 
         Depth = CalculateDepth(target);
         DisplayName = CreateDisplayName(target);
+        GroupId = Attached.DesignGroup.GetId(target);
     }
 
     /// <summary>
@@ -156,6 +157,17 @@ public sealed class DesignSelectionTarget
     /// Получает краткое диагностическое имя выбранного target.
     /// </summary>
     public string DisplayName { get; }
+
+    /// <summary>
+    /// Получает идентификатор design-time группы target или <see langword="null"/>, если он не сгруппирован.
+    /// </summary>
+    /// <remarks>
+    /// Значение прочитано при создании снимка, поэтому свежо ровно настолько же,
+    /// насколько сам снимок. Идентификатор осмыслен в пределах <see cref="Container"/>:
+    /// одинаковый идентификатор в двух формах означает две разные группы. Состав —
+    /// <see cref="DesignEditor.GetGroupMembers"/>.
+    /// </remarks>
+    public string? GroupId { get; }
 
     private static int CalculateDepth(Control target)
     {
