@@ -40,6 +40,20 @@
             <Setter Property="Foreground" Value="White" />
         </Style>
 
+        <!-- Правка имени на месте: рамка вместо строки, без собственного фона списка. -->
+        <Style Selector="TextBox.rename">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="MinHeight" Value="16" />
+            <Setter Property="Margin" Value="0,-1,8,-1" />
+            <Setter Property="Background" Value="#15171B" />
+            <Setter Property="Foreground" Value="#E6E6E6" />
+            <Setter Property="BorderBrush" Value="#4C8DFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
         <!--
             Строка: наведение и выбор. Выбор приходит от редактора, а не от списка.
             Фон задаётся стилем, а не атрибутом на самом Border: локальное значение
@@ -93,9 +107,18 @@
                                                Foreground="#8A8F98" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Text="{Binding Glyph}" Width="18" FontSize="11"
                                                Foreground="#8A8F98" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding Title}" FontSize="11"
-                                               Foreground="{Binding TitleBrush}"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <Panel Grid.Column="2">
+                                        <TextBlock Text="{Binding Title}" FontSize="11"
+                                                   IsVisible="{Binding IsNotEditing}"
+                                                   Foreground="{Binding TitleBrush}"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBox Classes="rename"
+                                                 Text="{Binding EditText, Mode=TwoWay}"
+                                                 IsVisible="{Binding IsEditing}"
+                                                 AttachedToVisualTree="EditBox_OnAttached"
+                                                 KeyDown="EditBox_OnKeyDown"
+                                                 LostFocus="EditBox_OnLostFocus" />
+                                    </Panel>
                                     <TextBlock Grid.Column="3" Text="{Binding Note}" FontSize="10"
                                                Foreground="#6E7480" Margin="6,0,10,0" VerticalAlignment="Center" />
                                 </Grid>

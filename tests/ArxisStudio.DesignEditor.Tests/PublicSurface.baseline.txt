@@ -256,6 +256,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     method Boolean DistributeVertically()
     method Boolean GroupSelection()
     method Boolean NeedsContainerOverride(Object, Int32, Object&)
+    method Boolean RenameGroup(DesignEditorItem, String, String)
     method Boolean SelectDesignTarget(Control, Boolean)
     method Boolean SendBackward()
     method Boolean SendToBack()

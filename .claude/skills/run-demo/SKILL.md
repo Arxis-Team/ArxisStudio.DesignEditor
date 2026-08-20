@@ -61,6 +61,12 @@ powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action wheel -X 300 -Y 200 -Notches 4
 
 # контекстное меню — оно должно открыться в точке клика
+powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action doubleclick -X 140 -Y 211
+```
+
+Двойной клик — отдельное действие, а не два `click` подряд: у одиночного на выходе стоит секундная пауза, и системный порог двойного клика она перекрывает. Им проверяются вход в группу у редактора и правка имени группы в панели слоёв.
+
+```bash
 powershell -ExecutionPolicy Bypass -File .claude/skills/run-demo/scripts/demo.ps1 -Action rightclick -X 500 -Y 400
 
 # перетаскивание: down в (X,Y), 12 промежуточных move, up в (ToX,ToY)

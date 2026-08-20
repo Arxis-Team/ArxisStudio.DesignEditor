@@ -14,6 +14,7 @@
 demo.ps1 -Action start
 demo.ps1 -Action shot  -Out C:\tmp\1.png
 demo.ps1 -Action click -X 706 -Y 453
+demo.ps1 -Action doubleclick -X 140 -Y 211
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500
 demo.ps1 -Action drag  -X 706 -Y 453 -ToX 760 -ToY 500 -Modifier Alt
 demo.ps1 -Action dragshot -X 706 -Y 453 -ToX 760 -ToY 500 -Out C:	mp\mid.png
@@ -24,7 +25,7 @@ demo.ps1 -Action stop
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'shot', 'click', 'rightclick', 'drag', 'dragshot', 'wheel', 'key', 'stop', 'status')]
+    [ValidateSet('start', 'shot', 'click', 'doubleclick', 'rightclick', 'drag', 'dragshot', 'wheel', 'key', 'stop', 'status')]
     [string]$Action,
 
     [string]$Out,
@@ -292,6 +293,27 @@ public static class DemoDriver
         System.Threading.Thread.Sleep(900);
     }
 
+    // Двойной клик: вход в группу у редактора и правка имени в панели слоёв.
+    // Пауза между нажатиями заведомо меньше системного порога двойного клика,
+    // поэтому два отдельных вызова Click его не заменяют - там 900 мс на выходе.
+    public static void DoubleClick(IntPtr h, int wx, int wy)
+    {
+        Focus(h);
+        RECT r = Rect(h);
+        SetCursorPos(r.Left + wx, r.Top + wy);
+        System.Threading.Thread.Sleep(250);
+
+        for (int i = 0; i < 2; i++)
+        {
+            mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
+            System.Threading.Thread.Sleep(40);
+            mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
+            if (i == 0) System.Threading.Thread.Sleep(60);
+        }
+
+        System.Threading.Thread.Sleep(900);
+    }
+
     // Правый клик: контекстное меню редактора открывается по RMB.
     public static void RightClick(IntPtr h, int wx, int wy)
     {
@@ -455,6 +477,12 @@ switch ($Action) {
         $p = Require-Demo
         [DemoDriver]::Click($p.MainWindowHandle, $X, $Y, $Modifier)
         "clicked window-relative $X,$Y modifier=$Modifier"
+    }
+
+    'doubleclick' {
+        $p = Require-Demo
+        [DemoDriver]::DoubleClick($p.MainWindowHandle, $X, $Y)
+        "double-clicked window-relative $X,$Y"
     }
 
     'rightclick' {

@@ -126,6 +126,58 @@ public partial class DesignEditor
     }
 
     /// <summary>
+    /// Переименовывает группу формы.
+    /// </summary>
+    /// <param name="container">Форма, которой принадлежит группа.</param>
+    /// <param name="id">Текущий идентификатор группы.</param>
+    /// <param name="newId">Новый идентификатор.</param>
+    /// <returns><see langword="true"/>, если группа переименована.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если любой из аргументов равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Переименование — это смена пометки у всех участников, поэтому идёт через тот же
+    /// шов, что и группировка, и одной единицей редактирования: иначе оно не попало бы
+    /// в <see cref="EditCompleted"/> и отмена вернула бы всё, кроме имени группы.
+    /// <para>
+    /// Отклоняется в трёх случаях, и каждый — не ошибка вызывающего, а ответ: имя пустое,
+    /// группы с таким идентификатором в форме нет, либо новый идентификатор уже занят.
+    /// Последнее означало бы <b>слияние</b> двух групп, а слияние обязано быть отдельным
+    /// действием — выбрать обе и сгруппировать, — а не побочным эффектом набора текста.
+    /// </para>
+    /// </remarks>
+    public bool RenameGroup(DesignEditorItem container, string id, string newId)
+    {
+        if (container == null)
+            throw new ArgumentNullException(nameof(container));
+
+        if (id == null)
+            throw new ArgumentNullException(nameof(id));
+
+        if (newId == null)
+            throw new ArgumentNullException(nameof(newId));
+
+        if (string.IsNullOrWhiteSpace(newId) || string.Equals(id, newId, StringComparison.Ordinal))
+            return false;
+
+        var members = EnumerateGroupMembers(container, id).ToList();
+        if (members.Count == 0 || IsGroupIdTaken(container, newId))
+            return false;
+
+        BeginEdit(DesignEditKind.Group);
+        foreach (var member in members)
+            SetDesignGroup(member, newId);
+
+        CommitEdit();
+
+        // Вход в группу держится идентификатором, и переезжает вместе с ним:
+        // иначе группа осталась бы открытой по имени, которого больше нет.
+        if (string.Equals(_enteredGroupId, id, StringComparison.Ordinal))
+            _enteredGroupId = newId;
+
+        UpdateSelectionOverlayState();
+        return true;
+    }
+
+    /// <summary>
     /// Возвращает признак того, что выделение можно объединить в группу.
     /// </summary>
     public bool CanGroupSelection() =>
@@ -313,6 +365,25 @@ public partial class DesignEditor
             if (IsSelectableTarget(candidate, host))
                 yield return candidate;
         }
+    }
+
+    /// <summary>
+    /// Признак того, что идентификатор в форме уже занят.
+    /// </summary>
+    /// <remarks>
+    /// Обход <b>не фильтруется</b> — по той же причине, что и у <see cref="NextGroupId"/>:
+    /// пометка, которую редактор не считает элементом, занимает идентификатор наравне
+    /// с видимой, и переезд на него слил бы группы при первом же сохранении.
+    /// </remarks>
+    private static bool IsGroupIdTaken(DesignEditorItem host, string id)
+    {
+        foreach (var candidate in EnumerateSelectionCandidates(host))
+        {
+            if (string.Equals(DesignGroupAttached.GetId(candidate), id, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

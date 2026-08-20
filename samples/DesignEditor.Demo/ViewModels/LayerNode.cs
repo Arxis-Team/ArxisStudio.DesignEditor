@@ -73,7 +73,8 @@ public sealed partial class LayerNode : ObservableObject
     public string? GroupId { get; init; }
 
     /// <summary>Число участников — у строки группы.</summary>
-    public int MemberCount { get; init; }
+    [ObservableProperty]
+    private int _memberCount;
 
     /// <summary>Признак того, что у строки есть дети.</summary>
     public bool HasChildren { get; init; }
@@ -120,4 +121,21 @@ public sealed partial class LayerNode : ObservableObject
     /// <summary>Признак раскрытого узла.</summary>
     [ObservableProperty]
     private bool _isExpanded = true;
+
+    partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(Chevron));
+
+    partial void OnMemberCountChanged(int value) => OnPropertyChanged(nameof(Note));
+
+    /// <summary>Признак того, что имя группы правится на месте.</summary>
+    [ObservableProperty]
+    private bool _isEditing;
+
+    /// <summary>Правимое имя группы.</summary>
+    [ObservableProperty]
+    private string _editText = string.Empty;
+
+    /// <summary>Признак обычного показа: подпись видна, поле ввода нет.</summary>
+    public bool IsNotEditing => !IsEditing;
+
+    partial void OnIsEditingChanged(bool value) => OnPropertyChanged(nameof(IsNotEditing));
 }

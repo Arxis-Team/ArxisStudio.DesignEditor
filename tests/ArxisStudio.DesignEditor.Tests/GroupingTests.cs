@@ -564,4 +564,133 @@ public class GroupingTests
         Assert.Throws<ArgumentNullException>(() => harness.Editor.GetGroupMembers(null!, "x"));
         Assert.Throws<ArgumentNullException>(() => harness.Editor.GetGroupMembers(harness.Container(0), null!));
     }
+
+    // ---- Переименование ---------------------------------------------------------
+
+    [AvaloniaFact]
+    public void Renaming_Moves_Every_Member()
+    {
+        var harness = CreateGrouped();
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+
+        Assert.True(harness.Editor.RenameGroup(harness.Container(0), id, "toolbar"));
+        harness.RunLayout();
+
+        Assert.Equal("toolbar", DesignGroup.GetId(harness.Nested(0)));
+        Assert.Equal("toolbar", DesignGroup.GetId(harness.Named(0, "Sibling")));
+        Assert.Equal("toolbar", Assert.Single(harness.Editor.GetGroups(harness.Container(0))).Id);
+    }
+
+    /// <summary>
+    /// Переименование — одна правка, и она отменяется.
+    /// </summary>
+    /// <remarks>
+    /// Идёт через тот же шов, что группировка: смена пометки без него не попала бы
+    /// в контракт изменений, и <c>Ctrl + Z</c> вернул бы всё, кроме имени группы.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Renaming_Is_One_Edit_And_Undoes()
+    {
+        var harness = CreateGrouped();
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+
+        var edits = new List<DesignEditCompletedEventArgs>();
+        harness.Editor.EditCompleted += (_, e) => edits.Add(e);
+
+        Assert.True(harness.Editor.RenameGroup(harness.Container(0), id, "toolbar"));
+        harness.RunLayout();
+
+        var edit = Assert.Single(edits);
+        Assert.Equal(DesignEditKind.Group, edit.Kind);
+        Assert.Equal(2, edit.Changes.Count);
+
+        foreach (var change in edit.Changes)
+            harness.Editor.Revert(change);
+
+        harness.RunLayout();
+        Assert.Equal(id, DesignGroup.GetId(harness.Nested(0)));
+    }
+
+    /// <summary>
+    /// Занятый идентификатор переименование отклоняет.
+    /// </summary>
+    /// <remarks>
+    /// Идентификатор — это личность группы внутри формы, поэтому переезд на занятый
+    /// означал бы слияние двух групп. Слияние — отдельное действие (выбрать обе и
+    /// сгруппировать), а не побочный эффект набора текста.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Renaming_Onto_A_Taken_Identifier_Is_Refused()
+    {
+        var harness = CreateGrouped();
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+        DesignGroup.SetId(HostPanel(harness), "toolbar");
+
+        Assert.False(harness.Editor.RenameGroup(harness.Container(0), id, "toolbar"));
+        Assert.Equal(id, DesignGroup.GetId(harness.Nested(0)));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void An_Empty_Identifier_Is_Refused(string candidate)
+    {
+        var harness = CreateGrouped();
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+
+        Assert.False(harness.Editor.RenameGroup(harness.Container(0), id, candidate));
+        Assert.Equal(id, DesignGroup.GetId(harness.Nested(0)));
+    }
+
+    [AvaloniaFact]
+    public void Renaming_An_Unknown_Group_Changes_Nothing()
+    {
+        var harness = CreateGrouped();
+        var edits = new List<DesignEditCompletedEventArgs>();
+        harness.Editor.EditCompleted += (_, e) => edits.Add(e);
+
+        Assert.False(harness.Editor.RenameGroup(harness.Container(0), "group-404", "toolbar"));
+
+        Assert.Empty(edits);
+    }
+
+    /// <summary>
+    /// Открытая двойным кликом группа переезжает вместе с именем.
+    /// </summary>
+    /// <remarks>
+    /// Вход в группу держится её идентификатором. Оставь его прежним — и группа
+    /// осталась бы «открытой» по имени, которого больше нет: клик внутри неё снова
+    /// начал бы выбирать её целиком.
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_Entered_Group_Follows_The_Rename()
+    {
+        var harness = CreateGrouped();
+        var id = DesignGroup.GetId(harness.Nested(0))!;
+
+        // Вход в группу: двойной клик по участнику.
+        harness.Window.MouseDown(NestedCentre, MouseButton.Left);
+        harness.Window.MouseUp(NestedCentre, MouseButton.Left);
+        harness.Window.MouseDown(NestedCentre, MouseButton.Left);
+        harness.Window.MouseUp(NestedCentre, MouseButton.Left);
+        harness.RunLayout();
+
+        Assert.True(harness.Editor.RenameGroup(harness.Container(0), id, "toolbar"));
+        harness.RunLayout();
+
+        // Внутри открытой группы клик выбирает участника поодиночке.
+        Click(harness, SiblingCentre);
+        Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
+    }
+
+    [AvaloniaFact]
+    public void Renaming_Rejects_Null_Arguments()
+    {
+        var harness = CreateGrouped();
+        var container = harness.Container(0);
+
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.RenameGroup(null!, "a", "b"));
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.RenameGroup(container, null!, "b"));
+        Assert.Throws<ArgumentNullException>(() => harness.Editor.RenameGroup(container, "a", null!));
+    }
 }
