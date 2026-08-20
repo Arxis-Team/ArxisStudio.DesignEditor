@@ -96,11 +96,19 @@
                         Background="#F4F6F9" BorderBrush="#DCE1E8" BorderThickness="1" CornerRadius="10" Padding="14">
                     <StackPanel Spacing="10">
                         <TextBlock Text="Сцены" FontSize="12" Foreground="#667085" />
+                        <!--
+                            Группа задана в разметке: пометка живёт там же, где Layout.X/Y,
+                            и хост сохраняет её тем же способом. Панель слоёв показывает её
+                            сразу при запуске, до всякой группировки мышью.
+                        -->
                         <Button Content="Доброе утро" HorizontalAlignment="Stretch" Background="#EEF1F5"
+                                attached:DesignGroup.Id="scenes"
                                 Foreground="#16191D" BorderThickness="0" CornerRadius="8" />
                         <Button Content="Ушёл из дома" HorizontalAlignment="Stretch" Background="#EEF1F5"
+                                attached:DesignGroup.Id="scenes"
                                 Foreground="#16191D" BorderThickness="0" CornerRadius="8" />
                         <Button Content="Ночь" HorizontalAlignment="Stretch" Background="#EEF1F5"
+                                attached:DesignGroup.Id="scenes"
                                 Foreground="#16191D" BorderThickness="0" CornerRadius="8" />
                     </StackPanel>
                 </Border>

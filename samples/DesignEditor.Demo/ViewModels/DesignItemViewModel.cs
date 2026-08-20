@@ -24,6 +24,15 @@ public partial class DesignItemViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Имя формы для панели слоёв.
+    /// </summary>
+    /// <remarks>
+    /// Своё, а не снятое с контрола: у контейнера имени нет, а тип view-модели
+    /// читается как «HomeScreenViewModel» — в списке это шум.
+    /// </remarks>
+    public string Title { get; protected set; } = "Форма";
+
     [ObservableProperty] private double _width = 400;
     [ObservableProperty] private double _height = 300;
 

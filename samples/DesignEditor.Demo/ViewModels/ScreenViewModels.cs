@@ -7,6 +7,7 @@ public class HomeScreenViewModel : DesignItemViewModel
 {
     public HomeScreenViewModel(double x, double y) : base(x, y)
     {
+        Title = "Дом";
         Width = 700;
         Height = 460;
     }
@@ -19,6 +20,7 @@ public class ThermostatScreenViewModel : DesignItemViewModel
 {
     public ThermostatScreenViewModel(double x, double y) : base(x, y)
     {
+        Title = "Термостат";
         Width = 320;
         Height = 460;
     }
@@ -31,6 +33,7 @@ public class AddDeviceDialogViewModel : DesignItemViewModel
 {
     public AddDeviceDialogViewModel(double x, double y) : base(x, y)
     {
+        Title = "Добавление устройства";
         Width = 380;
         Height = 320;
     }
@@ -43,6 +46,7 @@ public class AutomationScreenViewModel : DesignItemViewModel
 {
     public AutomationScreenViewModel(double x, double y) : base(x, y)
     {
+        Title = "Сценарий";
         Width = 420;
         Height = 320;
     }
@@ -55,6 +59,7 @@ public class ComponentLibraryViewModel : DesignItemViewModel
 {
     public ComponentLibraryViewModel(double x, double y) : base(x, y)
     {
+        Title = "Библиотека компонентов";
         Width = 700;
         Height = 220;
     }
