@@ -139,6 +139,18 @@ public partial class LayersPanel : UserControl
 
     private void OnEditCompleted(object? sender, DesignEditCompletedEventArgs e) => Rebuild();
 
+    /// <summary>
+    /// Перечитывает группы у редактора.
+    /// </summary>
+    /// <remarks>
+    /// Зовётся хостом после того, как он <b>сам</b> изменил дерево — переставил детей
+    /// или удалил форму. Такие правки редактор не делает и не публикует
+    /// (см. ADR 0001), поэтому и сообщить о них может только тот, кто их выполнил.
+    /// Без этого панель остаётся с прежним составом: строки продолжают указывать на
+    /// контролы, стоявшие на этих местах до перестановки.
+    /// </remarks>
+    public void Refresh() => Rebuild();
+
     private void Refresh_OnClick(object? sender, RoutedEventArgs e) => Rebuild();
 
     private void Group_OnClick(object? sender, RoutedEventArgs e)
@@ -173,13 +185,13 @@ public partial class LayersPanel : UserControl
     }
 
     /// <summary>
-    /// Приводит текущий список к желаемому, сохраняя строки с теми же ключами.
+    /// Приводит текущий список к желаемому, сохраняя строки, описывающие то же самое.
     /// </summary>
     private void Reconcile(List<LayerNode> rows)
     {
         for (var i = 0; i < rows.Count; i++)
         {
-            if (i < Nodes.Count && string.Equals(Nodes[i].Key, rows[i].Key, System.StringComparison.Ordinal))
+            if (i < Nodes.Count && IsSameRow(Nodes[i], rows[i]))
             {
                 var existing = Nodes[i];
                 existing.IsSelected = rows[i].IsSelected;
@@ -198,6 +210,24 @@ public partial class LayersPanel : UserControl
         while (Nodes.Count > rows.Count)
             Nodes.RemoveAt(Nodes.Count - 1);
     }
+
+    /// <summary>
+    /// Признак того, что старую строку можно оставить вместо новой.
+    /// </summary>
+    /// <remarks>
+    /// Правило одно: <b>переиспользовать можно только строку, у которой совпадает всё,
+    /// что сверка не переносит</b>. Она переносит лишь изменяемое состояние, поэтому
+    /// контрол и форма обязаны совпасть по ссылке.
+    /// <para>
+    /// Одного ключа тут мало, и это стоило дефекта: ключ участника позиционный, а после
+    /// перестановки детей в панели позиции меняются местами. Ключи при этом совпадали,
+    /// строки оставались прежними — и первая строка выбирала контрол, ставший вторым.
+    /// </para>
+    /// </remarks>
+    private static bool IsSameRow(LayerNode existing, LayerNode fresh) =>
+        string.Equals(existing.Key, fresh.Key, System.StringComparison.Ordinal)
+        && ReferenceEquals(existing.Target, fresh.Target)
+        && ReferenceEquals(existing.Container, fresh.Container);
 
     private List<LayerNode> BuildRows(Editor editor)
     {

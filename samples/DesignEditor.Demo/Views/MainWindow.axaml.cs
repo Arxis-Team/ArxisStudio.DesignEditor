@@ -128,6 +128,7 @@ public partial class MainWindow : Window
             viewModel.Elements.RemoveAt(index);
 
         e.Handled = true;
+        this.FindControl<LayersPanel>("Layers")?.Refresh();
     }
 
     /// <summary>
@@ -193,6 +194,10 @@ public partial class MainWindow : Window
         // EditCompleted она не попадает: редактор структурой не распоряжается.
         _history?.RecordReorder(panel, e.OldIndex, e.NewIndex);
         e.Handled = true;
+
+        // Дерево изменили здесь — здесь же и сообщаем панели слоёв: перестановка
+        // не проходит через EditCompleted, и узнать о ней ей больше неоткуда.
+        this.FindControl<LayersPanel>("Layers")?.Refresh();
     }
 
     private void Undo_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _history?.Undo();
