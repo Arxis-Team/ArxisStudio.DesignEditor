@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Headless.XUnit;
+using ArxisStudio.Attached;
 using Xunit;
 
 namespace ArxisStudio.Tests;
@@ -115,5 +116,39 @@ public class GeometryApiTests
         var harness = Create();
 
         Assert.Throws<System.ArgumentNullException>(() => harness.Editor.SetDesignGeometry(null!, default));
+    }
+
+    /// <summary>
+    /// Политики ограничивают жест, а не хоста.
+    /// </summary>
+    /// <remarks>
+    /// <c>DesignInteraction</c> — это правила <b>взаимодействия</b>: их спрашивают точки
+    /// жеста, и они говорят «мышью этот элемент не двигать». Вызов API — не жест, а
+    /// просьба самого хоста, который эту пометку и поставил; запрещать ему значило бы
+    /// сделать заблокированный элемент неподвижным навсегда, ведь и отмена возвращает
+    /// геометрию тем же путём. Хосту, которому нужен запрет в интерфейсе, редактор
+    /// сообщает политику сам — <c>PrimarySelectionMovePolicy</c>; так и сделана панель
+    /// свойств демо: поля X и Y у заблокированного элемента гаснут.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Policies_Constrain_The_Gesture_Not_The_Host()
+    {
+        var harness = Create();
+        var nested = harness.Nested(0);
+        DesignInteraction.SetMovePolicy(nested, MovePolicy.None);
+        DesignInteraction.SetResizePolicy(nested, ResizePolicy.None);
+
+        Assert.True(harness.Editor.TryGetDesignBounds(nested, out var before));
+        Assert.True(harness.Editor.SetDesignGeometry(nested, new Rect(before.X + 40, before.Y + 40, 90, 70)));
+        harness.RunLayout();
+
+        Assert.True(harness.Editor.TryGetDesignBounds(nested, out var after));
+        Assert.Equal(new Rect(before.X + 40, before.Y + 40, 90, 70), after);
+
+        // Читалка при этом честно говорит, что элемент заблокирован: по ней хост и
+        // гасит поля, если запрет должен действовать и в его интерфейсе.
+        harness.Editor.SelectDesignTarget(nested);
+        harness.RunLayout();
+        Assert.Equal(MovePolicy.None, harness.Editor.PrimarySelectionMovePolicy);
     }
 }
