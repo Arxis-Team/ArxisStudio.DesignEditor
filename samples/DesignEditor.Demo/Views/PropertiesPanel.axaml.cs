@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,6 +10,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using ArxisStudio;
 using ArxisStudio.Attached;
+using DesignEditor.Demo.ViewModels;
 using Editor = ArxisStudio.DesignEditor;
 
 namespace DesignEditor.Demo.Views;
@@ -34,6 +36,10 @@ public partial class PropertiesPanel : UserControl
     /// <summary>Идентификатор свойства редактора.</summary>
     public static readonly StyledProperty<Editor?> EditorProperty =
         AvaloniaProperty.Register<PropertiesPanel, Editor?>(nameof(Editor));
+
+    /// <summary>Идентификатор свойства раскрытых подсказок.</summary>
+    public static readonly StyledProperty<bool> IsGestureHelpExpandedProperty =
+        AvaloniaProperty.Register<PropertiesPanel, bool>(nameof(IsGestureHelpExpanded));
 
     private Editor? _attached;
 
@@ -74,6 +80,63 @@ public partial class PropertiesPanel : UserControl
         VAlign.SelectionChanged += Choice_OnChanged;
         MovePolicyBox.SelectionChanged += Choice_OnChanged;
         ResizePolicyBox.SelectionChanged += Choice_OnChanged;
+    }
+
+    /// <summary>
+    /// Жесты редактора для подсказки.
+    /// </summary>
+    /// <remarks>
+    /// Список лежит здесь, а не в разметке: рукописная сетка от него отстала — каждая
+    /// строка стоила восемнадцати строк XAML с ручной нумерацией <c>Grid.Row</c>, и
+    /// дописать в неё жест было дороже, чем не дописать.
+    /// <para>
+    /// И здесь, а не во вью-модели окна: панель ставит себе <c>DataContext = this</c>,
+    /// поэтому привязка <c>{Binding Gestures}</c>, заданная снаружи, замыкалась бы на
+    /// саму панель и приезжала пустой. Список описывает редактор, а не данные
+    /// приложения, так что жить рядом с тем, кто его показывает, ему и место.
+    /// </para>
+    /// <para>
+    /// Модификаторы названы теми, что задаёт демо (<c>InputGestures</c> в разметке) и
+    /// что стоит по умолчанию у самого редактора: <c>Alt</c> — обход привязки,
+    /// <c>Ctrl</c> — работа с контейнером, <c>Shift</c> — добавление к выделению.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<GestureHint> Gestures { get; } = new GestureHint[]
+    {
+        new("Left Click", "Выбрать вложенный контрол"),
+        new("Double Click", "Войти в группу и выбрать её участника"),
+        new("Shift + Click", "Добавить вложенный контрол в той же форме"),
+        new("Right Click", "Контекстное меню"),
+        new("Left Drag", "Тянуть выделение или рамку по пустой области"),
+        new("Drag ручки", "Изменить размер выделения"),
+        new("Alt + Drag", "Вести без привязки к сетке и направляющим"),
+        new("Middle Drag", "Панорамирование viewport"),
+        new("Wheel", "Масштабирование viewport"),
+        new("Ctrl + Click", "Выбрать DesignEditorItem"),
+        new("Ctrl + Drag", "Переместить выбранный DesignEditorItem"),
+        new("Ctrl + Shift", "Добавить item или рамочное выделение контейнеров"),
+        new("Drag с линейки", "Вытянуть направляющую"),
+        new("Drag линии", "Переместить направляющую; увести за край — убрать"),
+        new("← ↑ → ↓", "Сместить выделение на шаг"),
+        new("Shift + ← ↑ → ↓", "Сместить крупным шагом"),
+        new("Ctrl + Z", "Отменить"),
+        new("Ctrl + X", "Повторить"),
+        new("Delete", "Удалить выбранные элементы"),
+        new("Esc / Ctrl + A", "Снять выделение / выбрать все"),
+    };
+
+    /// <summary>
+    /// Получает или задает признак раскрытой подсказки о жестах.
+    /// </summary>
+    /// <remarks>
+    /// Состояние держит сама панель: показ подсказки — свойство её вида, а не данных
+    /// приложения. Свёрнута по умолчанию — развёрнутая занимает нижнюю треть панели,
+    /// а нужна один раз.
+    /// </remarks>
+    public bool IsGestureHelpExpanded
+    {
+        get => GetValue(IsGestureHelpExpandedProperty);
+        set => SetValue(IsGestureHelpExpandedProperty, value);
     }
 
     /// <summary>Получает или задает редактор, свойства которого показывает панель.</summary>
@@ -371,6 +434,9 @@ public partial class PropertiesPanel : UserControl
                 break;
         }
     }
+
+    private void ToggleGestures_OnClick(object? sender, RoutedEventArgs e) =>
+        IsGestureHelpExpanded = !IsGestureHelpExpanded;
 
     private void BringToFront_OnClick(object? sender, RoutedEventArgs e) => _attached?.BringToFront();
 

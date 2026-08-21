@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:DesignEditor.Demo.Views"
+             xmlns:vm="using:DesignEditor.Demo.ViewModels"
              x:Class="DesignEditor.Demo.Views.PropertiesPanel"
              x:DataType="views:PropertiesPanel"
              Width="272">
@@ -74,7 +75,7 @@
     </UserControl.Styles>
 
     <Border Background="#1E1E1E" BorderBrush="#3E4451" BorderThickness="1,0,0,0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,*,Auto">
 
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="10,8,10,8">
                 <TextBlock Text="Свойства" Foreground="#E6E6E6" FontSize="12" FontWeight="SemiBold"
@@ -179,6 +180,68 @@
 
                 </StackPanel>
             </ScrollViewer>
+
+            <!--
+                Подсказки о жестах стоят ниже свойств и вне блока Sections: тот гаснет,
+                когда ничего не выбрано, а жесты читают как раз тогда, когда ещё не знают,
+                как что-нибудь выбрать.
+            -->
+            <Border Grid.Row="2" Background="#191A1E" BorderBrush="#2C2F36" BorderThickness="0,1,0,0"
+                    Padding="10,8,10,10">
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="section" Margin="0" Text="Жесты редактора" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="ghostBtn" Click="ToggleGestures_OnClick"
+                                Content="⌄" IsVisible="{Binding IsGestureHelpExpanded}"
+                                ToolTip.Tip="Свернуть подсказки" />
+                        <Button Grid.Column="1" Classes="ghostBtn" Click="ToggleGestures_OnClick"
+                                Content="›" IsVisible="{Binding !IsGestureHelpExpanded}"
+                                ToolTip.Tip="Развернуть подсказки" />
+                    </Grid>
+
+                    <TextBlock Classes="aside" Text="Показать подсказки"
+                               IsVisible="{Binding !IsGestureHelpExpanded}" />
+
+                    <!--
+                        Список идёт из вью-модели, а не рукописной сеткой: раньше каждая
+                        строка стоила восемнадцати строк разметки, и список разошёлся
+                        с настоящими жестами — дописать в него было дороже, чем не дописать.
+                    -->
+                    <ScrollViewer IsVisible="{Binding IsGestureHelpExpanded}"
+                                  MaxHeight="300"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Visible">
+                        <ItemsControl ItemsSource="{Binding Gestures}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="5" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:GestureHint">
+                                    <!-- Отступ справа под полосу прокрутки: без него
+                                         описания обрезались ровно на её ширину. -->
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,6,0">
+                                        <!--
+                                            Ширина плашки задана, а не выведена из текста:
+                                            иначе столбец описаний ехал бы у каждой строки
+                                            по-своему и читать список было бы нечем.
+                                        -->
+                                        <Border Width="92" Background="#243246" CornerRadius="4"
+                                                Padding="5,2" VerticalAlignment="Top">
+                                            <TextBlock Text="{Binding Keys}" Foreground="#A9D1FF"
+                                                       FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding Description}"
+                                                   Foreground="#C9D1D9" FontSize="10"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 </UserControl>
