@@ -110,15 +110,23 @@ public partial class DesignEditor
         {
             foreach (var member in cluster.Members)
             {
-                var current = DesignGroupAttached.GetId(member);
-                SetDesignGroup(member, current == null ? path : DesignGroupPath.Rebase(current, parent, path));
+                // Хвост пути сохраняется только у кластера-группы — ради этого вложенность
+                // и заводилась. Одиночный контрол группой не является: он входит в новую
+                // напрямую, иначе уровень, из которого его вытащили, уезжал бы с ним и
+                // превращался в фантомную группу с тем же именем, что и настоящая.
+                var next = cluster.IsGroup
+                    ? DesignGroupPath.Rebase(DesignGroupAttached.GetId(member), parent, path)
+                    : path;
+
+                SetDesignGroup(member, next);
                 AddDistinct(members, member);
             }
         }
 
         CommitEdit();
 
-        _enteredGroupPath = parent;
+        // Открытый уровень задаёт SyncEnteredGroup по форме выделения: выбран ровно состав
+        // новой группы, значит смотреть на неё надо снаружи.
         SelectGroupMembers(members);
         return true;
     }
@@ -186,6 +194,9 @@ public partial class DesignEditor
         if (newId == null)
             throw new ArgumentNullException(nameof(newId));
 
+        // Обрезка стоит на шве, а не в панели: правила имени должны жить в одном месте,
+        // иначе « toolbar » и «toolbar» станут двумя внешне неотличимыми группами.
+        newId = newId.Trim();
         if (!DesignGroupPath.IsValidSegment(newId))
             return false;
 
@@ -353,10 +364,11 @@ public partial class DesignEditor
         }
 
         // Группа становится кластером, только когда выбраны все её участники.
+        var counts = CountGroupMembers(host);
         var whole = new HashSet<string>(StringComparer.Ordinal);
         foreach (var pair in selectedByPath)
         {
-            if (EnumerateGroupMembers(host, pair.Key).Count() == pair.Value.Count)
+            if (counts.TryGetValue(pair.Key, out var total) && total == pair.Value.Count)
                 whole.Add(pair.Key);
         }
 
@@ -394,6 +406,42 @@ public partial class DesignEditor
     {
         if (!members.Contains(target))
             members.Add(target);
+    }
+
+    /// <summary>
+    /// Считает состав каждой группы формы одним обходом.
+    /// </summary>
+    /// <remarks>
+    /// Полноту кластера и совпадение выделения с группой спрашивают на каждой пересборке
+    /// оверлея, то есть на каждом кадре жеста. Обход дерева стоит по размеру формы, и
+    /// делать его по разу на кластер и на уровень пути значило вернуть ту самую
+    /// зависимость от размера макета, из-за которой у рамки выделения появился снимок
+    /// контейнеров.
+    /// <para>
+    /// Контрол считается участником каждого своего предка, поэтому счётчик получают все
+    /// префиксы его пути.
+    /// </para>
+    /// </remarks>
+    private static Dictionary<string, int> CountGroupMembers(DesignEditorItem host)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var candidate in EnumerateGroupCandidates(host))
+        {
+            if (DesignGroupAttached.GetId(candidate) is not { } path)
+                continue;
+
+            var segments = DesignGroupPath.Split(path);
+            for (var depth = 1; depth <= segments.Length; depth++)
+            {
+                if (DesignGroupPath.Combine(segments.Take(depth)) is not { } key)
+                    continue;
+
+                counts[key] = counts.TryGetValue(key, out var count) ? count + 1 : 1;
+            }
+        }
+
+        return counts;
     }
 
     /// <summary>
@@ -598,7 +646,9 @@ public partial class DesignEditor
         if (host == null || prefix == null)
             return false;
 
+        var counts = CountGroupMembers(host);
         var segments = DesignGroupPath.Split(prefix);
+
         for (var depth = 1; depth <= segments.Length; depth++)
         {
             var candidate = DesignGroupPath.Combine(segments.Take(depth));
@@ -607,7 +657,7 @@ public partial class DesignEditor
 
             // Все выбранные лежат внутри кандидата — он префикс их общего префикса, —
             // поэтому равенства количеств достаточно: состав уникален.
-            if (EnumerateGroupMembers(host, candidate).Count() != _selectedTargets.Count)
+            if (!counts.TryGetValue(candidate, out var total) || total != _selectedTargets.Count)
                 continue;
 
             path = candidate;

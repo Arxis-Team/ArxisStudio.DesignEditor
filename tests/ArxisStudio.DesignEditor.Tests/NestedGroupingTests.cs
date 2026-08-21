@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.VisualTree;
 using ArxisStudio.Attached;
 using ArxisStudio.Controls;
+using ArxisStudio.Grouping;
 using Xunit;
 using DesignLayout = ArxisStudio.Attached.Layout;
 
@@ -423,14 +424,8 @@ public class NestedGroupingTests
         Assert.True(harness.Editor.GroupSelection());
         harness.RunLayout();
 
-        outer = DesignGroupPathHead(PathOf(harness, "A")!);
+        outer = DesignGroupPath.Split(PathOf(harness, "A"))[0];
         return harness;
-    }
-
-    private static string DesignGroupPathHead(string path)
-    {
-        var index = path.IndexOf('/');
-        return index < 0 ? path : path.Substring(0, index);
     }
 
     /// <summary>Выбирает состав группы так, как это делает панель групп: по одному target'у.</summary>
@@ -491,5 +486,151 @@ public class NestedGroupingTests
 
         Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
         Assert.True(harness.Editor.HasGroupSelection);
+    }
+
+    /// <summary>
+    /// Участник, вытащенный из группы, выходит из неё, а не уносит её уровень с собой.
+    /// </summary>
+    /// <remarks>
+    /// Хвост пути сохраняется ради вложенности — у кластера-группы, которая входит
+    /// в новую целиком. Одиночный контрол группой не является, и прежний уровень у него
+    /// превращался в фантомную группу с тем же именем, что и настоящая.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Member_Pulled_Out_Of_A_Group_Leaves_It()
+    {
+        var harness = CreateWithGroup();
+        var inner = PathOf(harness, "A")!;
+
+        // Клик по строке участника в панели выбирает один контрол из группы.
+        harness.Editor.SelectDesignTarget(Cell(harness, "A"));
+        harness.Editor.SelectDesignTarget(Cell(harness, "C"), additive: true);
+        harness.RunLayout();
+
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        var outer = PathOf(harness, "C")!;
+        Assert.Equal(outer, PathOf(harness, "A"));
+        Assert.Equal(inner, PathOf(harness, "B"));
+        Assert.DoesNotContain(DesignGroupPath.Separator, PathOf(harness, "A")!);
+    }
+
+    /// <summary>
+    /// Переименование внешнего уровня перестраивает пути всех потомков.
+    /// </summary>
+    /// <remarks>
+    /// У вложенного уровня переименование сводится к замене последнего сегмента,
+    /// и ошибка в пересборке хвоста там не видна.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Renaming_The_Outer_Level_Rebases_Descendants()
+    {
+        var harness = CreateNested(out var outer, out var inner);
+        var leaf = DesignGroupPath.Leaf(inner);
+
+        Assert.True(harness.Editor.RenameGroup(harness.Container(0), outer, "screen"));
+        harness.RunLayout();
+
+        Assert.Equal("screen/" + leaf, PathOf(harness, "A"));
+        Assert.Equal("screen/" + leaf, PathOf(harness, "B"));
+        Assert.Equal("screen", PathOf(harness, "C"));
+    }
+
+    /// <summary>
+    /// Пробелы вокруг имени обрезаются на шве записи.
+    /// </summary>
+    /// <remarks>
+    /// Правка имени на месте легко оставляет пробел, а пути сравниваются Ordinal:
+    /// « toolbar » и «toolbar» стали бы двумя внешне неотличимыми группами.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Renaming_Trims_The_Identifier()
+    {
+        var harness = CreateWithGroup();
+        var id = PathOf(harness, "A")!;
+
+        Assert.True(harness.Editor.RenameGroup(harness.Container(0), id, "  toolbar  "));
+        harness.RunLayout();
+
+        Assert.Equal("toolbar", PathOf(harness, "A"));
+    }
+
+    private static SelectionAdorner ClusterAdorner(EditorHarness harness, bool group) =>
+        harness.Editor.GetVisualDescendants()
+            .OfType<SelectionAdornerLayer>()
+            .SelectMany(layer => layer.GetVisualChildren().OfType<SelectionAdorner>())
+            .Single(a => (a.Role == SelectionAdornerRole.Group) == group);
+
+    private static void Resize(SelectionAdorner adorner, Vector delta)
+    {
+        adorner.RaiseEvent(new ResizeStartedEventArgs(default, ResizeDirection.Right, SelectionAdorner.ResizeStartedEvent));
+        adorner.RaiseEvent(new ResizeDeltaEventArgs(delta, ResizeDirection.Right, SelectionAdorner.ResizeDeltaEvent));
+        adorner.RaiseEvent(new VectorEventArgs { RoutedEvent = SelectionAdorner.ResizeCompletedEvent, Vector = delta });
+    }
+
+    /// <summary>Начинает жест кластера и не заканчивает его.</summary>
+    private static void StartClusterResize(EditorHarness harness)
+    {
+        var adorner = ClusterAdorner(harness, group: true);
+        adorner.RaiseEvent(new ResizeStartedEventArgs(default, ResizeDirection.Right, SelectionAdorner.ResizeStartedEvent));
+        adorner.RaiseEvent(new ResizeDeltaEventArgs(new Vector(20, 0), ResizeDirection.Right, SelectionAdorner.ResizeDeltaEvent));
+    }
+
+    /// <summary>
+    /// Потеря захвата закрывает групповой жест и фиксирует его единицу редактирования.
+    /// </summary>
+    /// <remarks>
+    /// Геометрия к этому моменту уже применена, поэтому единица именно фиксируется:
+    /// поздняя запись хуже своевременной и несравнимо лучше потерянной. Заодно снимается
+    /// сама операция — иначе она пережила бы жест.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Dropped_Cluster_Resize_Commits_Its_Edit()
+    {
+        var harness = CreateWithGroup();
+        Select(harness, "A", "C");
+
+        var edits = new List<DesignEditCompletedEventArgs>();
+        harness.Editor.EditCompleted += (_, e) => edits.Add(e);
+
+        StartClusterResize(harness);
+        harness.Editor.RaiseEvent(new PointerCaptureLostEventArgs(
+            harness.Editor,
+            new Pointer(1, PointerType.Mouse, isPrimary: true)));
+        harness.RunLayout();
+
+        var edit = Assert.Single(edits);
+        Assert.Equal(DesignEditKind.Resize, edit.Kind);
+    }
+
+    /// <summary>
+    /// Рамка одиночного контрола тянет только его, даже если групповой жест не закрыт.
+    /// </summary>
+    /// <remarks>
+    /// Обработчики вторичных адорнеров ветвятся по составу адорнера — тому же условию,
+    /// что и на входе в жест. Пока они смотрели на само поле операции, незакрытая
+    /// операция кластера перехватывала чужой жест: тянули одну рамку, менялся другой набор.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Lone_Adorner_Resizes_Only_Its_Own_Target()
+    {
+        var harness = CreateWithGroup();
+        Select(harness, "A", "C");
+
+        StartClusterResize(harness);
+        harness.RunLayout();
+
+        // Читать design-координаты можно только после layout-прохода: они отстают
+        // на один проход диспетчера.
+        var beforeA = DesignBoundsOf(harness, "A");
+        var beforeB = DesignBoundsOf(harness, "B");
+
+        Resize(ClusterAdorner(harness, group: false), new Vector(30, 0));
+        harness.RunLayout();
+
+        Assert.Equal(beforeA, DesignBoundsOf(harness, "A"));
+        Assert.Equal(beforeB, DesignBoundsOf(harness, "B"));
+        Assert.True(DesignBoundsOf(harness, "C").Width > CellWidth);
     }
 }

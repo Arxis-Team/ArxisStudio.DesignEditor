@@ -292,8 +292,11 @@ public partial class GroupsPanel : UserControl
 
         // Группа считается выбранной, когда выбран весь её состав, включая вложенные
         // уровни: рамка у неё одна, и половинчатая подсветка описывала бы состояние,
-        // которого нет.
-        var members = _attached?.GetGroupMembers(container, group.Path) ?? group.Members;
+        // которого нет. Состав берётся из уже построенного дерева, а не запросом на
+        // каждую строку: панель пересобирается на каждое изменение выбора, и запрос
+        // означал бы полный обход формы на каждую группу при каждом клике.
+        var members = new List<Control>();
+        CollectMembers(group, members);
         var wholeGroupSelected = members.Count > 0;
         foreach (var member in members)
         {
@@ -343,6 +346,15 @@ public partial class GroupsPanel : UserControl
                 IsSelected = selected.Contains(member)
             });
         }
+    }
+
+    /// <summary>Собирает весь состав группы по дереву, включая вложенные уровни.</summary>
+    private static void CollectMembers(DesignGroupInfo group, List<Control> into)
+    {
+        into.AddRange(group.Members);
+
+        foreach (var nested in group.Groups)
+            CollectMembers(nested, into);
     }
 
     private static string TitleOf(DesignEditorItem container, Control member) =>

@@ -356,6 +356,13 @@ public partial class DesignEditor
 
         while (_states.Count > 1)
             PopState();
+
+        // Брошенный групповой жест закрывается здесь же. Иначе и операция, и открытая
+        // единица редактирования переживают его: правка ушла бы мимо отмены, а следующий
+        // жест достался бы чужой операции. Единица именно фиксируется, а не затирается —
+        // геометрия к этому моменту уже применена, и поздняя запись лучше потерянной.
+        if (_groupResizeOperation != null)
+            CompleteGroupResize();
     }
 
     /// <summary>
@@ -594,8 +601,14 @@ public partial class DesignEditor
     private void OnSecondarySelectionResizeDelta(object? sender, SelectionAdornerResizeDeltaEventArgs e)
     {
         // Жест кластера ведёт групповая операция — та же, что у рамки всего выделения.
-        if (_groupResizeOperation != null)
+        // Условие здесь то же, что и на входе в жест: ветвиться по самому полю операции
+        // нельзя, иначе брошенная операция перехватила бы следующий пожатийный resize
+        // одиночного контрола.
+        if (e.AdornerInfo.Members is { Count: > 1 })
         {
+            if (_groupResizeOperation == null)
+                return;
+
             UpdateInteractionOperation(_groupResizeOperation, NormalizeResizeDelta(e.Delta));
             UpdateSelectionOverlayState();
             e.Handled = true;
@@ -625,12 +638,12 @@ public partial class DesignEditor
     private void OnSecondarySelectionResizeCompleted(object? sender, SelectionAdornerResizeCompletedEventArgs e)
     {
         // Жест кластера ведёт групповая операция — та же, что у рамки всего выделения.
-        if (_groupResizeOperation != null)
+        if (e.AdornerInfo.Members is { Count: > 1 })
         {
-            CompleteInteractionOperation(ref _groupResizeOperation);
-            EndSnapGuides();
-            UpdateSelectionOverlayState();
-            CommitEdit();
+            if (_groupResizeOperation == null)
+                return;
+
+            CompleteGroupResize();
             e.Handled = true;
             return;
         }
@@ -731,11 +744,24 @@ public partial class DesignEditor
         if (_groupResizeOperation == null)
             return;
 
+        CompleteGroupResize();
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Заканчивает групповое масштабирование: применяет накопленное и закрывает единицу.
+    /// </summary>
+    /// <remarks>
+    /// Точка одна на три входа — рамку всего выделения, рамку кластера и потерю захвата.
+    /// Разложить её по местам значило бы получить жест, который где-то закрывается, а
+    /// где-то нет.
+    /// </remarks>
+    private void CompleteGroupResize()
+    {
         CompleteInteractionOperation(ref _groupResizeOperation);
         EndSnapGuides();
         UpdateSelectionOverlayState();
         CommitEdit();
-        e.Handled = true;
     }
 
     internal void SetLastInputModifiers(KeyModifiers modifiers)
