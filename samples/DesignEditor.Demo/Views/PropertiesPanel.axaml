@@ -67,6 +67,38 @@
             <Setter Property="Foreground" Value="White" />
         </Style>
 
+        <!--
+            Подсказки о жестах говорят тем же языком, что остальная панель: плашка
+            клавиши — это фон поля, описание — цвет строки списка. Своя палитра
+            досталась им от плавающей карточки и читалась как чужая вставка.
+        -->
+        <Style Selector="Border.hints">
+            <Setter Property="BorderBrush" Value="#2C2F36" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Padding" Value="10,10,10,12" />
+        </Style>
+
+        <Style Selector="Border.hintKey">
+            <Setter Property="Width" Value="92" />
+            <Setter Property="Background" Value="#2A2C31" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="5,2" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="Border.hintKey > TextBlock">
+            <Setter Property="Foreground" Value="#CCCCCC" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#B7BCC5" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
         <Style Selector="Border.group">
             <Setter Property="BorderBrush" Value="#2C2F36" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
@@ -186,8 +218,7 @@
                 когда ничего не выбрано, а жесты читают как раз тогда, когда ещё не знают,
                 как что-нибудь выбрать.
             -->
-            <Border Grid.Row="2" Background="#191A1E" BorderBrush="#2C2F36" BorderThickness="0,1,0,0"
-                    Padding="10,8,10,10">
+            <Border Grid.Row="2" Classes="hints">
                 <StackPanel Spacing="6">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Classes="section" Margin="0" Text="Жесты редактора" VerticalAlignment="Center" />
@@ -227,14 +258,12 @@
                                             иначе столбец описаний ехал бы у каждой строки
                                             по-своему и читать список было бы нечем.
                                         -->
-                                        <Border Width="92" Background="#243246" CornerRadius="4"
-                                                Padding="5,2" VerticalAlignment="Top">
-                                            <TextBlock Text="{Binding Keys}" Foreground="#A9D1FF"
-                                                       FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        <!-- Цвета задают классы, а не атрибуты: локальное
+                                             значение в Avalonia сильнее любого стиля. -->
+                                        <Border Classes="hintKey">
+                                            <TextBlock Text="{Binding Keys}" />
                                         </Border>
-                                        <TextBlock Grid.Column="1" Text="{Binding Description}"
-                                                   Foreground="#C9D1D9" FontSize="10"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Classes="hint" Text="{Binding Description}" />
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
