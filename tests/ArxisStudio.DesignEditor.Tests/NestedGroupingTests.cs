@@ -412,4 +412,84 @@ public class NestedGroupingTests
         Assert.True(harness.Editor.CanGroupSelection());
         Assert.True(harness.Editor.GroupSelection());
     }
+
+    /// <summary>Собирает три уровня: group-3 { group-1 { A, B }, group-2 { C, D } }.</summary>
+    private static EditorHarness CreateTwoLevels(out string outer)
+    {
+        var harness = CreateTwoGroups();
+
+        Click(harness, "A");
+        Click(harness, "C", RawInputModifiers.Shift);
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+
+        outer = DesignGroupPathHead(PathOf(harness, "A")!);
+        return harness;
+    }
+
+    private static string DesignGroupPathHead(string path)
+    {
+        var index = path.IndexOf('/');
+        return index < 0 ? path : path.Substring(0, index);
+    }
+
+    /// <summary>Выбирает состав группы так, как это делает панель групп: по одному target'у.</summary>
+    private static void SelectByApi(EditorHarness harness, string path)
+    {
+        var members = harness.Editor.GetGroupMembers(harness.Container(0), path);
+        for (var i = 0; i < members.Count; i++)
+            harness.Editor.SelectDesignTarget(members[i], additive: i > 0);
+
+        harness.RunLayout();
+    }
+
+    /// <summary>
+    /// Выбор состава группы показывает её одной рамкой, куда бы ни был открыт вход.
+    /// </summary>
+    /// <remarks>
+    /// Вход в группу — состояние указателя, и он переживает выбор, сделанный снаружи:
+    /// панель групп выбирает состав по одному target'у и об открытом уровне не знает.
+    /// Оставшийся глубже уровень разбивал выделение на отдельные контролы — вместо
+    /// одной рамки пользователь получал четыре.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Selecting_A_Group_Shows_One_Frame_However_Deep_The_Entry_Was()
+    {
+        var harness = CreateTwoLevels(out var outer);
+
+        // Входим двумя уровнями внутрь: сначала в group-3, затем в group-1.
+        Click(harness, "A");
+        Click(harness, "A");
+        Click(harness, "A");
+        Assert.Equal(1, harness.Editor.SelectedDesignTargetsCount);
+
+        SelectByApi(harness, outer);
+
+        Assert.Equal(4, harness.Editor.SelectedDesignTargetsCount);
+        Assert.True(harness.Editor.HasGroupSelection);
+    }
+
+    /// <summary>
+    /// Выбор состава вложенной группы тоже показывает её одной рамкой.
+    /// </summary>
+    /// <remarks>
+    /// Уровень показа задаёт сама форма выделения: выбран ровно состав группы — значит
+    /// смотрим на неё снаружи. Иначе клик по строке вложенной группы в панели рисовал бы
+    /// её участников поодиночке, потому что вход стоял ровно на ней.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Selecting_A_Nested_Group_Shows_One_Frame()
+    {
+        var harness = CreateTwoLevels(out _);
+        var inner = PathOf(harness, "A")!;
+
+        Click(harness, "A");
+        Click(harness, "A");
+        Click(harness, "A");
+
+        SelectByApi(harness, inner);
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.True(harness.Editor.HasGroupSelection);
+    }
 }

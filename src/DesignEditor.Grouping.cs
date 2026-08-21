@@ -523,15 +523,31 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Закрывает открытую группу, если выбор из неё ушёл.
+    /// Приводит открытый уровень в соответствие с выделением.
     /// </summary>
     /// <remarks>
-    /// Точка одна и стоит на пересборке оверлея: закрывать группу в каждом месте, где
-    /// меняется выбор, значило бы перечислить их все — а их два десятка, и клик по
-    /// пустому холсту в этом списке уже терялся.
+    /// Точка одна и стоит на пересборке оверлея: делать это в каждом месте, где меняется
+    /// выбор, значило бы перечислить их все — а их два десятка, и клик по пустому холсту
+    /// в этом списке уже терялся.
+    /// <para>
+    /// Правил два. Выбран ровно состав какой-то группы — значит смотрим на неё
+    /// <b>снаружи</b>, и открытым остаётся её родитель: иначе группа, выбранная не
+    /// указателем, а через <see cref="SelectDesignTarget"/>, рисовалась бы участниками
+    /// поодиночке. Именно так и ломался выбор из панели групп: вход, открытый двойным
+    /// кликом, переживал его и разбивал выделение на отдельные контролы.
+    /// </para>
+    /// <para>
+    /// Иначе вход закрывается, когда из его группы не осталось ничего выбранного.
+    /// </para>
     /// </remarks>
     private void SyncEnteredGroup()
     {
+        if (TryResolveSelectedGroup(out var selectedGroup))
+        {
+            _enteredGroupPath = DesignGroupPath.Parent(selectedGroup);
+            return;
+        }
+
         if (_enteredGroupPath == null)
             return;
 
@@ -542,6 +558,63 @@ public partial class DesignEditor
         }
 
         _enteredGroupPath = null;
+    }
+
+    /// <summary>
+    /// Определяет группу, состав которой совпадает с выделением.
+    /// </summary>
+    /// <remarks>
+    /// Берётся <b>самая внешняя</b> подходящая: если состав вложенной совпал с составом
+    /// внешней, показать надо внешнюю — это она целиком и выбрана.
+    /// </remarks>
+    private bool TryResolveSelectedGroup(out string? path)
+    {
+        path = null;
+
+        if (_selectedTargets.Count == 0)
+            return false;
+
+        DesignEditorItem? host = null;
+        string? prefix = null;
+        var first = true;
+
+        foreach (var target in _selectedTargets)
+        {
+            if (DesignGroupAttached.GetId(target) is not { } current)
+                return false;
+
+            if (FindDesignHost(target) is not { } owner)
+                return false;
+
+            if (host == null)
+                host = owner;
+            else if (!ReferenceEquals(host, owner))
+                return false;
+
+            prefix = first ? current : DesignGroupPath.CommonPrefix(prefix, current);
+            first = false;
+        }
+
+        if (host == null || prefix == null)
+            return false;
+
+        var segments = DesignGroupPath.Split(prefix);
+        for (var depth = 1; depth <= segments.Length; depth++)
+        {
+            var candidate = DesignGroupPath.Combine(segments.Take(depth));
+            if (candidate == null)
+                continue;
+
+            // Все выбранные лежат внутри кандидата — он префикс их общего префикса, —
+            // поэтому равенства количеств достаточно: состав уникален.
+            if (EnumerateGroupMembers(host, candidate).Count() != _selectedTargets.Count)
+                continue;
+
+            path = candidate;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
