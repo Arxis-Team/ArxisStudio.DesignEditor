@@ -69,8 +69,15 @@ public sealed partial class GroupNode : ObservableObject
     /// <summary>Контрол строки — только у участника группы.</summary>
     public Control? Target { get; init; }
 
-    /// <summary>Идентификатор группы — у строки группы и у её участников.</summary>
-    public string? GroupId { get; init; }
+    /// <summary>
+    /// Полный путь группы — у строки группы и у её участников.
+    /// </summary>
+    /// <remarks>
+    /// Именно путь, а не имя уровня: обращаться к API нужно личностью группы, а имена
+    /// уровней на разных ветках дерева могут совпадать. Показывается при этом
+    /// <see cref="Title"/> — последний сегмент.
+    /// </remarks>
+    public string? GroupPath { get; init; }
 
     /// <summary>Число участников — у строки группы.</summary>
     [ObservableProperty]

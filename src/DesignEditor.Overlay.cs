@@ -18,6 +18,7 @@ using Avalonia.VisualTree;
 using DesignLayout = ArxisStudio.Attached.Layout;
 using DesignInteraction = ArxisStudio.Attached.DesignInteraction;
 using ArxisStudio.Controls;
+using ArxisStudio.Grouping;
 using ArxisStudio.Guides;
 using ArxisStudio.Placement;
 using ArxisStudio.States;
@@ -120,24 +121,132 @@ public partial class DesignEditor
         hasMultipleContainerSelection = selectedCount > 1 && containerTargetCount == selectedCount;
         hasMultipleNestedSelection = selectedCount > 1 && nestedTargetCount == selectedCount;
 
-        // Группа рисуется одной рамкой: контуры участников по отдельности сказали бы,
-        // что элементов несколько, а жест применяется к ним как к одному.
-        hasGroupSelection = hasMultipleNestedSelection
-            && IsWholeGroupSelected(perTargetBounds.Select(a => a.Target!).ToList());
-
-        if (hasMultipleNestedSelection && !hasGroupSelection)
+        if (hasMultipleNestedSelection)
         {
-            foreach (var adorner in perTargetBounds)
+            // Рамка рисуется на кластер, а не на target: группа целиком — одна рамка,
+            // одиночный контрол — своя. Контуры участников группы по отдельности сказали
+            // бы, что элементов несколько, а жест применяется к ним как к одному.
+            var clusters = BuildClusterAdorners(perTargetBounds);
+
+            // Единственный кластер-группа — это прежний случай «выделение равно группе»:
+            // его рисует PART_GroupSelectionAdorner, и вторичные адорнеры не нужны.
+            hasGroupSelection = clusters.Count == 1 && clusters[0].Role == SelectionAdornerRole.Group;
+
+            if (!hasGroupSelection)
             {
-                adorner.ShowHandles = true;
-                adorner.IsInteractive = true;
+                foreach (var adorner in clusters)
+                {
+                    adorner.ShowHandles = true;
+                    adorner.IsInteractive = true;
+                }
+
+                secondaryAdorners = clusters;
             }
         }
 
-        secondaryAdorners = hasMultipleNestedSelection && !hasGroupSelection
-            ? perTargetBounds
-            : Array.Empty<SelectionAdornerInfo>();
         return true;
+    }
+
+    /// <summary>
+    /// Сворачивает адорнеры участников в адорнеры кластеров.
+    /// </summary>
+    /// <remarks>
+    /// Кластеры считает <see cref="BuildClusters"/> — та же точка, которой пользуются
+    /// группировка и роспуск. Своя копия правила «выбраны все участники» здесь однажды
+    /// уже была, и это ровно тот случай, когда показанное и применённое расходятся.
+    /// <para>
+    /// Считается в пределах владеющей формы: выделение может лежать в нескольких формах
+    /// сразу, а путь группы осмыслен только внутри своей.
+    /// </para>
+    /// </remarks>
+    private List<SelectionAdornerInfo> BuildClusterAdorners(IReadOnlyList<SelectionAdornerInfo> perTarget)
+    {
+        var infoByTarget = new Dictionary<Control, SelectionAdornerInfo>();
+        var byHost = new Dictionary<DesignEditorItem, List<Control>>();
+        var hostOrder = new List<DesignEditorItem>();
+
+        foreach (var info in perTarget)
+        {
+            if (info.Target is not { } target || FindDesignHost(target) is not { } host)
+                continue;
+
+            infoByTarget[target] = info;
+
+            if (!byHost.TryGetValue(host, out var controls))
+            {
+                controls = new List<Control>();
+                byHost[host] = controls;
+                hostOrder.Add(host);
+            }
+
+            controls.Add(target);
+        }
+
+        var clusterOf = new Dictionary<Control, SelectionCluster>();
+        foreach (var host in hostOrder)
+        {
+            foreach (var cluster in BuildClusters(host, byHost[host]))
+            {
+                foreach (var member in cluster.Members)
+                    clusterOf[member] = cluster;
+            }
+        }
+
+        var emitted = new HashSet<SelectionCluster>();
+        var clusters = new List<SelectionAdornerInfo>(perTarget.Count);
+
+        foreach (var info in perTarget)
+        {
+            if (info.Target is { } target
+                && clusterOf.TryGetValue(target, out var cluster)
+                && cluster.IsGroup)
+            {
+                if (emitted.Add(cluster))
+                    clusters.Add(CreateClusterAdorner(cluster, infoByTarget));
+
+                continue;
+            }
+
+            clusters.Add(info);
+        }
+
+        return clusters;
+    }
+
+    /// <summary>
+    /// Собирает адорнер кластера-группы: одна рамка на весь состав.
+    /// </summary>
+    /// <remarks>
+    /// Политики складываются пересечением: заблокированный участник запирает весь кластер —
+    /// то же правило, по которому смешанная группа locked/unlocked не двигается вовсе.
+    /// </remarks>
+    private static SelectionAdornerInfo CreateClusterAdorner(
+        SelectionCluster cluster,
+        Dictionary<Control, SelectionAdornerInfo> infoByTarget)
+    {
+        var first = infoByTarget[cluster.Members[0]];
+        var bounds = first.Bounds;
+        var resize = first.ResizePolicy;
+        var move = first.MovePolicy;
+
+        for (var i = 1; i < cluster.Members.Count; i++)
+        {
+            var info = infoByTarget[cluster.Members[i]];
+            bounds = bounds.Union(info.Bounds);
+            resize &= info.ResizePolicy;
+            move &= info.MovePolicy;
+        }
+
+        return new SelectionAdornerInfo
+        {
+            Container = cluster.Host,
+            Target = cluster.Members[0],
+            Members = cluster.Members,
+            Bounds = bounds,
+            Role = SelectionAdornerRole.Group,
+            ResizePolicy = resize,
+            MovePolicy = move
+        };
     }
 
     private void UpdateSelectionOverlayState()

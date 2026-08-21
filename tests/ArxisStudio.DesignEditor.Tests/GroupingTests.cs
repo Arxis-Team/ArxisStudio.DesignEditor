@@ -109,28 +109,28 @@ public class GroupingTests
     }
 
     /// <summary>
-    /// Прежняя группа участника входит в новую целиком.
+    /// Выбранная целиком группа сама по себе не группируется.
     /// </summary>
     /// <remarks>
-    /// Иначе половина старой группы осталась бы со старой пометкой, и на экране
-    /// появились бы две рамки там, где пользователь собрал одну.
+    /// Считаются <b>кластеры</b>, а не target'ы: группа — это один кластер, и новый
+    /// уровень над ней в одиночку ничего бы не разделял. Плоская модель на этом месте
+    /// просто выдавала группе новый идентификатор — другого способа «перегруппировать»
+    /// она не знала; вложенность делает это осмысленным только вместе с соседом.
     /// </remarks>
     [AvaloniaFact]
-    public void Regrouping_Pulls_In_The_Whole_Previous_Group()
+    public void A_Whole_Group_Alone_Is_Not_Regrouped()
     {
         var harness = CreateGrouped();
-        var first = DesignGroup.GetId(harness.Nested(0));
+        var id = DesignGroup.GetId(harness.Nested(0));
 
-        // Выбираем только одного участника и группируем его с третьим соседом.
-        Click(harness, NestedCentre + new Vector(0, 0));
+        Click(harness, NestedCentre);
         Assert.True(harness.Editor.HasGroupSelection);
 
-        Assert.True(harness.Editor.GroupSelection());
+        Assert.False(harness.Editor.GroupSelection());
         harness.RunLayout();
 
-        var second = DesignGroup.GetId(harness.Nested(0));
-        Assert.NotEqual(first, second);
-        Assert.Equal(second, DesignGroup.GetId(harness.Named(0, "Sibling")));
+        Assert.Equal(id, DesignGroup.GetId(harness.Nested(0)));
+        Assert.Equal(id, DesignGroup.GetId(harness.Named(0, "Sibling")));
     }
 
     // ---- Одна рамка -------------------------------------------------------------

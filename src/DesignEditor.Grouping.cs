@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
+using ArxisStudio.Grouping;
 using DesignGroupAttached = ArxisStudio.Attached.DesignGroup;
 
 namespace ArxisStudio;
@@ -11,15 +12,18 @@ namespace ArxisStudio;
 public partial class DesignEditor
 {
     /// <summary>
-    /// Группа, внутрь которой вошли двойным кликом.
+    /// Путь группы, внутрь которой вошли двойным кликом.
     /// </summary>
     /// <remarks>
     /// Пока группа «открыта», клик выбирает её участника поодиночке, а не всю группу.
-    /// Состояние снимается само, как только выбор уходит за пределы этой группы: держать
-    /// его до явного выхода значило бы завести режим, из которого пользователь не знает,
-    /// как выйти.
+    /// Состояние снимается само, как только выбор уходит за её пределы: держать его до
+    /// явного выхода значило бы завести режим, из которого пользователь не знает, как выйти.
+    /// <para>
+    /// Это путь, а не идентификатор: вложенность описывается уровнями, и «внутри
+    /// <c>group-2/group-1</c>» — не то же самое, что «внутри <c>group-1</c>» где-то ещё.
+    /// </para>
     /// </remarks>
-    private string? _enteredGroupId;
+    private string? _enteredGroupPath;
 
     /// <summary>
     /// Шов записи принадлежности к группе.
@@ -41,7 +45,7 @@ public partial class DesignEditor
     /// Задает принадлежность к группе, не создавая новой единицы редактирования.
     /// </summary>
     /// <param name="target">Контрол.</param>
-    /// <param name="id">Идентификатор группы или <see langword="null"/>.</param>
+    /// <param name="id">Путь группы или <see langword="null"/>.</param>
     /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="target"/> равен <see langword="null"/>.</exception>
     /// <remarks>
     /// Пара к <see cref="ApplyGeometry"/> и <see cref="ApplyOrder"/>: этим методом отмена
@@ -67,70 +71,97 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Объединяет выбранные контролы в одну группу.
+    /// Объединяет выбранное в одну группу.
     /// </summary>
     /// <returns><see langword="true"/>, если группа создана.</returns>
     /// <remarks>
-    /// Требуется не меньше двух вложенных target'ов <b>внутри одной формы</b>. Группа
-    /// поперёк форм не собирается намеренно: выделение двухслойно, и такая группа
-    /// разошлась бы с индексным слоем — рамка обещала бы одно, а жест применялся
-    /// к другому.
+    /// Считаются не target'ы, а <b>кластеры</b>: выбранная целиком группа — это один
+    /// кластер, и группировать её саму с собой нечего. Требуется не меньше двух кластеров
+    /// внутри одной формы.
     /// <para>
-    /// Уже сгруппированный участник втягивает в новую группу всю свою прежнюю: иначе
-    /// половина старой группы осталась бы со старой пометкой, и на экране появились бы
-    /// две рамки там, где пользователь собрал одну.
+    /// Группа-участник <b>вкладывается</b>, а не растворяется: её путь сохраняется хвостом,
+    /// а новый уровень встаёт над общим родителем всех кластеров. Плоская модель на этом
+    /// месте переписывала участникам пометку целиком, и вложенная группа исчезала.
+    /// </para>
+    /// <para>
+    /// Группа поперёк форм не собирается намеренно: выделение двухслойно, и такая группа
+    /// разошлась бы с индексным слоем — рамка обещала бы одно, а жест применялся к другому.
     /// </para>
     /// </remarks>
     public bool GroupSelection()
     {
-        if (!TryCollectGroupCandidates(out var host, out var members) || members.Count < 2)
+        if (!TryCollectClusters(out var host, out var clusters) || clusters.Count < 2)
             return false;
 
-        var id = NextGroupId(host!);
+        string? parent = null;
+        var first = true;
+        foreach (var cluster in clusters)
+        {
+            var clusterParent = ParentOf(cluster);
+            parent = first ? clusterParent : DesignGroupPath.CommonPrefix(parent, clusterParent);
+            first = false;
+        }
+
+        var path = DesignGroupPath.Append(parent, NextGroupId(host!, parent));
+        var members = new List<Control>();
 
         BeginEdit(DesignEditKind.Group);
-        foreach (var member in members)
-            SetDesignGroup(member, id);
+        foreach (var cluster in clusters)
+        {
+            foreach (var member in cluster.Members)
+            {
+                var current = DesignGroupAttached.GetId(member);
+                SetDesignGroup(member, current == null ? path : DesignGroupPath.Rebase(current, parent, path));
+                AddDistinct(members, member);
+            }
+        }
 
         CommitEdit();
 
-        _enteredGroupId = null;
+        _enteredGroupPath = parent;
         SelectGroupMembers(members);
         return true;
     }
 
     /// <summary>
-    /// Распускает группы, которым принадлежат выбранные контролы.
+    /// Распускает выбранные группы.
     /// </summary>
     /// <returns><see langword="true"/>, если хотя бы одна группа была распущена.</returns>
     /// <remarks>
-    /// Распускается группа целиком, а не выбранная её часть: группа — это отношение
-    /// между участниками, и «разгруппировать половину» означало бы оставить остальных
-    /// в группе из одного, то есть ни в какой.
+    /// Снимается <b>один внешний уровень</b>: вложенные группы переживают роспуск и
+    /// поднимаются на уровень выше. Дробить их заодно значило бы разрушить структуру,
+    /// которую пользователь собирал отдельными действиями.
     /// </remarks>
     public bool UngroupSelection()
     {
-        var members = CollectGroupedMembersOfSelection();
-        if (members.Count == 0)
+        if (!TryCollectClusters(out var host, out var clusters))
+            return false;
+
+        var groups = clusters.Where(cluster => cluster.IsGroup).ToList();
+        if (groups.Count == 0)
             return false;
 
         BeginEdit(DesignEditKind.Group);
-        foreach (var member in members)
-            SetDesignGroup(member, null);
+        foreach (var cluster in groups)
+        {
+            var parent = DesignGroupPath.Parent(cluster.GroupPath);
+            foreach (var member in EnumerateGroupMembers(host!, cluster.GroupPath!))
+                SetDesignGroup(member, DesignGroupPath.Rebase(DesignGroupAttached.GetId(member), cluster.GroupPath, parent));
+        }
 
         CommitEdit();
 
-        _enteredGroupId = null;
+        _enteredGroupPath = null;
         UpdateSelectionOverlayState();
         return true;
     }
 
     /// <summary>
-    /// Переименовывает группу формы.
+    /// Переименовывает уровень группы.
     /// </summary>
     /// <param name="container">Форма, которой принадлежит группа.</param>
-    /// <param name="id">Текущий идентификатор группы.</param>
-    /// <param name="newId">Новый идентификатор.</param>
+    /// <param name="path">Путь группы.</param>
+    /// <param name="newId">Новый идентификатор уровня — сегмент, а не путь.</param>
     /// <returns><see langword="true"/>, если группа переименована.</returns>
     /// <exception cref="ArgumentNullException">Выбрасывается, если любой из аргументов равен <see langword="null"/>.</exception>
     /// <remarks>
@@ -138,68 +169,140 @@ public partial class DesignEditor
     /// шов, что и группировка, и одной единицей редактирования: иначе оно не попало бы
     /// в <see cref="EditCompleted"/> и отмена вернула бы всё, кроме имени группы.
     /// <para>
-    /// Отклоняется в трёх случаях, и каждый — не ошибка вызывающего, а ответ: имя пустое,
-    /// группы с таким идентификатором в форме нет, либо новый идентификатор уже занят.
-    /// Последнее означало бы <b>слияние</b> двух групп, а слияние обязано быть отдельным
-    /// действием — выбрать обе и сгруппировать, — а не побочным эффектом набора текста.
+    /// Меняется <b>один сегмент</b>: переезд в другого родителя — это перемещение группы,
+    /// отдельное действие. Отклоняется, если имя пустое или содержит разделитель, такой
+    /// группы в форме нет, либо среди её братьев идентификатор уже занят — последнее
+    /// означало бы слияние двух групп, а слияние обязано быть отдельным действием.
     /// </para>
     /// </remarks>
-    public bool RenameGroup(DesignEditorItem container, string id, string newId)
+    public bool RenameGroup(DesignEditorItem container, string path, string newId)
     {
         if (container == null)
             throw new ArgumentNullException(nameof(container));
 
-        if (id == null)
-            throw new ArgumentNullException(nameof(id));
+        if (path == null)
+            throw new ArgumentNullException(nameof(path));
 
         if (newId == null)
             throw new ArgumentNullException(nameof(newId));
 
-        if (string.IsNullOrWhiteSpace(newId) || string.Equals(id, newId, StringComparison.Ordinal))
+        if (!DesignGroupPath.IsValidSegment(newId))
             return false;
 
-        var members = EnumerateGroupMembers(container, id).ToList();
-        if (members.Count == 0 || IsGroupIdTaken(container, newId))
+        var members = EnumerateGroupMembers(container, path).ToList();
+        if (members.Count == 0)
+            return false;
+
+        var renamed = DesignGroupPath.Append(DesignGroupPath.Parent(path), newId);
+        if (string.Equals(renamed, path, StringComparison.Ordinal) || IsGroupPathTaken(container, renamed!))
             return false;
 
         BeginEdit(DesignEditKind.Group);
         foreach (var member in members)
-            SetDesignGroup(member, newId);
+            SetDesignGroup(member, DesignGroupPath.Rebase(DesignGroupAttached.GetId(member), path, renamed));
 
         CommitEdit();
 
-        // Вход в группу держится идентификатором, и переезжает вместе с ним:
-        // иначе группа осталась бы открытой по имени, которого больше нет.
-        if (string.Equals(_enteredGroupId, id, StringComparison.Ordinal))
-            _enteredGroupId = newId;
+        // Вход в группу держится путём и переезжает вместе с ним: иначе группа осталась бы
+        // открытой по имени, которого больше нет.
+        if (DesignGroupPath.IsInside(_enteredGroupPath, path))
+            _enteredGroupPath = DesignGroupPath.Rebase(_enteredGroupPath, path, renamed);
 
         UpdateSelectionOverlayState();
         return true;
     }
 
     /// <summary>
+    /// Возвращает группы формы вместе с их составом.
+    /// </summary>
+    /// <param name="container">Форма, группы которой перечисляются.</param>
+    /// <returns>Группы верхнего уровня; вложенные лежат в <see cref="DesignGroupInfo.Groups"/>.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="container"/> равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Состав считается по дереву в момент вызова. Кэшировать его редактору нечем:
+    /// деревом владеет хост, пометку он вправе поставить в разметке или через
+    /// <see cref="Attached.DesignGroup.SetId"/>, и узнать об этом редактору неоткуда —
+    /// сохранённый снимок молча устарел бы. По той же причине нет и события об изменении
+    /// групп: о своих правках редактор сообщает через <see cref="EditCompleted"/>, а о
+    /// чужих сообщить не может.
+    /// <para>
+    /// Всё дерево снимается за один обход: два раздельных запроса дали бы уровни, снятые
+    /// в разные моменты.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<DesignGroupInfo> GetGroups(DesignEditorItem container)
+    {
+        if (container == null)
+            throw new ArgumentNullException(nameof(container));
+
+        var nodes = new Dictionary<string, GroupNodeBuilder>(StringComparer.Ordinal);
+        var roots = new List<GroupNodeBuilder>();
+
+        foreach (var candidate in EnumerateGroupCandidates(container))
+        {
+            if (DesignGroupAttached.GetId(candidate) is not { } path)
+                continue;
+
+            EnsureNode(path, nodes, roots).Members.Add(candidate);
+        }
+
+        var result = new List<DesignGroupInfo>(roots.Count);
+        foreach (var root in roots)
+            result.Add(root.Build(container));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Возвращает участников группы, включая лежащих во вложенных группах.
+    /// </summary>
+    /// <param name="container">Форма, которой принадлежит группа.</param>
+    /// <param name="path">Путь группы.</param>
+    /// <returns>Контролы в порядке обхода разметки; пустой список, если такой группы нет.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если любой из аргументов равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Неизвестный путь — это ответ, а не ошибка: состав меняется под хостом, и группа
+    /// могла быть распущена между двумя его запросами.
+    /// </remarks>
+    public IReadOnlyList<Control> GetGroupMembers(DesignEditorItem container, string path)
+    {
+        if (container == null)
+            throw new ArgumentNullException(nameof(container));
+
+        if (path == null)
+            throw new ArgumentNullException(nameof(path));
+
+        return EnumerateGroupMembers(container, path).ToList();
+    }
+
+    /// <summary>
     /// Возвращает признак того, что выделение можно объединить в группу.
     /// </summary>
-    public bool CanGroupSelection() =>
-        TryCollectGroupCandidates(out _, out var members) && members.Count >= 2;
+    public bool CanGroupSelection() => TryCollectClusters(out _, out var clusters) && clusters.Count >= 2;
 
     /// <summary>
     /// Возвращает признак того, что в выделении есть что распускать.
     /// </summary>
-    public bool CanUngroupSelection() => CollectGroupedMembersOfSelection().Count > 0;
+    public bool CanUngroupSelection() =>
+        TryCollectClusters(out _, out var clusters) && clusters.Any(cluster => cluster.IsGroup);
 
     /// <summary>
-    /// Собирает участников будущей группы: только вложенные target'ы одной формы.
+    /// Разбивает выделение на кластеры внутри одной формы.
     /// </summary>
-    private bool TryCollectGroupCandidates(out DesignEditorItem? host, out List<Control> members)
+    /// <remarks>
+    /// Точка одна на всех потребителей — оверлей, группировку, роспуск: разойдясь, они
+    /// снова показали бы одно, а применили другое.
+    /// </remarks>
+    private bool TryCollectClusters(out DesignEditorItem? host, out IReadOnlyList<SelectionCluster> clusters)
     {
         host = null;
-        members = new List<Control>();
+        clusters = Array.Empty<SelectionCluster>();
 
         var targets = SelectedDesignTargets;
-        if (targets.Count < 2)
+        if (targets.Count == 0)
             return false;
 
+        var controls = new List<Control>(targets.Count);
         foreach (var selected in targets)
         {
             var target = selected.Target;
@@ -218,44 +321,74 @@ public partial class DesignEditor
             else if (!ReferenceEquals(host, owner))
                 return false;
 
-            AddDistinct(members, target);
+            controls.Add(target);
         }
 
         if (host == null)
             return false;
 
-        // Прежние группы участников входят целиком.
-        foreach (var target in members.ToList())
-        {
-            if (DesignGroupAttached.GetId(target) is not { } existing)
-                continue;
-
-            foreach (var mate in EnumerateGroupMembers(host, existing))
-                AddDistinct(members, mate);
-        }
-
+        clusters = BuildClusters(host, controls);
         return true;
     }
 
-    private List<Control> CollectGroupedMembersOfSelection()
+    /// <summary>
+    /// Собирает кластеры по видимому сейчас уровню вложенности.
+    /// </summary>
+    internal IReadOnlyList<SelectionCluster> BuildClusters(DesignEditorItem host, IReadOnlyList<Control> targets)
     {
-        var members = new List<Control>();
+        var selectedByPath = new Dictionary<string, List<Control>>(StringComparer.Ordinal);
 
-        foreach (var selected in SelectedDesignTargets)
+        foreach (var target in targets)
         {
-            var target = selected.Target;
-            if (DesignGroupAttached.GetId(target) is not { } id)
+            if (ClusterPathOf(target) is not { } path)
                 continue;
 
-            if (FindDesignHost(target) is not { } host)
-                continue;
+            if (!selectedByPath.TryGetValue(path, out var bucket))
+            {
+                bucket = new List<Control>();
+                selectedByPath[path] = bucket;
+            }
 
-            foreach (var mate in EnumerateGroupMembers(host, id))
-                AddDistinct(members, mate);
+            bucket.Add(target);
         }
 
-        return members;
+        // Группа становится кластером, только когда выбраны все её участники.
+        var whole = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pair in selectedByPath)
+        {
+            if (EnumerateGroupMembers(host, pair.Key).Count() == pair.Value.Count)
+                whole.Add(pair.Key);
+        }
+
+        var emitted = new HashSet<string>(StringComparer.Ordinal);
+        var clusters = new List<SelectionCluster>();
+
+        foreach (var target in targets)
+        {
+            var path = ClusterPathOf(target);
+            if (path != null && whole.Contains(path))
+            {
+                if (emitted.Add(path))
+                    clusters.Add(SelectionCluster.Group(host, path, selectedByPath[path]));
+
+                continue;
+            }
+
+            clusters.Add(SelectionCluster.Single(host, target));
+        }
+
+        return clusters;
     }
+
+    /// <summary>Путь кластера, в который попадает контрол при текущем входе в группу.</summary>
+    private string? ClusterPathOf(Control target) =>
+        DesignGroupPath.ClusterOf(DesignGroupAttached.GetId(target), _enteredGroupPath);
+
+    /// <summary>Путь группы, внутри которой лежит кластер.</summary>
+    private static string? ParentOf(SelectionCluster cluster) =>
+        cluster.IsGroup
+            ? DesignGroupPath.Parent(cluster.GroupPath)
+            : DesignGroupAttached.GetId(cluster.Primary);
 
     private static void AddDistinct(List<Control> members, Control target)
     {
@@ -264,87 +397,17 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Возвращает группы формы вместе с их составом.
-    /// </summary>
-    /// <param name="container">Форма, группы которой перечисляются.</param>
-    /// <returns>Группы в порядке первого появления участника в разметке.</returns>
-    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="container"/> равен <see langword="null"/>.</exception>
-    /// <remarks>
-    /// Состав считается по дереву в момент вызова. Кэшировать его редактору нечем:
-    /// деревом владеет хост, пометку он вправе поставить в разметке или через
-    /// <see cref="Attached.DesignGroup.SetId"/>, и узнать об этом редактору неоткуда —
-    /// сохранённый снимок молча устарел бы. По той же причине нет и события об
-    /// изменении групп: о своих правках редактор сообщает через
-    /// <see cref="EditCompleted"/>, а о чужих сообщить не может.
-    /// <para>
-    /// Все группы снимаются за один обход: два раздельных запроса дали бы список
-    /// идентификаторов и состав, снятые в разные моменты.
-    /// </para>
-    /// </remarks>
-    public IReadOnlyList<DesignGroupInfo> GetGroups(DesignEditorItem container)
-    {
-        if (container == null)
-            throw new ArgumentNullException(nameof(container));
-
-        var order = new List<string>();
-        var members = new Dictionary<string, List<Control>>(StringComparer.Ordinal);
-
-        foreach (var candidate in EnumerateGroupCandidates(container))
-        {
-            if (DesignGroupAttached.GetId(candidate) is not { } id)
-                continue;
-
-            if (!members.TryGetValue(id, out var group))
-            {
-                group = new List<Control>();
-                members[id] = group;
-                order.Add(id);
-            }
-
-            group.Add(candidate);
-        }
-
-        var result = new List<DesignGroupInfo>(order.Count);
-        foreach (var id in order)
-            result.Add(new DesignGroupInfo(container, id, members[id]));
-
-        return result;
-    }
-
-    /// <summary>
-    /// Возвращает участников одной группы формы.
-    /// </summary>
-    /// <param name="container">Форма, которой принадлежит группа.</param>
-    /// <param name="id">Идентификатор группы.</param>
-    /// <returns>Участники в порядке обхода разметки; пустой список, если такой группы нет.</returns>
-    /// <exception cref="ArgumentNullException">Выбрасывается, если любой из аргументов равен <see langword="null"/>.</exception>
-    /// <remarks>
-    /// Неизвестный идентификатор — это ответ, а не ошибка: состав меняется под хостом,
-    /// и группа могла быть распущена между двумя его запросами.
-    /// </remarks>
-    public IReadOnlyList<Control> GetGroupMembers(DesignEditorItem container, string id)
-    {
-        if (container == null)
-            throw new ArgumentNullException(nameof(container));
-
-        if (id == null)
-            throw new ArgumentNullException(nameof(id));
-
-        return EnumerateGroupMembers(container, id).ToList();
-    }
-
-    /// <summary>
-    /// Перечисляет участников группы внутри одной формы.
+    /// Перечисляет участников группы, включая вложенные уровни.
     /// </summary>
     /// <remarks>
     /// Кандидатов даёт тот же обход, что и выделение: группа не может состоять
     /// из того, что редактор не считает отдельным элементом.
     /// </remarks>
-    internal static IEnumerable<Control> EnumerateGroupMembers(DesignEditorItem host, string id)
+    internal static IEnumerable<Control> EnumerateGroupMembers(DesignEditorItem host, string path)
     {
         foreach (var candidate in EnumerateGroupCandidates(host))
         {
-            if (string.Equals(DesignGroupAttached.GetId(candidate), id, StringComparison.Ordinal))
+            if (DesignGroupPath.IsInside(DesignGroupAttached.GetId(candidate), path))
                 yield return candidate;
         }
     }
@@ -368,18 +431,18 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Признак того, что идентификатор в форме уже занят.
+    /// Признак того, что путь в форме уже занят — им самим или чем-то внутри него.
     /// </summary>
     /// <remarks>
-    /// Обход <b>не фильтруется</b> — по той же причине, что и у <see cref="NextGroupId"/>:
-    /// пометка, которую редактор не считает элементом, занимает идентификатор наравне
-    /// с видимой, и переезд на него слил бы группы при первом же сохранении.
+    /// Обход <b>не фильтруется</b>, в отличие от состава группы: пометка, которую редактор
+    /// не считает элементом, занимает путь наравне с видимой, и переезд на него слил бы
+    /// группы при первом же сохранении.
     /// </remarks>
-    private static bool IsGroupIdTaken(DesignEditorItem host, string id)
+    private static bool IsGroupPathTaken(DesignEditorItem host, string path)
     {
         foreach (var candidate in EnumerateSelectionCandidates(host))
         {
-            if (string.Equals(DesignGroupAttached.GetId(candidate), id, StringComparison.Ordinal))
+            if (DesignGroupPath.IsInside(DesignGroupAttached.GetId(candidate), path))
                 return true;
         }
 
@@ -387,21 +450,27 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Подбирает идентификатор, которого в этой форме ещё нет.
+    /// Подбирает идентификатор уровня, свободный среди братьев под этим родителем.
     /// </summary>
     /// <remarks>
-    /// Обход здесь <b>не фильтруется</b>, в отличие от состава группы: пометка,
-    /// которую редактор не считает элементом, занимает идентификатор ничуть не меньше
-    /// видимой. Новая группа, вставшая на занятый номер, слилась бы с ней при первом же
-    /// сохранении — и разошлась бы у хоста с тем, что показывает редактор.
+    /// Обход не фильтруется по той же причине, что и у <see cref="IsGroupPathTaken"/>.
+    /// Свобода проверяется <b>внутри родителя</b>: одинаковые имена на разных ветках
+    /// не сталкиваются, потому что личность группы — это её путь целиком.
     /// </remarks>
-    private static string NextGroupId(DesignEditorItem host)
+    private static string NextGroupId(DesignEditorItem host, string? parent)
     {
+        var depth = DesignGroupPath.Depth(parent);
         var used = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var candidate in EnumerateSelectionCandidates(host))
         {
-            if (DesignGroupAttached.GetId(candidate) is { } id)
-                used.Add(id);
+            var path = DesignGroupAttached.GetId(candidate);
+            if (!DesignGroupPath.IsInside(path, parent))
+                continue;
+
+            var segments = DesignGroupPath.Split(path);
+            if (segments.Length > depth)
+                used.Add(segments[depth]);
         }
 
         for (var i = 1; ; i++)
@@ -413,45 +482,44 @@ public partial class DesignEditor
     }
 
     /// <summary>
-    /// Раскрывает target до всех участников его группы.
+    /// Раскрывает target до кластера, в который он попадает.
     /// </summary>
     /// <remarks>
-    /// Возвращает сам target, если он не сгруппирован или его группа открыта двойным
-    /// кликом. Точка одна: раскрытие обязано совпадать у указателя и у оверлея, иначе
-    /// рамка снова обещала бы не то, что применится.
+    /// Возвращает сам target, если он не сгруппирован или лежит прямо в открытой группе.
+    /// Точка одна: раскрытие обязано совпадать у указателя и у оверлея, иначе рамка
+    /// снова обещала бы не то, что применится.
     /// </remarks>
     private IReadOnlyList<Control> ExpandToGroup(DesignEditorItem host, Control target)
     {
-        if (DesignGroupAttached.GetId(target) is not { } id)
+        if (ClusterPathOf(target) is not { } path)
             return new[] { target };
 
-        if (string.Equals(id, _enteredGroupId, StringComparison.Ordinal))
-            return new[] { target };
-
-        var members = EnumerateGroupMembers(host, id).ToList();
+        var members = EnumerateGroupMembers(host, path).ToList();
         return members.Count > 0 ? members : new List<Control> { target };
     }
 
     /// <summary>
-    /// Открывает группу двойным кликом и закрывает её кликом мимо.
+    /// Опускает вход в группу на уровень и закрывает его кликом мимо.
     /// </summary>
     /// <remarks>
-    /// Открыть можно только группу, по участнику которой кликнули: двойной клик по
-    /// негруппированному контролу ничего не открывает, иначе «внутри» оказывалась бы
-    /// группа, которую пользователь в этот момент не трогал.
+    /// Двойной клик спускается ровно на один уровень: первый выбирает вложенную группу
+    /// целиком, следующий входит уже в неё. Провалиться сразу до контрола значило бы
+    /// сделать промежуточные уровни невыбираемыми указателем.
     /// </remarks>
     private void UpdateEnteredGroup(Control target, int clickCount)
     {
-        var id = DesignGroupAttached.GetId(target);
+        var path = DesignGroupAttached.GetId(target);
 
-        if (clickCount >= 2 && id != null)
+        if (clickCount >= 2)
         {
-            _enteredGroupId = id;
+            if (DesignGroupPath.ClusterOf(path, _enteredGroupPath) is { } next)
+                _enteredGroupPath = next;
+
             return;
         }
 
-        if (!string.Equals(id, _enteredGroupId, StringComparison.Ordinal))
-            _enteredGroupId = null;
+        if (!DesignGroupPath.IsInside(path, _enteredGroupPath))
+            _enteredGroupPath = null;
     }
 
     /// <summary>
@@ -464,47 +532,24 @@ public partial class DesignEditor
     /// </remarks>
     private void SyncEnteredGroup()
     {
-        if (_enteredGroupId == null)
+        if (_enteredGroupPath == null)
             return;
 
         foreach (var target in _selectedTargets)
         {
-            if (string.Equals(DesignGroupAttached.GetId(target), _enteredGroupId, StringComparison.Ordinal))
+            if (DesignGroupPath.IsInside(DesignGroupAttached.GetId(target), _enteredGroupPath))
                 return;
         }
 
-        _enteredGroupId = null;
+        _enteredGroupPath = null;
     }
 
     /// <summary>
-    /// Признак того, что контрол принадлежит открытой группе.
+    /// Признак того, что контрол лежит внутри открытой группы.
     /// </summary>
     private bool IsInsideEnteredGroup(Control target) =>
-        _enteredGroupId != null
-        && string.Equals(DesignGroupAttached.GetId(target), _enteredGroupId, StringComparison.Ordinal);
-
-    /// <summary>
-    /// Признак того, что выделение — это ровно одна группа целиком.
-    /// </summary>
-    private bool IsWholeGroupSelected(IReadOnlyList<Control> targets)
-    {
-        if (targets.Count < 2)
-            return false;
-
-        string? id = null;
-        foreach (var target in targets)
-        {
-            if (DesignGroupAttached.GetId(target) is not { } current)
-                return false;
-
-            if (id == null)
-                id = current;
-            else if (!string.Equals(id, current, StringComparison.Ordinal))
-                return false;
-        }
-
-        return !string.Equals(id, _enteredGroupId, StringComparison.Ordinal);
-    }
+        _enteredGroupPath != null
+        && DesignGroupPath.IsInside(DesignGroupAttached.GetId(target), _enteredGroupPath);
 
     private void SelectGroupMembers(IReadOnlyList<Control> members)
     {
@@ -512,5 +557,47 @@ public partial class DesignEditor
             return;
 
         ApplySelection(members, SelectionIntent.Replace);
+    }
+
+    private static GroupNodeBuilder EnsureNode(
+        string path,
+        Dictionary<string, GroupNodeBuilder> nodes,
+        List<GroupNodeBuilder> roots)
+    {
+        if (nodes.TryGetValue(path, out var existing))
+            return existing;
+
+        var node = new GroupNodeBuilder(path);
+        nodes[path] = node;
+
+        // Промежуточный уровень заводится вместе с потомком: группа без собственных
+        // контролов — обычное дело, она держит только вложенные.
+        if (DesignGroupPath.Parent(path) is { } parent)
+            EnsureNode(parent, nodes, roots).Children.Add(node);
+        else
+            roots.Add(node);
+
+        return node;
+    }
+
+    /// <summary>Промежуточный узел дерева групп: у публичного снимка состав неизменяем.</summary>
+    private sealed class GroupNodeBuilder
+    {
+        public GroupNodeBuilder(string path) => Path = path;
+
+        public string Path { get; }
+
+        public List<Control> Members { get; } = new();
+
+        public List<GroupNodeBuilder> Children { get; } = new();
+
+        public DesignGroupInfo Build(DesignEditorItem container)
+        {
+            var groups = new List<DesignGroupInfo>(Children.Count);
+            foreach (var child in Children)
+                groups.Add(child.Build(container));
+
+            return new DesignGroupInfo(container, Path, Members, groups);
+        }
     }
 }

@@ -561,6 +561,27 @@ public partial class DesignEditor
 
         if (container == null || target == null || !HasMultipleNestedSelection)
             return;
+
+        // Рамка кластера-группы тянет весь его состав, а не первого участника:
+        // группа и снаружи, и внутри жеста остаётся одним элементом.
+        if (e.AdornerInfo.Members is { Count: > 1 } members)
+        {
+            BeginEdit(DesignEditKind.Resize);
+            if (!TryCreateGroupResizeOperation(members, e.AdornerInfo.Bounds, e.Direction, out var clusterOperation))
+            {
+                CancelEdit();
+                return;
+            }
+
+            _groupResizeOperation = clusterOperation;
+
+            if (clusterOperation?.SourceTarget is { } clusterSource)
+                BeginSnapGuides(clusterSource);
+
+            e.Handled = true;
+            return;
+        }
+
         if (!IsResizeAllowed(target, e.Direction))
             return;
 
@@ -572,6 +593,15 @@ public partial class DesignEditor
 
     private void OnSecondarySelectionResizeDelta(object? sender, SelectionAdornerResizeDeltaEventArgs e)
     {
+        // Жест кластера ведёт групповая операция — та же, что у рамки всего выделения.
+        if (_groupResizeOperation != null)
+        {
+            UpdateInteractionOperation(_groupResizeOperation, NormalizeResizeDelta(e.Delta));
+            UpdateSelectionOverlayState();
+            e.Handled = true;
+            return;
+        }
+
         var container = e.AdornerInfo.Container;
         var target = e.AdornerInfo.Target;
 
@@ -594,6 +624,17 @@ public partial class DesignEditor
 
     private void OnSecondarySelectionResizeCompleted(object? sender, SelectionAdornerResizeCompletedEventArgs e)
     {
+        // Жест кластера ведёт групповая операция — та же, что у рамки всего выделения.
+        if (_groupResizeOperation != null)
+        {
+            CompleteInteractionOperation(ref _groupResizeOperation);
+            EndSnapGuides();
+            UpdateSelectionOverlayState();
+            CommitEdit();
+            e.Handled = true;
+            return;
+        }
+
         var container = e.AdornerInfo.Container;
         var target = e.AdornerInfo.Target;
 
@@ -790,7 +831,7 @@ public partial class DesignEditor
             return false;
         }
 
-        var targets = new List<GroupResizeTarget>();
+        var controls = new List<Control>();
         var items = SelectedItems;
         if (items == null)
             return false;
@@ -804,18 +845,41 @@ public partial class DesignEditor
             if (container == null)
                 continue;
 
-            foreach (var target in ResolveSelectionTargets(container))
-            {
-                if (!IsResizeAllowed(target, direction))
-                    return false;
+            controls.AddRange(ResolveSelectionTargets(container));
+        }
 
-                if (!TryGetDesignBounds(target, out var bounds))
-                    continue;
+        return TryCreateGroupResizeOperation(controls, selectionBounds, direction, out operation);
+    }
 
-                SetDesignSize(target, GetDesignSize(target));
+    /// <summary>
+    /// Собирает групповое масштабирование по явному составу.
+    /// </summary>
+    /// <remarks>
+    /// Состав приходит параметром, потому что тянуть можно не только всё выделение:
+    /// у выбранных рядом группы и контрола ручки рамки группы обязаны масштабировать
+    /// её одну. Правило прежнее — жест не начинается, если хоть одному участнику
+    /// политика запрещает эту сторону.
+    /// </remarks>
+    private bool TryCreateGroupResizeOperation(
+        IReadOnlyList<Control> controls,
+        Rect frame,
+        ResizeDirection direction,
+        out GroupResizeOperation? operation)
+    {
+        operation = null;
 
-                targets.Add(new GroupResizeTarget(target, bounds));
-            }
+        var targets = new List<GroupResizeTarget>(controls.Count);
+        foreach (var target in controls)
+        {
+            if (!IsResizeAllowed(target, direction))
+                return false;
+
+            if (!TryGetDesignBounds(target, out var bounds))
+                continue;
+
+            SetDesignSize(target, GetDesignSize(target));
+
+            targets.Add(new GroupResizeTarget(target, bounds));
         }
 
         if (targets.Count <= 1)
@@ -823,12 +887,12 @@ public partial class DesignEditor
 
         operation = new GroupResizeOperation(
             direction,
-            selectionBounds,
+            frame,
             targets,
             // Предел не поднимается выше рамки, которую тянут: см. ItemResizingState.
             Math.Min(
                 Math.Max(0.0, InteractionOptions.ResizeMinSize),
-                Math.Min(selectionBounds.Width, selectionBounds.Height)),
+                Math.Min(frame.Width, frame.Height)),
             PointerSample);
 
         return true;

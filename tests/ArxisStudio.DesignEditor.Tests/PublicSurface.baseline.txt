@@ -496,10 +496,12 @@ sealed class ArxisStudio.DesignGroupChange : DesignChange
     property String NewId { get; }
     property String OldId { get; }
 sealed class ArxisStudio.DesignGroupInfo
-    ctor .ctor(DesignEditorItem, String, IReadOnlyList<Control>)
+    ctor .ctor(DesignEditorItem, String, IReadOnlyList<Control>, IReadOnlyList<DesignGroupInfo>)
     property DesignEditorItem Container { get; }
     property IReadOnlyList<Control> Members { get; }
+    property IReadOnlyList<DesignGroupInfo> Groups { get; }
     property String Id { get; }
+    property String Path { get; }
 struct ArxisStudio.DesignGuide : ValueType
     ctor .ctor(DesignGuideOrientation, Double)
     method Boolean Equals(DesignGuide)

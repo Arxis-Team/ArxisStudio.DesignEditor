@@ -264,26 +264,38 @@ public partial class GroupsPanel : UserControl
             }
 
             foreach (var group in groups)
-                AddGroup(rows, container, group, formKey, selected);
+                AddGroup(rows, container, group, formKey, selected, depth: 1);
         }
 
         return rows;
     }
 
+    /// <summary>
+    /// Выкладывает группу и всё, что в ней лежит.
+    /// </summary>
+    /// <remarks>
+    /// Рекурсия по <see cref="DesignGroupInfo.Groups"/>: группа внутри группы — обычный
+    /// узел, и панель показывает её тем же отступом, что и любую вложенность.
+    /// Ключ строки — полный путь: одинаковые имена уровней на разных ветках не должны
+    /// схлопываться при сверке.
+    /// </remarks>
     private void AddGroup(
         List<GroupNode> rows,
         DesignEditorItem container,
         DesignGroupInfo group,
         string formKey,
-        HashSet<Control> selected)
+        HashSet<Control> selected,
+        int depth)
     {
-        var key = formKey + ":" + group.Id;
+        var key = formKey + ":" + group.Path;
         var expanded = !_collapsed.Contains(key);
 
-        // Группа считается выбранной, когда выбраны все её участники: рамка у неё
-        // одна, и половинчатая подсветка описывала бы состояние, которого нет.
-        var wholeGroupSelected = group.Members.Count > 0;
-        foreach (var member in group.Members)
+        // Группа считается выбранной, когда выбран весь её состав, включая вложенные
+        // уровни: рамка у неё одна, и половинчатая подсветка описывала бы состояние,
+        // которого нет.
+        var members = _attached?.GetGroupMembers(container, group.Path) ?? group.Members;
+        var wholeGroupSelected = members.Count > 0;
+        foreach (var member in members)
         {
             if (!selected.Contains(member))
             {
@@ -292,11 +304,11 @@ public partial class GroupsPanel : UserControl
             }
         }
 
-        var node = new GroupNode(GroupNodeKind.Group, key, group.Id, depth: 1)
+        var node = new GroupNode(GroupNodeKind.Group, key, group.Id, depth)
         {
             Container = container,
-            GroupId = group.Id,
-            MemberCount = group.Members.Count,
+            GroupPath = group.Path,
+            MemberCount = members.Count,
             HasChildren = true,
             IsExpanded = expanded,
             IsSelected = wholeGroupSelected
@@ -313,6 +325,9 @@ public partial class GroupsPanel : UserControl
         if (!expanded)
             return;
 
+        foreach (var nested in group.Groups)
+            AddGroup(rows, container, nested, formKey, selected, depth + 1);
+
         for (var i = 0; i < group.Members.Count; i++)
         {
             var member = group.Members[i];
@@ -320,25 +335,16 @@ public partial class GroupsPanel : UserControl
             // Ключ участника считается от его места в группе, а не от длины списка:
             // строка выше не должна перенумеровывать строки ниже, иначе сверка по ключу
             // перестала бы находить их на прежних местах.
-            rows.Add(new GroupNode(GroupNodeKind.Member, key + ":" + i, TitleOf(container, member), depth: 2)
+            rows.Add(new GroupNode(GroupNodeKind.Member, key + ":" + i, TitleOf(container, member), depth + 1)
             {
                 Container = container,
                 Target = member,
-                GroupId = group.Id,
+                GroupPath = group.Path,
                 IsSelected = selected.Contains(member)
             });
         }
     }
 
-    /// <summary>
-    /// Имя участника: тип и <c>Name</c>, если он задан.
-    /// </summary>
-    /// <remarks>
-    /// Берётся у публичного <see cref="DesignSelectionTarget"/> — своя схема имён
-    /// разошлась бы с тем, что редактор пишет о выбранном. Содержимое контрола в список
-    /// не выносится: панель показывает структуру, а текст кнопки виден на макете и здесь
-    /// только удлинял бы строку.
-    /// </remarks>
     private static string TitleOf(DesignEditorItem container, Control member) =>
         new DesignSelectionTarget(container, member).DisplayName;
 
@@ -388,7 +394,7 @@ public partial class GroupsPanel : UserControl
                 editor.SelectDesignTarget(node.Target, additive);
                 break;
 
-            case GroupNodeKind.Group when node.Container != null && node.GroupId != null:
+            case GroupNodeKind.Group when node.Container != null && node.GroupPath != null:
                 SelectGroup(editor, node);
                 break;
         }
@@ -406,7 +412,7 @@ public partial class GroupsPanel : UserControl
     /// </remarks>
     private static void SelectGroup(Editor editor, GroupNode node)
     {
-        var members = editor.GetGroupMembers(node.Container!, node.GroupId!);
+        var members = editor.GetGroupMembers(node.Container!, node.GroupPath!);
         for (var i = 0; i < members.Count; i++)
             editor.SelectDesignTarget(members[i], additive: i > 0);
     }
@@ -422,7 +428,7 @@ public partial class GroupsPanel : UserControl
     private void BeginRename(GroupNode node)
     {
         _editingKey = node.Key;
-        node.EditText = node.GroupId ?? string.Empty;
+        node.EditText = node.Title;
         node.IsEditing = true;
     }
 
@@ -473,8 +479,8 @@ public partial class GroupsPanel : UserControl
         _editingKey = null;
         node.IsEditing = false;
 
-        if (_attached is { } editor && node.Container != null && node.GroupId != null)
-            editor.RenameGroup(node.Container, node.GroupId, node.EditText);
+        if (_attached is { } editor && node.Container != null && node.GroupPath != null)
+            editor.RenameGroup(node.Container, node.GroupPath, node.EditText);
 
         Rebuild();
     }
