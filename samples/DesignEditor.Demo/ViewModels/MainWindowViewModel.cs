@@ -92,8 +92,16 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsGestureHelpCollapsed));
     }
 
+    /// <summary>
+    /// Признак раскрытой подсказки о жестах.
+    /// </summary>
+    /// <remarks>
+    /// Свёрнута по умолчанию: раскрытая закрывает правый нижний угол холста, то есть
+    /// ровно ту часть макета, до которой пользователь доходит сам. Подсказка нужна один
+    /// раз, а мешает каждый раз.
+    /// </remarks>
     [ObservableProperty]
-    private bool _isGestureHelpExpanded = true;
+    private bool _isGestureHelpExpanded;
 
     public bool IsGestureHelpCollapsed => !IsGestureHelpExpanded;
 
@@ -122,8 +130,16 @@ public partial class MainWindowViewModel : ObservableObject
     /// </remarks>
     public IReadOnlyList<double> GridCellSizes { get; } = new double[] { 1, 5, 10, 20, 25, 40, 50 };
 
+    /// <summary>
+    /// Шаг сетки, действующий при запуске.
+    /// </summary>
+    /// <remarks>
+    /// Пять единиц — это шаг, к которому притягивает, а не тот, который видно: на обычном
+    /// масштабе клетка мельче порога детализации и не рисуется, зато размещение перестаёт
+    /// прыгать двадцатками. Крупные линии возвращаются с приближением.
+    /// </remarks>
     [ObservableProperty]
-    private double _gridCellSize = 20;
+    private double _gridCellSize = 5;
 
     public MainWindowViewModel()
     {
