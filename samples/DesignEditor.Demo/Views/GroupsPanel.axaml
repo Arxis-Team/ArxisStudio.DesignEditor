@@ -2,8 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DesignEditor.Demo.ViewModels"
              xmlns:views="using:DesignEditor.Demo.Views"
-             x:Class="DesignEditor.Demo.Views.LayersPanel"
-             x:DataType="views:LayersPanel"
+             x:Class="DesignEditor.Demo.Views.GroupsPanel"
+             x:DataType="views:GroupsPanel"
              Width="248">
 
     <UserControl.Styles>
@@ -74,7 +74,7 @@
         <Grid RowDefinitions="Auto,Auto,*">
 
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="10,8,6,8">
-                <TextBlock Text="Слои" Foreground="#E6E6E6" FontSize="12" FontWeight="SemiBold"
+                <TextBlock Text="Группы" Foreground="#E6E6E6" FontSize="12" FontWeight="SemiBold"
                            VerticalAlignment="Center" />
                 <Button Grid.Column="1" Classes="ghostBtn" Content="⟳"
                         Click="Refresh_OnClick"
@@ -96,7 +96,7 @@
             <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding Nodes}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:LayerNode">
+                        <DataTemplate x:DataType="vm:GroupNode">
                             <Border Classes="row"
                                     Classes.selected="{Binding IsSelected}"
                                     Padding="0,3"

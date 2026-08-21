@@ -60,11 +60,11 @@
         <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto,*">
 
         <!--
-            Панель слоёв стоит рядом с редактором, как и линейки: она читает его
+            Панель групп стоит рядом с редактором, как и линейки: она читает его
             публичный API и ничего не знает о его внутренностях.
         -->
-        <views:LayersPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
-                           x:Name="Layers"
+        <views:GroupsPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                           x:Name="Groups"
                            Editor="{Binding #Editor}" />
 
         <arxisControls:DesignRuler Grid.Row="0" Grid.Column="2"

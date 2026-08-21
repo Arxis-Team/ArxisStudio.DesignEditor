@@ -12,7 +12,7 @@ using Editor = ArxisStudio.DesignEditor;
 namespace DesignEditor.Demo.Views;
 
 /// <summary>
-/// Панель слоёв: формы, их группы и участники групп.
+/// Панель групп: формы, их группы и участники групп.
 /// </summary>
 /// <remarks>
 /// Панель не знает ни одного внутреннего типа библиотеки: состав читается
@@ -32,19 +32,19 @@ namespace DesignEditor.Demo.Views;
 /// а на всё остальное есть кнопка обновления — это честная цена pull-модели, а не недоделка.
 /// </para>
 /// </remarks>
-public partial class LayersPanel : UserControl
+public partial class GroupsPanel : UserControl
 {
     /// <summary>Идентификатор свойства редактора.</summary>
     public static readonly StyledProperty<Editor?> EditorProperty =
-        AvaloniaProperty.Register<LayersPanel, Editor?>(nameof(Editor));
+        AvaloniaProperty.Register<GroupsPanel, Editor?>(nameof(Editor));
 
     /// <summary>Идентификатор свойства доступности группировки.</summary>
     public static readonly StyledProperty<bool> CanGroupProperty =
-        AvaloniaProperty.Register<LayersPanel, bool>(nameof(CanGroup));
+        AvaloniaProperty.Register<GroupsPanel, bool>(nameof(CanGroup));
 
     /// <summary>Идентификатор свойства доступности роспуска.</summary>
     public static readonly StyledProperty<bool> CanUngroupProperty =
-        AvaloniaProperty.Register<LayersPanel, bool>(nameof(CanUngroup));
+        AvaloniaProperty.Register<GroupsPanel, bool>(nameof(CanUngroup));
 
     /// <summary>Свёрнутые узлы; переживает пересборку списка.</summary>
     private readonly HashSet<string> _collapsed = new(System.StringComparer.Ordinal);
@@ -56,7 +56,7 @@ public partial class LayersPanel : UserControl
     private string? _editingKey;
 
     /// <summary>Инициализирует панель.</summary>
-    public LayersPanel()
+    public GroupsPanel()
     {
         // Панель — сама себе модель: строки она строит из редактора, а данных окна
         // ей не нужно. Привязка Editor приходит снаружи по имени элемента и от
@@ -87,7 +87,7 @@ public partial class LayersPanel : UserControl
     }
 
     /// <summary>Строки панели в порядке показа.</summary>
-    public ObservableCollection<LayerNode> Nodes { get; } = new();
+    public ObservableCollection<GroupNode> Nodes { get; } = new();
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
@@ -187,7 +187,7 @@ public partial class LayersPanel : UserControl
     /// <summary>
     /// Приводит текущий список к желаемому, сохраняя строки, описывающие то же самое.
     /// </summary>
-    private void Reconcile(List<LayerNode> rows)
+    private void Reconcile(List<GroupNode> rows)
     {
         for (var i = 0; i < rows.Count; i++)
         {
@@ -224,14 +224,14 @@ public partial class LayersPanel : UserControl
     /// строки оставались прежними — и первая строка выбирала контрол, ставший вторым.
     /// </para>
     /// </remarks>
-    private static bool IsSameRow(LayerNode existing, LayerNode fresh) =>
+    private static bool IsSameRow(GroupNode existing, GroupNode fresh) =>
         string.Equals(existing.Key, fresh.Key, System.StringComparison.Ordinal)
         && ReferenceEquals(existing.Target, fresh.Target)
         && ReferenceEquals(existing.Container, fresh.Container);
 
-    private List<LayerNode> BuildRows(Editor editor)
+    private List<GroupNode> BuildRows(Editor editor)
     {
-        var rows = new List<LayerNode>();
+        var rows = new List<GroupNode>();
 
         var selected = new HashSet<Control>();
         foreach (var target in editor.SelectedDesignTargets)
@@ -246,7 +246,7 @@ public partial class LayersPanel : UserControl
             var formKey = "form:" + index;
             var formExpanded = !_collapsed.Contains(formKey);
 
-            rows.Add(new LayerNode(LayerNodeKind.Form, formKey, TitleOf(editor, index, container), depth: 0)
+            rows.Add(new GroupNode(GroupNodeKind.Form, formKey, TitleOf(editor, index, container), depth: 0)
             {
                 Container = container,
                 HasChildren = true,
@@ -259,7 +259,7 @@ public partial class LayersPanel : UserControl
 
             if (groups.Count == 0)
             {
-                rows.Add(new LayerNode(LayerNodeKind.Hint, formKey + ":empty", "групп нет", depth: 1));
+                rows.Add(new GroupNode(GroupNodeKind.Hint, formKey + ":empty", "групп нет", depth: 1));
                 continue;
             }
 
@@ -271,7 +271,7 @@ public partial class LayersPanel : UserControl
     }
 
     private void AddGroup(
-        List<LayerNode> rows,
+        List<GroupNode> rows,
         DesignEditorItem container,
         DesignGroupInfo group,
         string formKey,
@@ -292,7 +292,7 @@ public partial class LayersPanel : UserControl
             }
         }
 
-        var node = new LayerNode(LayerNodeKind.Group, key, group.Id, depth: 1)
+        var node = new GroupNode(GroupNodeKind.Group, key, group.Id, depth: 1)
         {
             Container = container,
             GroupId = group.Id,
@@ -320,7 +320,7 @@ public partial class LayersPanel : UserControl
             // Ключ участника считается от его места в группе, а не от длины списка:
             // строка выше не должна перенумеровывать строки ниже, иначе сверка по ключу
             // перестала бы находить их на прежних местах.
-            rows.Add(new LayerNode(LayerNodeKind.Member, key + ":" + i, TitleOf(container, member), depth: 2)
+            rows.Add(new GroupNode(GroupNodeKind.Member, key + ":" + i, TitleOf(container, member), depth: 2)
             {
                 Container = container,
                 Target = member,
@@ -352,15 +352,15 @@ public partial class LayersPanel : UserControl
 
     private void Row_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { DataContext: LayerNode node } || _attached is not { } editor)
+        if (sender is not Control { DataContext: GroupNode node } || _attached is not { } editor)
             return;
 
         var point = e.GetCurrentPoint(sender as Visual);
         if (!point.Properties.IsLeftButtonPressed || node.IsEditing)
             return;
 
-        // Двойной клик по имени группы правит его — как в любом списке слоёв.
-        if (e.ClickCount == 2 && node.Kind == LayerNodeKind.Group)
+        // Двойной клик по имени группы правит его — как в любом дереве объектов.
+        if (e.ClickCount == 2 && node.Kind == GroupNodeKind.Group)
         {
             BeginRename(node);
             e.Handled = true;
@@ -380,15 +380,15 @@ public partial class LayersPanel : UserControl
 
         switch (node.Kind)
         {
-            case LayerNodeKind.Form when node.Container != null:
+            case GroupNodeKind.Form when node.Container != null:
                 editor.SelectDesignTarget(node.Container, additive);
                 break;
 
-            case LayerNodeKind.Member when node.Target != null:
+            case GroupNodeKind.Member when node.Target != null:
                 editor.SelectDesignTarget(node.Target, additive);
                 break;
 
-            case LayerNodeKind.Group when node.Container != null && node.GroupId != null:
+            case GroupNodeKind.Group when node.Container != null && node.GroupId != null:
                 SelectGroup(editor, node);
                 break;
         }
@@ -404,7 +404,7 @@ public partial class LayersPanel : UserControl
     /// <see cref="Editor.SelectDesignTarget"/> работает с одним target'ом, поэтому
     /// панель набирает участников сама: первый заменяет выбор, остальные добавляются.
     /// </remarks>
-    private static void SelectGroup(Editor editor, LayerNode node)
+    private static void SelectGroup(Editor editor, GroupNode node)
     {
         var members = editor.GetGroupMembers(node.Container!, node.GroupId!);
         for (var i = 0; i < members.Count; i++)
@@ -419,7 +419,7 @@ public partial class LayersPanel : UserControl
     /// событие редактора, и состояние, лежащее в строке, не пережило бы первую же
     /// пересборку — тем же способом хранится и свёрнутость.
     /// </remarks>
-    private void BeginRename(LayerNode node)
+    private void BeginRename(GroupNode node)
     {
         _editingKey = node.Key;
         node.EditText = node.GroupId ?? string.Empty;
@@ -437,7 +437,7 @@ public partial class LayersPanel : UserControl
 
     private void EditBox_OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (sender is not TextBox { DataContext: LayerNode node })
+        if (sender is not TextBox { DataContext: GroupNode node })
             return;
 
         switch (e.Key)
@@ -456,7 +456,7 @@ public partial class LayersPanel : UserControl
 
     private void EditBox_OnLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (sender is TextBox { DataContext: LayerNode node } && node.IsEditing)
+        if (sender is TextBox { DataContext: GroupNode node } && node.IsEditing)
             CommitRename(node);
     }
 
@@ -468,7 +468,7 @@ public partial class LayersPanel : UserControl
     /// не обсуждает: она просто возвращает прежнее имя. Своей проверки здесь нет намеренно,
     /// иначе правила существовали бы в двух местах и разошлись бы.
     /// </remarks>
-    private void CommitRename(LayerNode node)
+    private void CommitRename(GroupNode node)
     {
         _editingKey = null;
         node.IsEditing = false;
@@ -485,7 +485,7 @@ public partial class LayersPanel : UserControl
         Rebuild();
     }
 
-    private void Toggle(LayerNode node)
+    private void Toggle(GroupNode node)
     {
         if (!_collapsed.Add(node.Key))
             _collapsed.Remove(node.Key);

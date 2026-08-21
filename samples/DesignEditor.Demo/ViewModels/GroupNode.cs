@@ -7,9 +7,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace DesignEditor.Demo.ViewModels;
 
 /// <summary>
-/// Что описывает строка панели слоёв.
+/// Что описывает строка панели групп.
 /// </summary>
-public enum LayerNodeKind
+public enum GroupNodeKind
 {
     /// <summary>Форма — контейнер <see cref="DesignEditorItem"/>.</summary>
     Form,
@@ -25,7 +25,7 @@ public enum LayerNodeKind
 }
 
 /// <summary>
-/// Строка панели слоёв.
+/// Строка панели групп.
 /// </summary>
 /// <remarks>
 /// Дерево разложено в плоский список: строка знает свой отступ и своё состояние
@@ -33,10 +33,10 @@ public enum LayerNodeKind
 /// двусторонний обмен выделением с <c>TreeView</c> — выделение течёт в одну сторону,
 /// от редактора к панели, а клик идёт обратно вызовом публичного API.
 /// </remarks>
-public sealed partial class LayerNode : ObservableObject
+public sealed partial class GroupNode : ObservableObject
 {
     /// <summary>Инициализирует строку.</summary>
-    public LayerNode(LayerNodeKind kind, string key, string title, int depth)
+    public GroupNode(GroupNodeKind kind, string key, string title, int depth)
     {
         Kind = kind;
         Key = key;
@@ -45,7 +45,7 @@ public sealed partial class LayerNode : ObservableObject
     }
 
     /// <summary>Что описывает строка.</summary>
-    public LayerNodeKind Kind { get; }
+    public GroupNodeKind Kind { get; }
 
     /// <summary>
     /// Устойчивый ключ строки.
@@ -88,9 +88,9 @@ public sealed partial class LayerNode : ObservableObject
     /// </remarks>
     public IBrush TitleBrush => Kind switch
     {
-        LayerNodeKind.Form => FormBrush,
-        LayerNodeKind.Group => GroupBrush,
-        LayerNodeKind.Member => MemberBrush,
+        GroupNodeKind.Form => FormBrush,
+        GroupNodeKind.Group => GroupBrush,
+        GroupNodeKind.Member => MemberBrush,
         _ => HintBrush
     };
 
@@ -102,9 +102,9 @@ public sealed partial class LayerNode : ObservableObject
     /// <summary>Значок строки.</summary>
     public string Glyph => Kind switch
     {
-        LayerNodeKind.Form => "▤",
-        LayerNodeKind.Group => "⬚",
-        LayerNodeKind.Member => "▭",
+        GroupNodeKind.Form => "▤",
+        GroupNodeKind.Group => "⬚",
+        GroupNodeKind.Member => "▭",
         _ => " "
     };
 
@@ -112,7 +112,7 @@ public sealed partial class LayerNode : ObservableObject
     public string Chevron => !HasChildren ? " " : IsExpanded ? "⌄" : "›";
 
     /// <summary>Пояснение справа: число участников у группы.</summary>
-    public string Note => Kind == LayerNodeKind.Group ? MemberCount.ToString() : string.Empty;
+    public string Note => Kind == GroupNodeKind.Group ? MemberCount.ToString() : string.Empty;
 
     /// <summary>Признак того, что строка выбрана в редакторе.</summary>
     [ObservableProperty]

@@ -25,7 +25,7 @@ public partial class DesignItemViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Имя формы для панели слоёв.
+    /// Имя формы для панели групп.
     /// </summary>
     /// <remarks>
     /// Своё, а не снятое с контрола: у контейнера имени нет, а тип view-модели
