@@ -385,4 +385,31 @@ public class NestedGroupingTests
         Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
         Assert.True(harness.Editor.HasGroupSelection);
     }
+
+    /// <summary>
+    /// Контекстное меню на одной из двух выбранных групп сохраняет обе.
+    /// </summary>
+    /// <remarks>
+    /// Правый клик переводит выделение, только когда щёлкнули мимо него. Иначе выбор
+    /// схлопывался до группы под курсором, и сгруппировать две группы через меню было
+    /// нечем — команда становилась недоступной ровно в тот момент, когда её вызывают.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_Context_Click_On_One_Of_Two_Groups_Keeps_Both()
+    {
+        var harness = CreateTwoGroups();
+
+        Click(harness, "A");
+        Click(harness, "C", RawInputModifiers.Shift);
+        Assert.Equal(4, harness.Editor.SelectedDesignTargetsCount);
+
+        var point = harness.CentreOf(Cell(harness, "C"));
+        harness.Window.MouseDown(point, MouseButton.Right);
+        harness.Window.MouseUp(point, MouseButton.Right);
+        harness.RunLayout();
+
+        Assert.Equal(4, harness.Editor.SelectedDesignTargetsCount);
+        Assert.True(harness.Editor.CanGroupSelection());
+        Assert.True(harness.Editor.GroupSelection());
+    }
 }

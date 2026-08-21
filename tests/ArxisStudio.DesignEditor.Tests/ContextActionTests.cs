@@ -298,4 +298,32 @@ public class ContextActionTests
         // сначала переводит выделение на этот target.
         Assert.Same(sibling, harness.Editor.PrimarySelectionTarget!.Target);
     }
+
+    /// <summary>
+    /// Правый клик внутри выделения его не трогает.
+    /// </summary>
+    /// <remarks>
+    /// Оборотная сторона предыдущего правила: переводить выделение нужно, только когда
+    /// щёлкнули мимо него. Схлопывать выбранное до одного target'а значило бы отобрать
+    /// у пользователя то, ради чего он меню и открывал, — над двумя выбранными
+    /// элементами команда группировки становилась недоступной.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Right_Click_Inside_The_Selection_Keeps_It()
+    {
+        var harness = Create(out _, new Provider(Action("a")));
+        var sibling = harness.Named(0, "Sibling");
+
+        harness.Editor.SelectDesignTarget(harness.Nested(0));
+        harness.Editor.SelectDesignTarget(sibling, additive: true);
+        harness.RunLayout();
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+
+        harness.Window.MouseDown(harness.CentreOf(sibling), MouseButton.Right);
+        harness.Window.MouseUp(harness.CentreOf(sibling), MouseButton.Right);
+        harness.RunLayout();
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.True(harness.Editor.CanGroupSelection());
+    }
 }

@@ -243,14 +243,18 @@ public partial class DesignEditor
         var isTargetInSelection = SelectedDesignTargets.Any(selected =>
             ReferenceEquals(selected.Target, target));
 
-        if (!isTargetInSelection)
+        // Щёлкнули внутри выделения — оно принадлежит пользователю и остаётся как есть.
+        // Иначе выбор схлопывался до кластера под курсором: две выбранные группы
+        // превращались в одну ровно в тот момент, когда над ними вызывают меню,
+        // и команда группировки становилась недоступной.
+        if (isTargetInSelection)
+            return;
+
+        var index = IndexFromContainer(container);
+        if (index >= 0)
         {
-            var index = IndexFromContainer(container);
-            if (index >= 0)
-            {
-                Selection.Clear();
-                Selection.Select(index);
-            }
+            Selection.Clear();
+            Selection.Select(index);
         }
 
         // Context invocation must not use additive toggle semantics (e.g. Shift+RMB).
