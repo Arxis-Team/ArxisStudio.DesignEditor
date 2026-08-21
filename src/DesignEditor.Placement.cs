@@ -51,6 +51,48 @@ public partial class DesignEditor
         strategy.SetPosition(control, position, this);
     }
 
+    /// <summary>
+    /// Задает геометрию контрола одной единицей редактирования.
+    /// </summary>
+    /// <param name="target">Контрол.</param>
+    /// <param name="bounds">Желаемая рамка в design-координатах.</param>
+    /// <returns><see langword="true"/>, если изменение принято и опубликовано.</returns>
+    /// <exception cref="ArgumentNullException">Выбрасывается, если <paramref name="target"/> равен <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Это способ изменить геометрию <b>снаружи жеста</b> — из панели свойств, из
+    /// команды приложения. Идёт через те же швы, что и перетаскивание, поэтому правка
+    /// попадает в <see cref="EditCompleted"/> и отменяется наравне с ней.
+    /// <para>
+    /// Отличие от <see cref="ApplyGeometry"/> принципиальное: тот применяет уже
+    /// записанное изменение и запись подавляет — им отмена и повтор возвращают
+    /// геометрию, не дописывая стек.
+    /// </para>
+    /// <para>
+    /// Приняли не всё: положением может распоряжаться раскладка, а размер ограничивают
+    /// <c>Min</c>/<c>Max</c> контрола и границы формы. Отсекается это на швах, поэтому
+    /// ответ берётся у контракта изменений, а не перечитыванием design-координат —
+    /// те отстают на проход диспетчера и сразу после записи ещё старые.
+    /// </para>
+    /// </remarks>
+    public bool SetDesignGeometry(Control target, Rect bounds)
+    {
+        if (target == null)
+            throw new ArgumentNullException(nameof(target));
+
+        // Вид правки — по тому, что изменилось: у размера своя единица, как и у жеста.
+        var kind = GetDesignSize(target) == bounds.Size
+            ? DesignEditKind.Move
+            : DesignEditKind.Resize;
+
+        BeginEdit(kind);
+        SetDesignSize(target, bounds.Size);
+        SetDesignPosition(target, bounds.Position);
+
+        var applied = CommitEdit();
+        UpdateSelectionOverlayState();
+        return applied;
+    }
+
     internal Size GetDesignSize(Control control)
     {
         var width = double.IsNaN(control.Width) ? control.Bounds.Width : control.Width;

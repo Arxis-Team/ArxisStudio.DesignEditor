@@ -163,19 +163,26 @@ public partial class DesignEditor
     /// <summary>
     /// Закрывает единицу редактирования и публикует изменения, если они есть.
     /// </summary>
-    private void CommitEdit()
+    /// <returns><see langword="true"/>, если изменения были опубликованы.</returns>
+    /// <remarks>
+    /// Ответ нужен точке записи снаружи жеста: <see cref="SetDesignGeometry"/> обязан
+    /// сказать хосту, приняли его правку или раскладка её отсекла, а перечитать
+    /// design-координаты сразу нельзя — они отстают на проход диспетчера.
+    /// </remarks>
+    private bool CommitEdit()
     {
         var scope = _activeEdit;
         _activeEdit = null;
 
         if (scope == null)
-            return;
+            return false;
 
         var changes = scope.BuildChanges();
         if (changes.Count == 0)
-            return;
+            return false;
 
         EditCompleted?.Invoke(this, new DesignEditCompletedEventArgs(scope.Kind, changes));
+        return true;
     }
 
     /// <summary>

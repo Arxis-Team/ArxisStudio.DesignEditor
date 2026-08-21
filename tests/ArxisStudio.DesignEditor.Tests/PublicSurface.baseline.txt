@@ -260,6 +260,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     method Boolean SelectDesignTarget(Control, Boolean)
     method Boolean SendBackward()
     method Boolean SendToBack()
+    method Boolean SetDesignGeometry(Control, Rect)
     method Boolean UngroupSelection()
     method Control CreateContainerForItemOverride(Object, Int32, Object)
     method IReadOnlyList<Control> GetGroupMembers(DesignEditorItem, String)

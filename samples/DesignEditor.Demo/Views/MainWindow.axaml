@@ -57,7 +57,7 @@
             точка ввода совпадает с точкой viewport'а, и слой, занявший место сверху
             или слева, сдвинул бы это соответствие.
         -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto,*">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" RowDefinitions="Auto,*">
 
         <!--
             Панель групп стоит рядом с редактором, как и линейки: она читает его
@@ -66,6 +66,15 @@
         <views:GroupsPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
                            x:Name="Groups"
                            Editor="{Binding #Editor}" />
+
+        <!--
+            Панель свойств — вторая проверка API на потребителе: геометрию она пишет
+            публичным швом редактора, а раскладку и оформление — прямо в свойства
+            Avalonia, и разделы честно помечают, что из этого отменяется.
+        -->
+        <views:PropertiesPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
+                               x:Name="Properties"
+                               Editor="{Binding #Editor}" />
 
         <arxisControls:DesignRuler Grid.Row="0" Grid.Column="2"
                                    x:Name="TopRuler"
