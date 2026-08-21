@@ -128,7 +128,7 @@ public partial class MainWindow : Window
             viewModel.Elements.RemoveAt(index);
 
         e.Handled = true;
-        this.FindControl<GroupsPanel>("Groups")?.Refresh();
+        RefreshPanels();
     }
 
     /// <summary>
@@ -195,9 +195,23 @@ public partial class MainWindow : Window
         _history?.RecordReorder(panel, e.OldIndex, e.NewIndex);
         e.Handled = true;
 
-        // Дерево изменили здесь — здесь же и сообщаем панели групп: перестановка
-        // не проходит через EditCompleted, и узнать о ней ей больше неоткуда.
+        // Дерево изменили здесь — здесь же и сообщаем панелям: перестановка и удаление
+        // не проходят через EditCompleted, и узнать о них им больше неоткуда.
+        RefreshPanels();
+    }
+
+    /// <summary>
+    /// Сообщает панелям о правке дерева, сделанной хостом.
+    /// </summary>
+    /// <remarks>
+    /// Обе панели читают редактор запросом, а он о чужих правках дерева не знает
+    /// (ADR 0001): кто изменил дерево, тот и рассказывает. Точка одна — иначе следующая
+    /// панель снова окажется забытой, как оказалась панель свойств.
+    /// </remarks>
+    private void RefreshPanels()
+    {
         this.FindControl<GroupsPanel>("Groups")?.Refresh();
+        this.FindControl<PropertiesPanel>("Properties")?.Refresh();
     }
 
     private void Undo_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _history?.Undo();
