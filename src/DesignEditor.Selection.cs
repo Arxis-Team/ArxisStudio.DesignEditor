@@ -227,6 +227,50 @@ public partial class DesignEditor
     /// Повторный additive-клик снимает target, но не даёт опустошить выделение
     /// полностью: пустой выбор — это результат клика по холсту, а не по элементу.
     /// </remarks>
+    /// <summary>
+    /// Добавляет кластер к выделению или убирает его целиком.
+    /// </summary>
+    /// <remarks>
+    /// Половина группы в выделении описывала бы состояние, которого пользователь не
+    /// заказывал: добавляли группой — и убирать надо группой. Выделение при этом не
+    /// опустошается, как и при обычном toggle одного target'а.
+    /// </remarks>
+    private void ToggleClusterInSelection(IReadOnlyList<Control> cluster)
+    {
+        if (cluster.Count <= 1)
+        {
+            ToggleTargetInSelection(cluster[0]);
+            return;
+        }
+
+        var whole = true;
+        foreach (var member in cluster)
+        {
+            if (_selectedTargets.Contains(member))
+                continue;
+
+            whole = false;
+            break;
+        }
+
+        if (!whole)
+        {
+            foreach (var member in cluster)
+            {
+                if (!_selectedTargets.Contains(member))
+                    _selectedTargets.Add(member);
+            }
+
+            return;
+        }
+
+        if (_selectedTargets.Count <= cluster.Count)
+            return;
+
+        foreach (var member in cluster)
+            _selectedTargets.Remove(member);
+    }
+
     private void ToggleTargetInSelection(Control target)
     {
         if (!_selectedTargets.Contains(target))
@@ -427,7 +471,10 @@ public partial class DesignEditor
 
         if (isAdditive)
         {
-            ToggleTargetInSelection(target);
+            // Группа остаётся одним элементом и когда её добавляют к уже выбранному:
+            // раскрытие до кластера — свойство клика по участнику, а не свойство
+            // замены выделения.
+            ToggleClusterInSelection(ExpandToGroup(groupHost, target));
         }
         else
         {

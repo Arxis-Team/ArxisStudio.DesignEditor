@@ -327,4 +327,62 @@ public class NestedGroupingTests
         Assert.Equal(before, DesignBoundsOf(harness, "C"));
         Assert.True(DesignBoundsOf(harness, "A").Union(DesignBoundsOf(harness, "B")).Width > frame.Width);
     }
+
+    /// <summary>Собирает две отдельные группы: A+B и C+D.</summary>
+    private static EditorHarness CreateTwoGroups()
+    {
+        var harness = CreateWithGroup();
+        Select(harness, "C", "D");
+        Assert.True(harness.Editor.GroupSelection());
+        harness.RunLayout();
+        return harness;
+    }
+
+    /// <summary>
+    /// Shift-клик по чужой группе добавляет её целиком.
+    /// </summary>
+    /// <remarks>
+    /// Раскрытие до кластера — свойство клика по участнику, а не свойство замены
+    /// выделения: группа остаётся одним элементом и когда её добавляют к уже
+    /// выбранному. Иначе к группе добавлялся бы один контрол из другой, и рамок
+    /// на экране становилось бы три вместо двух.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Shift_Click_On_Another_Group_Adds_It_Whole()
+    {
+        var harness = CreateTwoGroups();
+
+        Click(harness, "A");
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+
+        Click(harness, "C", RawInputModifiers.Shift);
+
+        Assert.Equal(4, harness.Editor.SelectedDesignTargetsCount);
+        Assert.Equal(2, harness.Editor.SecondarySelectionAdorners.Count);
+        Assert.All(
+            harness.Editor.SecondarySelectionAdorners,
+            adorner => Assert.Equal(SelectionAdornerRole.Group, adorner.Role));
+    }
+
+    /// <summary>
+    /// Повторный Shift-клик убирает группу целиком.
+    /// </summary>
+    /// <remarks>
+    /// Обратная сторона того же правила: добавляли группой — убирать половиной нельзя,
+    /// иначе от неё осталась бы часть, которую пользователь не выбирал.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Shift_Click_On_A_Selected_Group_Removes_It_Whole()
+    {
+        var harness = CreateTwoGroups();
+
+        Click(harness, "A");
+        Click(harness, "C", RawInputModifiers.Shift);
+        Assert.Equal(4, harness.Editor.SelectedDesignTargetsCount);
+
+        Click(harness, "D", RawInputModifiers.Shift);
+
+        Assert.Equal(2, harness.Editor.SelectedDesignTargetsCount);
+        Assert.True(harness.Editor.HasGroupSelection);
+    }
 }
