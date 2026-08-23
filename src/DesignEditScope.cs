@@ -99,8 +99,8 @@ internal sealed class DesignEditScope
             Size = size,
             BeforeZIndex = target.ZIndex,
             ZIndex = target.ZIndex,
-            BeforeGroup = Attached.DesignGroup.GetId(target),
-            Group = Attached.DesignGroup.GetId(target)
+            BeforeGroup = editor.GetGroupOf(target),
+            Group = editor.GetGroupOf(target)
         };
 
         _entries[target] = entry;

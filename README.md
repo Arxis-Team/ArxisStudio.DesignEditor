@@ -40,14 +40,14 @@
 
 ## Публичная поверхность
 
-Библиотека экспортирует 55 типов. Всё остальное — реализация и может меняться без предупреждения.
+Библиотека экспортирует 57 типов. Всё остальное — реализация и может меняться без предупреждения.
 
 | Область | Типы |
 |---|---|
 | Редактор | `DesignEditor`, `DesignEditorItem` |
 | Контролы для шаблонов и тем | `AbsolutePanel`, `DesignGrid`, `SelectionAdorner`, `SelectionAdornerRole`, `ResizeDirection`, `ResizeDeltaEventArgs`, `ResizeStartedEventArgs` |
 | Позиционирование и политики | `Layout`, `DesignInteraction`, `MovePolicy`, `ResizePolicy` |
-| Группы | `DesignGroup`, `DesignGroupInfo` |
+| Группы | `DesignGroup`, `DesignGroupInfo`, `IDesignGroupStore`, `DesignGroupAttachedStore` |
 | Настройка ввода | `DesignEditorInputGestures`, `DesignEditorPointerButton`, `ContainerEmptyAreaDragGesture`, `DesignEditorInteractionOptions`, `DesignEditorCursors` |
 | Содержимое контейнера | `DesignContentMode` |
 | Запросы к приложению | `DesignEditorDeleteRequestedEventArgs`, `DesignEditorReorderRequestedEventArgs`, `DesignEditorHistoryRequestedEventArgs` |
@@ -469,7 +469,15 @@ foreach (var group in editor.GetGroups(container))      // дерево груп
 <Border attached:DesignGroup.Id="toolbar/icons" />
 ```
 
-Так решено не из экономии. Редактор не правит дерево контролов (см. [ADR 0001](docs/adr/0001-the-editor-reads-the-tree-and-never-writes-it.md)) — переложить участников в созданный им контейнер значило бы изменить проекцию, не изменив источник, и первая же пересборка документа вернула бы всё назад. Пометка живёт там же, где `Layout.X`/`Y` и `DesignInteraction`, и сохраняется тем же способом, каким приложение уже сохраняет координаты. Если группа нужна именно контейнером в разметке, её создаёт хост — он владеет деревом.
+Так решено не из экономии. Редактор не правит дерево контролов (см. [ADR 0001](docs/adr/0001-the-editor-reads-the-tree-and-never-writes-it.md)) — переложить участников в созданный им контейнер значило бы изменить проекцию, не изменив источник, и первая же пересборка документа вернула бы всё назад. Если группа нужна именно контейнером в разметке, её создаёт хост — он владеет деревом.
+
+**Где лежит пометка, решает приложение.** Редактор владеет смыслом группы, а местом хранения — тот, кто владеет документом: у группы нет читателя в рантайме, и записанная в разметку она делает документ зависимым от сборки редактора. Отсюда шов — см. [ADR 0002](docs/adr/0002-where-the-group-mark-lives-belongs-to-the-document-owner.md):
+
+```csharp
+editor.GroupStore = new DocumentGroupStore(document);   // IDesignGroupStore
+```
+
+Умолчание — `DesignGroupAttachedStore`, то самое attached-свойство: пометка лежит на контроле и пишется в разметке. Своё хранилище нужно тому, кто не хочет видеть её в исходнике; про чужие правки оно сообщает событием `GroupsChanged`, и редактор пересобирает по нему рамки.
 
 Отсюда правила, каждое закрыто тестом:
 

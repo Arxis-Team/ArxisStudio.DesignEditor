@@ -572,6 +572,11 @@ public partial class DesignEditor
 
     private readonly InputGestureBridge _inputGestureBridge;
 
+    /// <summary>
+    /// Ретранслятор изменений хранилища групп; заведён в конструкторе.
+    /// </summary>
+    private readonly GroupStoreBridge _groupStoreBridge;
+
     private void AttachInputGestures(DesignEditorInputGestures gestures) =>
         WeakEvents.AvaloniaPropertyChanged.Subscribe(gestures, _inputGestureBridge);
 

@@ -200,6 +200,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     avalonia ContainerInteractionModifiersProperty -> ContainerInteractionModifiers : KeyModifiers (direct)
     avalonia CursorsProperty -> Cursors : DesignEditorCursors (direct)
     avalonia DpiScaledViewportTransformProperty -> DpiScaledViewportTransform : Transform (styled) = <TransformGroup>
+    avalonia GroupStoreProperty -> GroupStore : IDesignGroupStore (direct)
     avalonia GuidePreviewProperty -> GuidePreview : Nullable<DesignGuide> (direct)
     avalonia GuidesProperty -> Guides : IEnumerable<DesignGuide> (styled) = null
     avalonia HasGroupSelectionProperty -> HasGroupSelection : Boolean (direct)
@@ -312,6 +313,7 @@ class ArxisStudio.DesignEditor : SelectingItemsControl
     property Double MinZoom { get; set; }
     property Double ViewportZoom { get; set; }
     property IDesignEditorContextPresenter ContextPresenter { get; set; }
+    property IDesignGroupStore GroupStore { get; set; }
     property IEnumerable<DesignGuide> Guides { get; set; }
     property IList SelectedItems { get; set; }
     property IList<IDesignEditorContextActionProvider> ContextActionProviders { get; }
@@ -492,6 +494,11 @@ sealed class ArxisStudio.DesignGeometryChange : DesignChange
     ctor .ctor(Control, Rect, Rect)
     property Rect NewBounds { get; }
     property Rect OldBounds { get; }
+sealed class ArxisStudio.DesignGroupAttachedStore
+    event EventHandler GroupsChanged
+    method String GetGroup(Control)
+    method Void SetGroup(Control, String)
+    property DesignGroupAttachedStore Default { get; }
 sealed class ArxisStudio.DesignGroupChange : DesignChange
     ctor .ctor(Control, String, String)
     property String NewId { get; }
@@ -594,3 +601,7 @@ interface ArxisStudio.IDesignEditorContextActionProvider
     method ValueTask<IReadOnlyList<DesignEditorContextAction>> GetActionsAsync(DesignEditor, DesignEditorContextRequest, CancellationToken)
 interface ArxisStudio.IDesignEditorContextPresenter
     method Boolean TryShow(DesignEditor, DesignEditorContextRequest, IReadOnlyList<DesignEditorContextAction>)
+interface ArxisStudio.IDesignGroupStore
+    event EventHandler GroupsChanged
+    method String GetGroup(Control)
+    method Void SetGroup(Control, String)

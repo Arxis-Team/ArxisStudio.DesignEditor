@@ -173,7 +173,7 @@ public partial class DesignEditor
         // согласованно со snapshot'ом выделения; глубина передаётся через Depth.
         var resolvedTarget = (Control?)bestMatch ?? container;
         var ownerItem = ResolveOwningItem(container) ?? container;
-        target = new DesignSelectionTarget(ownerItem, resolvedTarget);
+        target = new DesignSelectionTarget(ownerItem, resolvedTarget, _groupStore);
         return true;
     }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -108,6 +108,21 @@ public sealed class DesignSelectionTarget
     /// <param name="container">Контейнер, которому принадлежит выбранный target.</param>
     /// <param name="target">Выбранный visual target.</param>
     public DesignSelectionTarget(DesignEditorItem container, Control target)
+        : this(container, target, null)
+    {
+    }
+
+    /// <summary>
+    /// Инициализирует новый экземпляр с уже известным хранилищем групп.
+    /// </summary>
+    /// <param name="container">Контейнер, которому принадлежит выбранный target.</param>
+    /// <param name="target">Выбранный visual target.</param>
+    /// <param name="groupStore">Хранилище групп или <see langword="null"/>, чтобы найти его по дереву.</param>
+    /// <remarks>
+    /// Снимок выделения пересобирается на каждом кадре жеста, а редактор своё хранилище знает:
+    /// искать его подъёмом по дереву на каждый target значило бы платить за это в жесте.
+    /// </remarks>
+    internal DesignSelectionTarget(DesignEditorItem container, Control target, IDesignGroupStore? groupStore)
     {
         Container = container ?? throw new ArgumentNullException(nameof(container));
         Target = target ?? throw new ArgumentNullException(nameof(target));
@@ -121,8 +136,19 @@ public sealed class DesignSelectionTarget
 
         Depth = CalculateDepth(target);
         DisplayName = CreateDisplayName(target);
-        GroupId = Attached.DesignGroup.GetId(target);
+        GroupId = (groupStore ?? ResolveGroupStore(container)).GetGroup(target);
     }
+
+    /// <summary>
+    /// Находит хранилище групп у редактора, которому принадлежит контейнер.
+    /// </summary>
+    /// <remarks>
+    /// Публичный конструктор зовут снаружи — например панель, которой нужна одна подпись, — и
+    /// редактор там известен только по дереву. Контейнер вне дерева читается библиотечным
+    /// хранилищем: это ровно то, что было до появления шва.
+    /// </remarks>
+    private static IDesignGroupStore ResolveGroupStore(DesignEditorItem container) =>
+        container.FindAncestorOfType<DesignEditor>()?.GroupStore ?? DesignGroupAttachedStore.Default;
 
     /// <summary>
     /// Получает контейнер выбранного target.

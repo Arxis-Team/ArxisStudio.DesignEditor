@@ -1110,7 +1110,7 @@ public partial class DesignEditor
         var dedup = new HashSet<Control>();
 
         if (primaryItem != null && primaryControl != null && dedup.Add(primaryControl))
-            result.Add(new DesignSelectionTarget(primaryItem, primaryControl));
+            result.Add(new DesignSelectionTarget(primaryItem, primaryControl, _groupStore));
 
         var items = SelectedItems;
         if (items == null)
@@ -1130,7 +1130,7 @@ public partial class DesignEditor
                 if (!dedup.Add(target))
                     continue;
 
-                result.Add(new DesignSelectionTarget(container, target));
+                result.Add(new DesignSelectionTarget(container, target, _groupStore));
             }
         }
 

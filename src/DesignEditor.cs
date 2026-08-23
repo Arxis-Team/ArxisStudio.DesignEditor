@@ -158,6 +158,8 @@ public partial class DesignEditor : SelectingItemsControl
         // конструктор заводил второй и первый выбрасывал, а подписан оказывался
         // ровно один из двух — ошибиться в такой паре легко и молча.
         _inputGestureBridge = new InputGestureBridge(this);
+        _groupStoreBridge = new GroupStoreBridge(this);
+        AttachGroupStore(_groupStore);
         _containerInteractionModifiers = _inputGestures.ContainerInteractionModifiers;
         _additiveSelectionModifiers = _inputGestures.AdditiveSelectionModifiers;
         AttachInputGestures(_inputGestures);
