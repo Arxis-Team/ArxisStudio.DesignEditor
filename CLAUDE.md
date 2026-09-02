@@ -108,7 +108,23 @@ Avalonia UI **12.1.1**. `net8.0` у библиотеки — это минима
 
 Точная версия здесь была ошибкой, и она не «предупреждала о несовпадении», а ломала всё: `rollForward` катится вперёд, но не назад, поэтому на машине с 10.0.1xx при закреплённых 10.0.301 переставала работать любая команда `dotnet` в каталоге репозитория — не только сборка, но и `dotnet --version`.
 
-`.external/` содержит `nodify` и `nodify-avalonia` как справочный материал — они не входят в решение и не собираются.
+`.external/` — справочный материал: клоны [nodify](https://github.com/miroiu/nodify) и его
+порта на Avalonia. В решение они не входят, не собираются и **не отслеживаются** — каталог
+в `.gitignore`. Нужны — положить руками:
+
+```bash
+git clone https://github.com/miroiu/nodify .external/nodify
+```
+
+Отслеживались они ровно один раз и зря: `git add` попал на каталог, который сам является
+репозиторием, и git молча записал в индекс gitlink. Секции в `.gitmodules` при этом не
+появилось — файла здесь нет вовсе. Собственную сборку это не задевало, а рекурсивный клон
+головного ArxisStudio ломало наглухо, ещё и молча для того, кто правит DesignEditor:
+
+```
+fatal: No url found for submodule path '.external/nodify' in .gitmodules
+fatal: Failed to recurse into submodule path 'external/ArxisStudio.DesignEditor'
+```
 
 ### Упаковка
 
